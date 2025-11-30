@@ -898,7 +898,7 @@ static u8 mainThreadStack[32768];
 static OSThread mainThread;
 
 /* 80006454-800065D8 000D94 0184+00 0/0 1/1 0/0 .text            main */
-void main(int argc, const char* argv[]) {
+void game_main(int argc, const char* argv[]) {
     OSThread* current_thread = OSGetCurrentThread();
     u8* stack = mainThreadStack;
     mDoMain::sPowerOnTime = OSGetTime();

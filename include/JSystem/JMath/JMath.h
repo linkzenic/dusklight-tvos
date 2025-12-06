@@ -37,7 +37,7 @@ inline float __frsqrtes(__REGISTER double f) {
 #endif
 }
 
-inline f32 JMAFastSqrt(__REGISTER f32 input) {
+inline f32 JMAFastSqrt(__REGISTER const f32 input) {
 #ifdef __MWERKS__
     if (input > 0.0f) {
         __REGISTER f32 out;

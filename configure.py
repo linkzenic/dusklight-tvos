@@ -392,12 +392,18 @@ cflags_revolution_base = [
 cflags_revolution_retail = [
     *cflags_revolution_base,
     "-O4,p",
+    "-DNDEBUG=1",
+    "-DNDEBUG_DEFINED=1",
+    "-DDEBUG_DEFINED=0",
 ]
 
 cflags_revolution_debug = [
     *cflags_revolution_base,
     "-opt off",
+    "-inline off",
     "-DDEBUG=1",
+    "-DDEBUG_DEFINED=1",
+    "-DNDEBUG_DEFINED=0",
 ]
 
 # Framework flags
@@ -987,7 +993,7 @@ config.libs = [
             Object(MatchingFor(ALL_GCN), "JSystem/JStudio/JStudio_JStage/object-ambientlight.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JStudio/JStudio_JStage/object-camera.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JStudio/JStudio_JStage/object-fog.cpp"),
-            Object(NonMatching, "JSystem/JStudio/JStudio_JStage/object-light.cpp"),
+            Object(MatchingFor(ALL_GCN), "JSystem/JStudio/JStudio_JStage/object-light.cpp"),
         ],
     ),
     JSystemLib(
@@ -1008,7 +1014,7 @@ config.libs = [
         "JAudio2",
         [
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASCalc.cpp"),
-            Object(NonMatching, "JSystem/JAudio2/JASTaskThread.cpp"),
+            Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASTaskThread.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASDvdThread.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASCallback.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASHeapCtrl.cpp"),
@@ -1031,7 +1037,7 @@ config.libs = [
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASBasicWaveBank.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASSimpleWaveBank.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASWSParser.cpp"),
-            Object(NonMatching, "JSystem/JAudio2/JASBNKParser.cpp"), # missing bss var
+            Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASBNKParser.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASWaveArcLoader.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASChannel.cpp"),
             Object(MatchingFor(ALL_GCN), "JSystem/JAudio2/JASLfo.cpp"),
@@ -1106,7 +1112,7 @@ config.libs = [
             Object(Equivalent, "Z2AudioLib/Z2SceneMgr.cpp"), # weak func order
             Object(MatchingFor(ALL_GCN), "Z2AudioLib/Z2FxLineMgr.cpp"),
             Object(MatchingFor(ALL_GCN), "Z2AudioLib/Z2SoundInfo.cpp"),
-            Object(Equivalent, "Z2AudioLib/Z2Audience.cpp"), # weak func order
+            Object(MatchingFor(ALL_GCN), "Z2AudioLib/Z2Audience.cpp"),
             Object(MatchingFor(ALL_GCN), "Z2AudioLib/Z2SoundObject.cpp"),
             Object(MatchingFor(ALL_GCN), "Z2AudioLib/Z2SoundObjMgr.cpp"),
             Object(MatchingFor(ALL_GCN), "Z2AudioLib/Z2Creature.cpp"),
@@ -1497,6 +1503,52 @@ config.libs = [
             Object(MatchingFor("ShieldD"), "revolution/os/__ppc_eabi_init.cpp"),
         ],
     ),
+    RevolutionLib(
+        "dvd",
+        [
+            Object(NonMatching, "revolution/dvd/dvdfs.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvd.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvdqueue.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvderror.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvdidutils.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvdFatal.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvdDeviceError.c", extra_cflags=["-char signed"]),
+            Object(NonMatching, "revolution/dvd/dvd_broadway.c", extra_cflags=["-char signed"]),
+        ],
+    ),
+    RevolutionLib(
+        "nand",
+        [
+            Object(NonMatching, "revolution/nand/nand.c"),
+            Object(NonMatching, "revolution/nand/NANDOpenClose.c"),
+            Object(NonMatching, "revolution/nand/NANDCore.c"),
+            Object(NonMatching, "revolution/nand/NANDCheck.c"),
+            Object(NonMatching, "revolution/nand/NANDLogging.c"),
+            Object(NonMatching, "revolution/nand/NANDErrorMessage.c"),
+        ],
+    ),
+    RevolutionLib(
+        "fs",
+        [
+            Object(NonMatching, "revolution/fs/fs.c"),
+        ],
+    ),
+    RevolutionLib(
+        "ipc",
+        [
+            Object(NonMatching, "revolution/ipc/ipcMain.c"),
+            Object(NonMatching, "revolution/ipc/ipcclt.c"),
+            Object(NonMatching, "revolution/ipc/memory.c"),
+            Object(NonMatching, "revolution/ipc/ipcProfile.c"),
+        ],
+    ),
+    RevolutionLib(
+        "pad",
+        [
+            Object(NonMatching, "revolution/pad/Padclamp.c"),
+            Object(NonMatching, "revolution/pad/Pad.c"),
+        ],
+    ),
     {
         "lib": "Runtime.PPCEABI.H",
         "mw_version": MWVersion(config.version),
@@ -1680,7 +1732,7 @@ config.libs = [
             ),
         ],
     },
-    Rel("f_pc_profile_lst", [Object(Matching, "f_pc/f_pc_profile_lst.cpp")]),
+    Rel("f_pc_profile_lst", [Object(MatchingFor(ALL_GCN, "Shield", "ShieldD"), "f_pc/f_pc_profile_lst.cpp")]),
     ActorRel(MatchingFor(ALL_GCN), "d_a_andsw"),
     ActorRel(MatchingFor(ALL_GCN), "d_a_bg"),
     ActorRel(MatchingFor(ALL_GCN), "d_a_bg_obj"),
@@ -1966,7 +2018,7 @@ config.libs = [
     ActorRel(Equivalent, "d_a_npc_ash"), # weak func order (sinShort)
     ActorRel(Equivalent, "d_a_npc_ashB"), # weak func order (sinShort)
     ActorRel(MatchingFor(ALL_GCN), "d_a_npc_bans"),
-    ActorRel(NonMatching, "d_a_npc_blue_ns"),
+    ActorRel(MatchingFor(ALL_GCN), "d_a_npc_blue_ns"),
     ActorRel(MatchingFor(ALL_GCN), "d_a_npc_bou"),
     ActorRel(Equivalent, "d_a_npc_bouS"), # weak func order (sinShort)
     ActorRel(Equivalent, "d_a_npc_cdn3"), # weak func order (~csXyz); vtable order

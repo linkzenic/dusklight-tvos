@@ -1,7 +1,7 @@
 #include "d/dolzel.h" // IWYU pragma: keep
 
 #include "d/d_kankyo.h"
-#include <dolphin.h>
+#include <dolphin/dolphin.h>
 #include <dolphin/gf/GFPixel.h>
 
 #include "JSystem/JHostIO/JORFile.h"
@@ -8669,8 +8669,8 @@ static int dKy_Create(void* i_this) {
 
     #if DEBUG
     if (strcmp(dComIfGp_getStartStageName(), "T_SASA0") == 0) {
-        dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[142]);
-        dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[167]);
+        dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[142]);
+        dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[167]);
     }
     #endif
 

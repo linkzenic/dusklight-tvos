@@ -218,7 +218,17 @@ int daSCannon_c::draw() {
 
     if (mDrawShadow) {
         cXyz sp8(current.pos.x, current.pos.y, current.pos.z);
-        mShadowKey = dComIfGd_setShadow(mShadowKey, 1, mpModels[mIsRepaired], &sp8, 2500.0f, 0.0f, current.pos.y + aREG_F(1), mGroundY + aREG_F(3), mGroundPoly, &tevStr, 0, 1.0f, dDlst_shadowControl_c::getSimpleTex());
+#if DEBUG
+        mShadowKey = dComIfGd_setShadow(mShadowKey, 1, mpModels[mIsRepaired], &sp8, 2500.0f, 0.0f,
+                                        current.pos.y + aREG_F(1), mGroundY + aREG_F(3),
+                                        mGroundPoly, &tevStr, 0, 1.0f,
+                                        dDlst_shadowControl_c::getSimpleTex());
+#else
+        mShadowKey = dComIfGd_setShadow(mShadowKey, 1, mpModels[mIsRepaired], &sp8, 2500.0f, 0.0f,
+                                        current.pos.y, mGroundY,
+                                        mGroundPoly, &tevStr, 0, 1.0f,
+                                        dDlst_shadowControl_c::getSimpleTex());
+#endif
     }
 
     return 1;
@@ -353,7 +363,7 @@ void daSCannon_c::middleExe() {
 void daSCannon_c::orderEvtInit() {
     eventInfo.setArchiveName(l_arcName_Zev);
     mEvtIdx = dComIfGp_getEventManager().getEventIdx(this, l_eventName[mDemoType], 0xFF);
-#ifdef DEBUG
+#if DEBUG
     if (mEvtIdx == -1) {
         // "××××××××××××× Sky Cannon d_a_obj_scannon.cpp: Failed to get event\n"
         OS_REPORT("×××××××××××××天空砲台 d_a_obj_scannon.cpp：イベント取得失敗\n");
@@ -603,7 +613,7 @@ void daSCannon_c::demoExeFire() {
 }
 
 void daSCannon_c::demoInitFinish() {
-#ifdef DEBUG
+#if DEBUG
     if (dComIfG_play_c::getLayerNo(0) == 3 || dComIfG_play_c::getLayerNo(0) == 10) {
         J3DJoint* joint_p = mpModels[mIsRepaired]->getModelData()->getJointNodePointer(mHeadJointNo);
         if (joint_p == NULL) {

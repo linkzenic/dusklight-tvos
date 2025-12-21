@@ -4,6 +4,13 @@
 #include "d/actor/d_a_npc.h"
 
 class daNpc_ykW_HIO_c;
+class daNpc_ykW_Param_c;
+
+#if DEBUG
+#define NPC_YKW_HIO_CLASS daNpc_ykW_HIO_c
+#else
+#define NPC_YKW_HIO_CLASS daNpc_ykW_Param_c
+#endif
 
 /**
  * @ingroup actors-npcs
@@ -68,9 +75,7 @@ public:
     int walk(void*);
     int race(void*);
     int talk(void*);
-#if DEBUG
     int test(void*);
-#endif
     daNpc_ykW_c(const daNpcT_faceMotionAnmData_c * param_0,
                                const daNpcT_motionAnmData_c* param_1,
                                const daNpcT_MotionSeqMngr_c::sequenceStepData_c* param_2,
@@ -139,7 +144,7 @@ public:
         field_0x101c = 10;
     }
 
-    /* 0x0E40 */ daNpc_ykW_HIO_c* mpHIO;
+    /* 0x0E40 */ NPC_YKW_HIO_CLASS* mpHIO;
     /* 0x0E44 */ dCcD_Cyl mCyl;
     /* 0x0F80 */ u8 field_0xf80;
     /* 0x0F84 */ daNpcT_ActorMngr_c mActorMngrs[5];

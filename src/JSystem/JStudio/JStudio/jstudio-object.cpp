@@ -73,12 +73,16 @@ void JStudio::TVariableValue::update_immediate_(JStudio::TVariableValue* param_0
 }
 
 void JStudio::TVariableValue::update_time_(JStudio::TVariableValue* param_0, f64 param_1) {
-    param_0->mValue = param_0->field_0xc.val * (param_0->field_0x4 * param_1);
+    f64 v = param_0->field_0xc.val * (param_0->field_0x4 * param_1);
+    param_0->mValue = v;
 }
 
 void JStudio::TVariableValue::update_functionValue_(JStudio::TVariableValue* param_0,
                                                         f64 param_1) {
-    param_0->mValue = param_0->field_0xc.fv->getValue(param_0->field_0x4 * param_1);
+
+    TFunctionValue *fv = param_0->field_0xc.fv;
+    f64 v = fv->getValue(param_0->field_0x4 * param_1);
+    param_0->mValue = v;
 }
 
 JStudio::TVariableValue::TOutput_none_::~TOutput_none_() {}
@@ -182,7 +186,7 @@ void JStudio::TAdaptor::adaptor_setVariableValue_n(JStudio::TControl* pControl,
     JGadget::TEnumerator<const u32*> enumerator(param_2, param_2 + param_3);
     while (enumerator) {
         (*pcVar6)(this, pControl, **enumerator, param_5, iVar7);
-        param_5 = (const void*)((int)param_5 + iVar7);
+        param_5 = (const void*)((intptr_t)param_5 + iVar7);
     }
 }
 

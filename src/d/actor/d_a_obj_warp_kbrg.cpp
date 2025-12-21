@@ -127,7 +127,7 @@ int daObjWarpKBrg_c::Create() {
             }
         }
 
-        #ifdef DEBUG
+        #if DEBUG
         if (mEffJointNo == 0xFFFF) {
             // "Kakariko Bridge: joint effect_p not found"
             OSReport_Error("カカリコ橋；ジョイント effect_p が見つかりませんでした\n");
@@ -202,7 +202,7 @@ int daObjWarpKBrg_c::CreateHeap() {
             return 0;
         }
 
-        #if VERSION == VERSION_SHIELD_DEBUG
+        #if DEBUG
         pbrk = (J3DAnmTevRegKey*)dComIfG_getObjectRes(l_arcName[getNameArg()], 15);
         JUT_ASSERT(463, pbrk != NULL);
         #endif
@@ -256,7 +256,7 @@ int daObjWarpKBrg_c::create1st() {
 }
 
 int daObjWarpKBrg_c::Execute(Mtx** param_0) {
-    #if VERSION == VERSION_SHIELD_DEBUG
+    #if DEBUG
     calcMidnaWaitPos();
     #endif
 

@@ -27,7 +27,7 @@ static int daKytag14_Execute(kytag14_class* i_this) {
     }
 
     if (i_this->mEventID1 != 0xFFFF) {
-        if (dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[i_this->mEventID1])) {
+        if (dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[i_this->mEventID1])) {
             event1_set = true;
         } else {
             event1_set = false;
@@ -35,7 +35,7 @@ static int daKytag14_Execute(kytag14_class* i_this) {
     }
 
     if (i_this->mEventID2 != 0xFFFF) {
-        if (!dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[i_this->mEventID2])) {
+        if (!dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[i_this->mEventID2])) {
             event2_unset = true;
         } else {
             event2_unset = false;
@@ -60,7 +60,7 @@ static int daKytag14_Execute(kytag14_class* i_this) {
 
     if (event1_set == true && event2_unset == true && switch1_set == true && switch2_unset == true)
     {
-        #ifdef DEBUG
+        #if DEBUG
         if (!g_kankyoHIO.navy.display_save_location) {
             dDbVw_Report(20, 16, "TAG SavMem STAGE[%s] Room[%d] Lp[%d]", dComIfGp_getStartStageName(), i_this->mSaveRoomNo, i_this->mSavePoint);
             if (i_this->mSaveRoomNo == -1) {

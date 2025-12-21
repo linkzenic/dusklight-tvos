@@ -3,7 +3,7 @@
 
 #include "dolphin/os.h"
 
-#ifdef DEBUG
+#if DEBUG
 #define JUT_SHOW_ASSERT(LINE, COND) JUTAssertion::showAssert(JUTAssertion::getSDevice(), __FILE__, LINE, #COND)
 
 #define JUT_ASSERT(LINE, COND) \
@@ -20,6 +20,10 @@
 #define JUT_PANIC(LINE, TEXT)                                                                      \
     JUTAssertion::showAssert(JUTAssertion::getSDevice(), __FILE__, LINE, TEXT);                    \
     OSPanic(__FILE__, LINE, "Halt");
+
+#define JUT_PANIC_F(LINE, MSG, ...)                                                               \
+    JUTAssertion::showAssert_f(JUTAssertion::getSDevice(), __FILE__, LINE, MSG, __VA_ARGS__);        \
+    OSPanic(__FILE__, LINE, MSG, __VA_ARGS__);
 
 #define JUT_WARN_DEVICE(LINE, DEVICE, ...)                                                                        \
     JUTAssertion::setWarningMessage_f(DEVICE, __FILE__, LINE, __VA_ARGS__);    \
@@ -42,8 +46,9 @@
 #define JUT_ASSERT_MSG_F(...) (void)0;
 #define J3D_PANIC(...) (void)0;
 #define JUT_PANIC(...)
-#define JUT_WARN(...)
+#define JUT_PANIC_F(...)
 #define JUT_WARN_DEVICE(...)
+#define JUT_WARN(...)
 #define JUT_LOG(...)
 #define JUT_CONFIRM(...)
 #endif
@@ -57,11 +62,14 @@ namespace JUTAssertion {
     void setMessageCount(int);
 
     u32 getSDevice();
-    void showAssert(u32 device, const char * file, int line, const char * assertion);
     void showAssert_f(u32 device, const char* file, int line, const char* msg, ...);
     void setWarningMessage_f(u32 device, char * file, int line, const char * fmt, ...);
     void setLogMessage_f(u32 device, char* file, int line, const char* fmt, ...);
     void setConfirmMessage(u32 param_1, char* file, int line, bool param_4, const char* msg);
+
+    inline void showAssert(u32 device, const char* file, int line, const char* msg) {
+        showAssert_f(device, file, line, "%s", msg);
+    }
 };
 
 extern bool sAssertVisible;

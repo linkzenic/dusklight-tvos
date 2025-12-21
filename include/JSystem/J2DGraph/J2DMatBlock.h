@@ -2,6 +2,7 @@
 #define J2DMATBLOCK_H
 
 #include "JSystem/J2DGraph/J2DTevs.h"
+#include "JSystem/JUtility/JUTAssert.h"
 #include "JSystem/JUtility/TColor.h"
 
 class JUTFont;
@@ -18,19 +19,37 @@ struct ResTLUT;
  */
 struct J2DGXColorS10 : public GXColorS10 {
     J2DGXColorS10() {}
+    
+#if PLATFORM_GCN && __MWERKS__
+    J2DGXColorS10(J2DGXColorS10& other) {
+        r = other.r;
+        g = other.g;
+        b = other.b;
+        a = other.a;
+    }
+    
+    J2DGXColorS10(GXColorS10& other) {
+        r = other.r;
+        g = other.g;
+        b = other.b;
+        a = other.a;
+    }
+#else
     J2DGXColorS10(const J2DGXColorS10& other) {
         r = other.r;
         g = other.g;
         b = other.b;
         a = other.a;
     }
+    
     J2DGXColorS10(const GXColorS10& other) {
         r = other.r;
         g = other.g;
         b = other.b;
         a = other.a;
     }
-
+#endif
+    
     J2DGXColorS10& operator=(const GXColorS10& other) {
         r = other.r;
         g = other.g;
@@ -117,6 +136,7 @@ public:
     }
     virtual J2DTevOrder* getTevOrder(u32 index) { return &mTevOrder[index]; }
     virtual void setTevColor(u32 index, J2DGXColorS10 color) {
+        J3D_PANIC(250, index < 4, "Error : range over.");
         mTevColor[index] = color;
     }
     virtual J2DGXColorS10* getTevColor(u32 index) { return &mTevColor[index]; }
@@ -212,6 +232,7 @@ public:
     }
     virtual J2DTevOrder* getTevOrder(u32 index) { return &mTevOrder[index]; }
     virtual void setTevColor(u32 index, J2DGXColorS10 color) {
+        J3D_PANIC(360, index < 4, "Error : range over.");
         mTevColor[index] = color;
     }
     virtual J2DGXColorS10* getTevColor(u32 index) { return &mTevColor[index]; }
@@ -309,6 +330,7 @@ public:
     }
     virtual J2DTevOrder* getTevOrder(u32 index) { return &mTevOrder[index]; }
     virtual void setTevColor(u32 index, J2DGXColorS10 color) {
+        J3D_PANIC(468, index < 4, "Error : range over.");
         mTevColor[index] = color;
     }
     virtual J2DGXColorS10* getTevColor(u32 index) { return &mTevColor[index]; }
@@ -406,6 +428,7 @@ public:
     }
     virtual J2DTevOrder* getTevOrder(u32 index) { return &mTevOrder[index]; }
     virtual void setTevColor(u32 index, J2DGXColorS10 color) {
+        J3D_PANIC(579, index < 4, "Error : range over.");
         mTevColor[index] = color;
     }
     virtual J2DGXColorS10* getTevColor(u32 index) { return &mTevColor[index]; }
@@ -504,6 +527,7 @@ public:
     }
     virtual J2DTevOrder* getTevOrder(u32 index) { return &mTevOrder[index]; }
     virtual void setTevColor(u32 index, J2DGXColorS10 color) {
+        J3D_PANIC(691, index < 4, "Error : range over.");
         mTevColor[index] = color;
     }
     virtual J2DGXColorS10* getTevColor(u32 index) { return &mTevColor[index]; }
@@ -613,6 +637,11 @@ struct J2DAlphaComp {
         mAlphaCmp = J2DCalcAlphaCmp(info.field_0x0, info.mRef0, info.mRef1);
         mRef0 = info.field_0x1;
         mRef1 = info.field_0x4;
+    }    
+    void operator=(const J2DAlphaComp& other) {
+        mAlphaCmp = other.mAlphaCmp;
+        mRef0 = other.mRef0;
+        mRef1 = other.mRef1;
     }
     u8 getComp0() { return mAlphaCmp >> 5 & 7; }
     u8 getRef0() { return mRef0; }

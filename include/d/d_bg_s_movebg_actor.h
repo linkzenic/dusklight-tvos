@@ -2,6 +2,7 @@
 #define D_BG_D_BG_S_MOVEBG_ACTOR_H
 
 #include "f_op/f_op_actor.h"
+#include "SSystem/SComponent/c_bg_s_poly_info.h"
 
 class dBgW;
 typedef void (*MoveBGActor_SetFunc)(dBgW*, void*, cBgS_PolyInfo const&, bool, cXyz*, csXyz*,
@@ -20,7 +21,10 @@ public:
     int MoveBGExecute();
 
     int MoveBGDraw() { return Draw(); }
-    int MoveBGIsDelete() { return IsDelete(); }
+    int MoveBGIsDelete() {
+        BOOL b = IsDelete();
+        return b;
+    }
 
     virtual int CreateHeap();
     virtual int Create();

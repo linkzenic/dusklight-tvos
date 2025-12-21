@@ -63,13 +63,19 @@ public:
     }
     virtual ~J2DAnmVtxColor() {}
     virtual void getColor(u8, u16, _GXColor*) const {}
-    u16 getAnmTableNum(u8 param_0) const { return mAnmTableNum[param_0]; }
+    u16 getAnmTableNum(u8 param_0) const {
+        J3D_PANIC(342, param_0 < 2, "Error : range over.");
+        return mAnmTableNum[param_0];
+    }
     J3DAnmVtxColorIndexData* getAnmVtxColorIndexData(u8 param_1, u16 param_2) const {
         J3D_PANIC(344, param_1 < 2, "Error : range over.");
         J3D_PANIC(345, param_2 < mAnmTableNum[param_1], "Error : range over.");
         return &mVtxColorIndexData[param_1][param_2];
     }
-    u16* getVtxColorIndexPointer(u8 param_0) const { return mVtxColorIndexPointer[param_0]; }
+    u16* getVtxColorIndexPointer(u8 param_0) const {
+        J3D_PANIC(351, param_0 < 2, "Error : range over.");
+        return mVtxColorIndexPointer[param_0];
+    }
 
     /* 0x10 */ u16 mAnmTableNum[2];
     /* 0x14 */ J3DAnmVtxColorIndexData* mVtxColorIndexData[2];
@@ -479,26 +485,26 @@ inline f32 J2DHermiteInterpolation<f32>(f32 f1, f32* f2, f32* f3, f32* f4, f32* 
 }
 
 template <>
-inline f32 J2DHermiteInterpolation<s16>(register f32 pp1, register s16* pp2, register s16* pp3,
-                                        register s16* pp4, register s16* pp5, register s16* pp6,
-                                        register s16* pp7) {
+inline f32 J2DHermiteInterpolation<s16>(__REGISTER f32 pp1, __REGISTER s16* pp2, __REGISTER s16* pp3,
+                                        __REGISTER s16* pp4, __REGISTER s16* pp5, __REGISTER s16* pp6,
+                                        __REGISTER s16* pp7) {
 #ifdef __MWERKS__
-    register f32 p1 = pp1;
-    register f32 ff8;
-    register f32 ff7;
-    register f32 ff6;
-    register f32 ff5;
-    register f32 ff4;
-    register f32 ff3;
-    register f32 ff2;
-    register f32 ff0;
-    register f32 fout;
-    register s16* p2 = pp2;
-    register s16* p3 = pp3;
-    register s16* p4 = pp4;
-    register s16* p5 = pp5;
-    register s16* p6 = pp6;
-    register s16* p7 = pp7;
+    __REGISTER f32 p1 = pp1;
+    __REGISTER f32 ff8;
+    __REGISTER f32 ff7;
+    __REGISTER f32 ff6;
+    __REGISTER f32 ff5;
+    __REGISTER f32 ff4;
+    __REGISTER f32 ff3;
+    __REGISTER f32 ff2;
+    __REGISTER f32 ff0;
+    __REGISTER f32 fout;
+    __REGISTER s16* p2 = pp2;
+    __REGISTER s16* p3 = pp3;
+    __REGISTER s16* p4 = pp4;
+    __REGISTER s16* p5 = pp5;
+    __REGISTER s16* p6 = pp6;
+    __REGISTER s16* p7 = pp7;
     // clang-format off
     asm {
         psq_l ff2, 0(p2), 0x1, 5

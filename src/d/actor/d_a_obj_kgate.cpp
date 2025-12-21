@@ -52,7 +52,7 @@ static u32 const l_gate_heap[] = {0x1940, 0x1940, 0x1940};
 
 static u32 const l_key_heap[] = {0x1000, 0x1000, 0x1000};
 
-static Vec const l_cull_box[] = {
+static cull_box const l_cull_box = {
     {-300.0f, 0.0f, -350.0f},
     {300.0f, 450.0f, 350.0f},
 };
@@ -255,13 +255,11 @@ int daObjKGate_c::Create() {
         }
     }
 
-    fopAcM_setCullSizeBox(this, l_cull_box[0].x, l_cull_box[0].y, l_cull_box[0].z, l_cull_box[1].x,
-                          l_cull_box[1].y, l_cull_box[1].z);
+    fopAcM_setCullSizeBox(this, l_cull_box.min.x, l_cull_box.min.y, l_cull_box.min.z, l_cull_box.max.x,
+                          l_cull_box.max.y, l_cull_box.max.z);
 
     if (dComIfG_Bgsp().Regist(mpBgW, this)) {
-#ifdef DEBUG
-        OSReport_Error("キコルの門：ＢＧ登録失敗しました\n");
-#endif
+        OS_REPORT_ERROR("キコルの門：ＢＧ登録失敗しました\n");
         return 0;
     }
 
@@ -336,7 +334,7 @@ int daObjKGate_c::create1st() {
         phase_state =
             MoveBGCreate(l_arcName[mNameArg], l_gateDzbIdx[mNameArg], NULL, heap_size, NULL);
         if (phase_state == cPhs_ERROR_e) {
-#ifdef DEBUG
+#if DEBUG
             OSReport("KGATE PARAM:%x\n", fopAcM_GetParam(this));
 #endif
             return phase_state;
@@ -872,7 +870,7 @@ void daObjKGate_c::demoProc() {
 
     if (dComIfGp_evmng_getIsAddvance(mStaffID)) {
         switch (demo_action) {
-        case DEMO_ACT_WAIT:
+        case DEMO_ACT_WAIT: {
             int* timer_p = dComIfGp_evmng_getMyIntegerP(mStaffID, "Timer");
             if (timer_p == NULL) {
                 mTimer = 1;
@@ -880,6 +878,7 @@ void daObjKGate_c::demoProc() {
                 mTimer = *timer_p;
             }
             break;
+        }
         case DEMO_ACT_OPEN:
             mGateLMove = 1000;
             mGateRMove = -1000;
@@ -955,9 +954,7 @@ int daObjKGate_c::Draw() {
 int daObjKGate_c::Delete() {
     if (mpBgW != NULL && mpBgW->ChkUsed()) {
         if (dComIfG_Bgsp().Release(mpBgW)) {
-#ifdef DEBUG
-            OSReport("Release Error\n");
-#endif
+            OS_REPORT("Release Error\n");
         }
     }
 

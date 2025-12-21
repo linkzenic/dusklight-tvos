@@ -522,7 +522,7 @@ void daKago_c::demo_skip(int param_0) {
         setPlayerRideOn();
         field_0x718 = field_0x71a = 0;
         /* dSv_event_flag_c::M_051 - Main Event - Shadow Kargorok (?) (Large) event complete (Horse grass appears in various places) */
-        dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[84]);
+        dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[84]);
         field_0x748 = 7;
         field_0x74c = NULL;
         break;
@@ -3214,11 +3214,15 @@ void daKago_c::moveDemoFly() {
                 field_0x6c4 = 8000.0f;
                 field_0x710 = field_0x712 = 0;
 
+#if VERSION == VERSION_WII_USA_R0
+                field_0x72c = 30;
+#else
                 if (dComIfGp_getStartStagePoint() == 0) {
                     field_0x72c = 30;
                 } else {
                     field_0x72c = 60 + nREG_S(1);
                 }
+#endif
 
                 shape_angle.y = current.angle.y;
 

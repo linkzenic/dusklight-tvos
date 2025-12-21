@@ -1,10 +1,8 @@
-#ifdef DEBUG
 #include "d/dolzel.h" // IWYU pragma: keep
 
 #include "d/d_event_debug.h"
 #include "JSystem/JHostIO/JORFile.h"
-#include "JSystem/JHostIO/JORMContext.h"
-#include "JSystem/JHostIO/JORReflexible.h"
+#include "JSystem/JHostIO/JORServer.h"
 #include "d/actor/d_a_player.h"
 #include "m_Do/m_Do_controller_pad.h"
 
@@ -447,5 +445,3 @@ char* dEvDb_flag_base_c::searchDirNameReg(int bit) {
 
     return NULL;
 }
-
-#endif

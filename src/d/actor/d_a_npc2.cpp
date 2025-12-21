@@ -1,5 +1,7 @@
 #include "d/actor/d_a_npc.h"
 #include "d/actor/d_a_npc2.h"
+#include "d/d_bg_w.h"
+#include "d/d_debug_viewer.h"
 
 static s32 daBaseNpc_chkPnt(cXyz param_0, dPnt* param_1, u16 param_2, u16 param_3, int param_4, int param_5);
 static u16 daBaseNpc_putNurbs(dPnt* i_CPnts, int i_CPntNum, int i_maxPntNum, dPnt* o_curve_p, BOOL i_isClosed);
@@ -273,7 +275,6 @@ void daBaseNpc_lookat_c::limitter(s16 i_value, s16* o_value_p, s16 i_max, s16 i_
     *o_value_p = 0;
 }
 
-// NONMATCHING - regalloc, equivalent ? (matches debug)
 void daBaseNpc_lookat_c::calc(fopAc_ac_c* param_0, Mtx param_1, s16 param_2) {
     if (mpAttnPos == NULL) {
         for (int i = 0; i < 4; i++) {
@@ -333,6 +334,7 @@ void daBaseNpc_lookat_c::calc(fopAc_ac_c* param_0, Mtx param_1, s16 param_2) {
     csXyz sp2C;
     cXyz sp94;
     cXyz sp88;
+    s16 sp16, sp14, sp12, sp10;
 
     for (int i = 2; i >= -1; i--) {
         sp2C = csXyz::Zero;
@@ -366,7 +368,6 @@ void daBaseNpc_lookat_c::calc(fopAc_ac_c* param_0, Mtx param_1, s16 param_2) {
 
                 if (!sp88.isZero()) {
                     sp88.normalize();
-                    s16 sp16, sp14, sp12, sp10;
                     sp16 = -cM_atan2s(sp94.y, sp94.absXZ());
                     sp12 = cM_atan2s(sp94.x, sp94.z);
                     sp14 = -cM_atan2s(sp88.y, sp88.absXZ());
@@ -752,7 +753,7 @@ int daBaseNpc_moveBgActor_c::MoveBGCreate(char const* i_arcName, int i_dzbId, Mo
         return cPhs_ERROR_e;
     }
 
-#ifdef DEBUG
+#if DEBUG
     if (mpBgw != NULL && mpBgw->ChkUsed()) {
         BOOL isConnect = mDoCPd_c::isConnect(PAD_3);
         if (isConnect) {

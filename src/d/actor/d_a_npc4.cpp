@@ -394,14 +394,13 @@ void daNpcF_Lookat_c::calc(fopAc_ac_c* i_actor, Mtx i_baseTransformMtx, csXyz** 
     }
 }
 
-// NONMATCHING - regalloc, matches debug
 void daNpcF_Lookat_c::adjustMoveDisAngle(s16& delta, s16 angle, s16 min, s16 max) {
     int newAngle = 0;
 
     newAngle = angle + delta;
     if (max < newAngle) {
         if (angle < max) {
-            delta -= (newAngle - max);
+            delta = delta - (newAngle - max);
         } else {
             delta = 0;
         }
@@ -410,7 +409,7 @@ void daNpcF_Lookat_c::adjustMoveDisAngle(s16& delta, s16 angle, s16 min, s16 max
     newAngle = angle + delta;
     if (newAngle < min) {
         if (min < angle) {
-            delta -= (newAngle - min);
+            delta = delta - (newAngle - min);
         } else {
             delta = 0;
         }
@@ -448,7 +447,7 @@ void daNpcF_Lookat_c::initCalc(fopAc_ac_c* i_actor, Mtx i_baseTransformMtx, cXyz
         param_3[i].setall(0);
         param_3[i].x = -cM_atan2s(local_90.y, local_90.absXZ());
 
-        #ifdef DEBUG
+        #if DEBUG
         if (i_debug) {
             f32 var_f31 = fabsf(cM_ssin(param_3[i].x));
             OS_REPORT(">>>>>>>%d: sin(%d):%f\n", i, abs(param_3[i].x), var_f31);
@@ -1849,11 +1848,11 @@ s16 daNpcF_getGroundAngle(cBgS_PolyInfo* param_0, s16 param_1) {
 }
 
 BOOL daNpcF_chkEvtBit(u32 i_no) {
-    return dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[i_no]);
+    return dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[i_no]);
 }
 
 void daNpcF_onEvtBit(u32 i_no) {
-    dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[i_no]);
+    dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[i_no]);
 }
 
 BOOL daNpcF_chkTmpBit(u32 i_no) {
@@ -1906,9 +1905,9 @@ BOOL daNpcF_chkDoBtnEqSpeak(fopAc_ac_c* i_actor_p) {
             if (dComIfGp_getAttention()->LockonTarget(i) == i_actor_p &&
                 dComIfGp_getAttention()->getActionBtnB() &&
                 (dComIfGp_getAttention()->getActionBtnB()->mType == fopAc_attn_TALK_e
-#if DEBUG
+                #if !PLATFORM_GCN
                 || dComIfGp_getAttention()->getActionBtnB()->mType == fopAc_attn_UNK_4
-#endif
+                #endif
                 ))
             {
                 ret = TRUE;
@@ -2132,16 +2131,8 @@ void daNpcF_clearMessageTmpBit() {
 }
 
 // TODO: dummy to generate weak functions, proper fix later
-static void dummyVirtual(daNpcF_MoveBgActor_c* dummy) {
-    dummy->~daNpcF_MoveBgActor_c();
-    dummy->CreateHeap();
-    dummy->Create();
-    dummy->Execute(NULL);
-    dummy->Draw();
-    dummy->Delete();
-    dummy->IsDelete();
-    dummy->ToFore();
-    dummy->ToBack();
+static void dummyVirtual() {
+    daNpcF_MoveBgActor_c dummy;
 }
 
 dCcD_SrcGObjInf const daBaseNpc_c::mCcDObj = {

@@ -1,7 +1,7 @@
 #ifndef JORMCONTEXT_H
 #define JORMCONTEXT_H
 
-#include <dolphin.h>
+#include <dolphin/dolphin.h>
 #include <stdint.h>
 #include "JSystem/JHostIO/JORReflexible.h"
 #include "JSystem/JSupport/JSUMemoryStream.h"
@@ -27,44 +27,53 @@
 #define MCTX_COMMAND_INVALID_NODE (u32)7
 #define MCTX_COMMAND_UPDATE_CONTROL (u32)8
 
+#define JORM_DEFAULT_WIDTH 0x200
+#define JORM_DEFAULT_HEIGHT 0x18
+
 #define DEFINE_GEN_CHECKBOX(T, kind)                                                               \
-    void genCheckBox(const char* label, T* pSrc, T mask, u32 style, JOREventListener* pListener,   \
-                     u16 posX, u16 posY, u16 width, u16 height) {                                  \
+    void genCheckBox(const char* label, T* pSrc, T mask, u32 style = 0,                            \
+                     JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,             \
+                     u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT) {           \
         genCheckBoxSub(kind, label, (uintptr_t)pSrc, style, *pSrc, mask, pListener, posX, posY,    \
                        width, height);                                                             \
     }
 
 #define DEFINE_GEN_CHECKBOX_ID(T, kind)                                                            \
-    void genCheckBoxID(const char* label, u32 id, T mask, T initValue, u32 style,                  \
-                       JOREventListener* pListener, u16 posX, u16 posY, u16 width, u16 height) {   \
+    void genCheckBoxID(const char* label, u32 id, T mask, T initValue, u32 style = 0,              \
+                       JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,           \
+                       u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT) {         \
         genCheckBoxSub(kind, label, id, style, initValue, mask, pListener, posX, posY, width,      \
                        height);                                                                    \
     }
 
 #define DEFINE_GEN_SLIDER(T, kind)                                                                 \
-    void genSlider(const char* label, T* pSrc, T rangeMin, T rangeMax, u32 style,                  \
-                   JOREventListener* pListener, u16 posX, u16 posY, u16 width, u16 height) {       \
+    void genSlider(const char* label, T* pSrc, T rangeMin, T rangeMax, u32 style = 0,              \
+                   JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,               \
+                   u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT) {             \
         genSliderSub(kind, label, (uintptr_t)pSrc, style, *pSrc, rangeMin, rangeMax, pListener,    \
                      posX, posY, width, height);                                                   \
     }
 
 #define DEFINE_GEN_SLIDER_ID(T, kind)                                                              \
-    void genSliderID(const char* label, u32 id, T data, T rangeMin, T rangeMax, u32 style,         \
-                     JOREventListener* pListener, u16 posX, u16 posY, u16 width, u16 height) {     \
+    void genSliderID(const char* label, u32 id, T data, T rangeMin, T rangeMax, u32 style = 0,     \
+                     JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,             \
+                     u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT) {           \
         genSliderSub(kind, label, id, style, data, rangeMin, rangeMax, pListener, posX, posY,      \
                      width, height);                                                               \
     }
 
 #define DEFINE_START_COMBO_BOX(T, kind)                                                            \
-    void startComboBox(const char* label, T* pSrc, u32 style, JOREventListener* pListener,         \
-                       u16 posX, u16 posY, u16 width, u16 height) {                                \
+    void startComboBox(const char* label, T* pSrc, u32 style = 0,                                  \
+                       JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,           \
+                       u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT) {         \
         startSelectorSub('CMBX', kind, label, (uintptr_t)pSrc, style, *pSrc, pListener, posX,      \
                          posY, width, height);                                                     \
     }
 
 #define DEFINE_START_COMBO_BOX_ID(T, kind)                                                         \
-    void startComboBoxID(const char* label, u32 id, T data, u32 style,                             \
-                         JOREventListener* pListener, u16 posX, u16 posY, u16 width, u16 height) { \
+    void startComboBoxID(const char* label, u32 id, T data, u32 style = 0,                         \
+                         JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,         \
+                         u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT) {       \
         startSelectorSub('CMBX', kind, label, id, style, data, pListener, posX, posY, width,       \
                          height);                                                                  \
     }
@@ -173,7 +182,9 @@ public:
     void startUpdateNode(JORReflexible* obj) { putNode(obj); }
 
     void genNodeSub(const char* label, JORReflexible* i_node, u32, u32);
-    void putNode(JORReflexible* obj);
+    void putNode(JORReflexible* obj) {
+        mOutputStream << (uintptr_t)obj;
+    }
     void invalidNode(JORReflexible* i_node, u32);
 
     void genControl(u32 type, u32 kind, const char* label, u32 style, u32 id,
@@ -194,17 +205,21 @@ public:
     void genSelectorItemSub(const char* label, s32 itemNo, u32 param_2, u16 posX, u16 posY,
                             u16 width, u16 height);
 
-    void genButton(const char* label, u32 id, u32 style, JOREventListener* pListener, u16 posX,
-                   u16 posY, u16 width, u16 height);
+    void genButton(const char* label, u32 id, u32 style = 0, JOREventListener* pListener = NULL,
+                   u16 posX = -1, u16 posY = -1, u16 width = JORM_DEFAULT_WIDTH,
+                   u16 height = JORM_DEFAULT_HEIGHT);
 
-    void genLabel(const char* label, u32 id, u32 style, JOREventListener* pListener, u16 posX,
-                  u16 posY, u16 width, u16 height);
+    void genLabel(const char* label, u32 id, u32 style = 0, JOREventListener* pListener = NULL,
+                  u16 posX = -1, u16 posY = -1, u16 width = JORM_DEFAULT_WIDTH,
+                  u16 height = JORM_DEFAULT_HEIGHT);
 
-    void genGroupBox(const char* label, u32 id, u32 style, JOREventListener* pListener, u16 posX,
-                     u16 posY, u16 width, u16 height);
+    void genGroupBox(const char* label, u32 id, u32 style = 0, JOREventListener* pListener = NULL,
+                     u16 posX = -1, u16 posY = -1, u16 width = JORM_DEFAULT_WIDTH,
+                     u16 height = JORM_DEFAULT_HEIGHT);
 
-    void genEditBoxID(const char* label, u32 id, const char* string, u16 length, u32 style,
-                      JOREventListener* pListener, u16 posX, u16 posY, u16 width, u16 height);
+    void genEditBoxID(const char* label, u32 id, const char* string, u16 length, u32 style = 0,
+                      JOREventListener* pListener = NULL, u16 posX = -1, u16 posY = -1,
+                      u16 width = JORM_DEFAULT_WIDTH, u16 height = JORM_DEFAULT_HEIGHT);
 
     /**
      * === CHECKBOX ===
@@ -280,6 +295,10 @@ public:
         updateCheckBoxSub(mode, id, value, mask, param_4);
     }
 
+    void updateRadioButton(u32 mode, s16* pSrc, u32 param_3) {
+        updateSelectorSub(mode, (uintptr_t)pSrc, *pSrc, param_3);
+    }
+
     void editComboBoxItem(u32 param_0, u32 param_1, const char* param_2, s32 param_3, u32 param_4);
 
     void openMessageBox(void* param_0, u32 style, const char* message, const char* title);
@@ -287,8 +306,5 @@ public:
     /* 0x00000 */ u8 mBuffer[0x10000];
     /* 0x10000 */ JSUMemoryOutputStream mOutputStream;
 };
-
-JORMContext* attachJORMContext(u32);
-void releaseJORMContext(JORMContext*);
 
 #endif /* JORMCONTEXT_H */

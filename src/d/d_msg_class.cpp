@@ -1971,7 +1971,7 @@ void jmessage_tSequenceProcessor::do_end() {
 
 bool jmessage_tSequenceProcessor::do_isReady() {
     jmessage_tReference* pReference = (jmessage_tReference*)getReference();
-    #ifdef DEBUG
+    #if DEBUG
     if (pReference->getRevoMessageID() != 0) {
         return 0;
     }
@@ -4997,7 +4997,7 @@ void jmessage_string_tRenderingProcessor::do_widthcenter() {
         scale = 1.0f;
         scale = mDoGph_gInf_c::getScale();
 
-        #if VERSION == VERSION_SHIELD_DEBUG 
+        #if VERSION >= VERSION_WII_USA_R0
         for (; pane != NULL; pane = pane->getParentPane()) {
             if (pane->getUserInfo() == 'n_43') {
                 scale = 1.0f;

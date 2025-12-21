@@ -12,11 +12,11 @@ typedef struct {
 // prototypes
 static void SetTimer(OSAlarm * alarm);
 static void InsertAlarm(OSAlarm* alarm, OSTime fire, OSAlarmHandler handler);
-static void DecrementerExceptionCallback(register __OSException exception, register OSContext* context);
+static void DecrementerExceptionCallback(__REGISTER __OSException exception, __REGISTER OSContext* context);
 static void DecrementerExceptionHandler(__OSException exception, OSContext* context);
 static BOOL OnReset(BOOL final, u32 event);
 
-static OSShutdownFunctionInfo ResetFunctionInfo = {OnReset, 0xFFFFFFFF, NULL, NULL};
+static OSShutdownFunctionInfo ShutdownFunctionInfo = {OnReset, 0xFFFFFFFF, NULL, NULL};
 static OSAlarmQueue AlarmQueue;
 
 #define ASSERTREPORT(line, cond) \
@@ -52,7 +52,7 @@ void __OSInitAlarm(void) {
     if (__OSGetExceptionHandler(8) != DecrementerExceptionHandler) {
         AlarmQueue.head = AlarmQueue.tail = NULL;
         __OSSetExceptionHandler(8, DecrementerExceptionHandler);
-        OSRegisterShutdownFunction(&ResetFunctionInfo);
+        OSRegisterShutdownFunction(&ShutdownFunctionInfo);
     }
 }
 
@@ -178,8 +178,8 @@ void OSCancelAlarm(OSAlarm* alarm) {
     OSRestoreInterrupts(enabled);
 }
 
-static void DecrementerExceptionCallback(register __OSException exception,
-                                         register OSContext* context) {
+static void DecrementerExceptionCallback(__REGISTER __OSException exception,
+                                         __REGISTER OSContext* context) {
     OSAlarm* alarm;
     OSAlarm* next;
     OSAlarmHandler handler;
@@ -230,8 +230,8 @@ static void DecrementerExceptionCallback(register __OSException exception,
 }
 
 #ifdef __GEKKO__
-static asm void DecrementerExceptionHandler(register __OSException exception,
-                                            register OSContext* context) {
+static asm void DecrementerExceptionHandler(__REGISTER __OSException exception,
+                                            __REGISTER OSContext* context) {
     nofralloc 
     OS_EXCEPTION_SAVE_GPRS(context)
     stwu r1, -8(r1)

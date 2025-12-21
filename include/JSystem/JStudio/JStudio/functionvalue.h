@@ -33,7 +33,7 @@ public:
     virtual TFunctionValueAttributeSet getAttributeSet() = 0;
     virtual void initialize() = 0;
     virtual void prepare() = 0;
-    virtual f64 getValue(f64 arg1) = 0;
+    virtual TValue getValue(f64 arg1) = 0;
 
     static ExtrapolateParameter toFunction_outside(int);
 
@@ -157,7 +157,6 @@ private:
 class TFunctionValue_constant : public TFunctionValue {
 public:
     TFunctionValue_constant();
-    virtual ~TFunctionValue_constant() {}
 
     virtual u32 getType() const;
     virtual TFunctionValueAttributeSet getAttributeSet();
@@ -181,6 +180,7 @@ public:
 
         inline void operator=(const TData& rhs) { f32data = rhs.f32data; }
         u32 get_unsignedInteger() const { return u32data; }
+        u32 get_outside() const { return u32data; }
         f64 get_value() const { return f32data; }
 
         union {
@@ -195,7 +195,6 @@ public:
                                  const TFunctionValue_composite::TData&, f64);
 
     TFunctionValue_composite();
-    virtual ~TFunctionValue_composite() {}
 
     virtual u32 getType() const;
     virtual TFunctionValueAttributeSet getAttributeSet();
@@ -232,7 +231,6 @@ class TFunctionValue_transition : public TFunctionValue,
                                   public TFunctionValueAttribute_interpolate {
 public:
     TFunctionValue_transition();
-    virtual ~TFunctionValue_transition() {}
 
     virtual u32 getType() const;
     virtual TFunctionValueAttributeSet getAttributeSet();
@@ -264,7 +262,6 @@ public:
     typedef f64 (*update_INTERPOLATE)(const TFunctionValue_list&, const TIndexData_&);
 
     TFunctionValue_list();
-    virtual ~TFunctionValue_list() {}
 
     virtual u32 getType() const;
     virtual TFunctionValueAttributeSet getAttributeSet();
@@ -317,7 +314,7 @@ public:
         >
     {
         TIterator_data_(const TFunctionValue_list_parameter& rParent, const f32* value) {
-#ifdef DEBUG
+#if DEBUG
             pOwn_ = &rParent;
 #endif
             pf_ = value;
@@ -327,7 +324,7 @@ public:
         void set(const f32* value) { pf_ = value; }
 
         friend bool operator==(const TIterator_data_& r1, const TIterator_data_& r2) {
-#ifdef DEBUG
+#if DEBUG
             if (!(r1.pOwn_==r2.pOwn_)) {
                 JGadget_outMessage msg(JGadget_outMessage::warning, __FILE__, 124);
                 msg << "r1.pOwn_==r2.pOwn_";
@@ -337,9 +334,10 @@ public:
         }
 
         f32 operator*() {
-#ifdef DEBUG
+            // this guard is required - removing it breaks float regalloc in std::upper_bound
+            #if DEBUG
             JUT_ASSERT(947, pf_!=NULL);
-#endif
+            #endif
             return *pf_;
         }
 
@@ -361,7 +359,7 @@ public:
         }
 
         friend s32 operator-(const TIterator_data_& r1, const TIterator_data_& r2) {
-#ifdef DEBUG
+#if DEBUG
             if (!(r1.pOwn_==r2.pOwn_)) {
                 JGadget_outMessage msg(JGadget_outMessage::warning, __FILE__, 124);
                 msg << "r1.pOwn_==r2.pOwn_";
@@ -370,17 +368,14 @@ public:
             return (r1.pf_ - r2.pf_) / suData_size;
         }
 
-#ifdef DEBUG
+#if DEBUG
         /* 0x00 */ const TFunctionValue_list_parameter* pOwn_;
-        /* 0x04 */ const f32* pf_;
-#else
-        /* 0x00 */ const f32* pf_;
 #endif
+        /* 0x00 */ const f32* pf_;
     };
     typedef f64 (*update_INTERPOLATE)(const TFunctionValue_list_parameter&, f64);
 
     TFunctionValue_list_parameter();
-    virtual ~TFunctionValue_list_parameter() {}
 
     virtual u32 getType() const;
     virtual TFunctionValueAttributeSet getAttributeSet();
@@ -426,7 +421,7 @@ public:
         >
     {
         TIterator_data_(const TFunctionValue_hermite& rParent, const f32* value) {
-#ifdef DEBUG
+#if DEBUG
             pOwn_ = &rParent;
 #endif
             pf_ = value;
@@ -440,7 +435,7 @@ public:
         }
 
         friend bool operator==(const TIterator_data_& r1, const TIterator_data_& r2) {
-#ifdef DEBUG
+#if DEBUG
             if (!(r1.pOwn_==r2.pOwn_)) {
                 JGadget_outMessage msg(JGadget_outMessage::warning, __FILE__, 124);
                 msg << "r1.pOwn_==r2.pOwn_";
@@ -450,7 +445,7 @@ public:
         }
 
         f32 operator*() {
-#ifdef DEBUG
+#if DEBUG
             JUT_ASSERT(1098, pf_!=NULL);
 #endif
             return *pf_;
@@ -474,7 +469,7 @@ public:
         }
 
         friend s32 operator-(const TIterator_data_& r1, const TIterator_data_& r2) {
-#ifdef DEBUG
+#if DEBUG
             if (!(r1.pOwn_==r2.pOwn_)) {
                 JGadget_outMessage msg(JGadget_outMessage::warning, __FILE__, 124);
                 msg << "r1.pOwn_==r2.pOwn_";
@@ -488,7 +483,7 @@ public:
             return (r1.pf_ - r2.pf_) / r1.uSize_;
         }
 
-#ifdef DEBUG
+#if DEBUG
         /* 0x00 */ const TFunctionValue_hermite* pOwn_;
         /* 0x04 */ const f32* pf_;
         /* 0x08 */ u32 uSize_;
@@ -499,7 +494,6 @@ public:
     };
 
     TFunctionValue_hermite();
-    virtual ~TFunctionValue_hermite() {}
 
     virtual u32 getType() const;
     virtual TFunctionValueAttributeSet getAttributeSet();
@@ -545,7 +539,7 @@ inline f64 extrapolateParameter_clamp(f64 value, f64 max) {
         return 0.0;
 
     if (max <= value)
-        value = max;
+        return max;
 
     return value;
 }

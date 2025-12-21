@@ -13,6 +13,7 @@
 #include "d/d_save.h"
 #include "f_op/f_op_actor_mng.h"
 #include "f_op/f_op_camera_mng.h"
+#include "res/Object/AlAnm.h"
 
 class J2DAnmColorKey;
 class J2DAnmTransformKey;
@@ -35,7 +36,7 @@ public:
 
     void initFrame() {
         field_0x4 = 0;
-        field_0x2c = 4.0f;
+        mLockCursorAngle = 4.0f;
         field_0x30 = 0.0f;
     }
 
@@ -44,7 +45,7 @@ public:
         mPosY = i_posY;
     }
 
-private:
+public:
     /* 0x04 */ u8 field_0x4;
     /* 0x05 */ u8 field_0x5[3];
     /* 0x08 */ J2DScreen* mScrn;
@@ -56,7 +57,7 @@ private:
     /* 0x20 */ J2DAnmTevRegKey* field_0x20;
     /* 0x24 */ J2DAnmColorKey* field_0x24;
     /* 0x28 */ J2DAnmTransformKey* field_0x28;
-    /* 0x2C */ f32 field_0x2c;
+    /* 0x2C */ f32 mLockCursorAngle;
     /* 0x30 */ f32 field_0x30;
     /* 0x34 */ f32 mPosX;
     /* 0x38 */ f32 mPosY;
@@ -210,17 +211,22 @@ struct daAlink_WlAnmData {
 
 class daAlinkHIO_data_c : public JORReflexible {
 public:
+#if DEBUG
     daAlinkHIO_data_c();
-    ~daAlinkHIO_data_c();
+    virtual ~daAlinkHIO_data_c();
 
     void setStructData(char*);
     void checkDataSize();
     void baseCopy();
     void update();
 
+#if DEBUG
     virtual void listenPropertyEvent(const JORPropertyEvent* event);
+#endif
+#endif
 
 public:
+#if DEBUG
     /* 0x04 */ int m_anm_num;
     /* 0x08 */ int m_u8_num;
     /* 0x0C */ int m_s16_num;
@@ -233,6 +239,7 @@ public:
     /* 0x28 */ void* mp_data;
     /* 0x2C */ const char* m_name_string;
     /* 0x30 */ daAlinkHIO_data_c* mpNext;
+#endif
 };
 
 struct daAlinkHIO_basic_c1 {
@@ -271,13 +278,17 @@ public:
 
 class daAlinkHIO_basic_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_basic_c();
-    ~daAlinkHIO_basic_c() {};
+    ~daAlinkHIO_basic_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_basic_c1 m;
+#endif
 };
 
 struct daAlinkHIO_anm_c {
@@ -318,13 +329,17 @@ public:
 
 class daAlinkHIO_move_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_move_c();
-    ~daAlinkHIO_move_c() {};
+    ~daAlinkHIO_move_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_move_c1 m;
+#endif
 };
 
 class daAlinkHIO_noActAtnMove_c1 {
@@ -360,13 +375,17 @@ public:
 
 class daAlinkHIO_noActAtnMove_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_noActAtnMove_c();
-    ~daAlinkHIO_noActAtnMove_c() {};
+    ~daAlinkHIO_noActAtnMove_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_noActAtnMove_c1 m;
+#endif
 };
 
 class daAlinkHIO_frontRoll_c1 {
@@ -398,13 +417,17 @@ public:
 
 class daAlinkHIO_frontRoll_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_frontRoll_c();
-    ~daAlinkHIO_frontRoll_c() {};
+    ~daAlinkHIO_frontRoll_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_frontRoll_c1 m;
+#endif
 };
 
 class daAlinkHIO_backJump_c1 {
@@ -424,13 +447,17 @@ public:
 
 class daAlinkHIO_backJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_backJump_c();
-    ~daAlinkHIO_backJump_c() {};
+    ~daAlinkHIO_backJump_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_backJump_c1 m;
+#endif
 };
 
 class daAlinkHIO_sideStep_c1 {
@@ -454,13 +481,17 @@ public:
 
 class daAlinkHIO_sideStep_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_sideStep_c();
-    ~daAlinkHIO_sideStep_c() {};
+    ~daAlinkHIO_sideStep_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_sideStep_c1 m;
+#endif
 };
 
 class daAlinkHIO_slide_c1 {
@@ -488,13 +519,17 @@ public:
 
 class daAlinkHIO_slide_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_slide_c();
-    ~daAlinkHIO_slide_c() {};
+    ~daAlinkHIO_slide_c() {}
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_slide_c1 m;
+#endif
 };
 
 class daAlinkHIO_atnMove_c1 {
@@ -530,13 +565,17 @@ public:
 
 class daAlinkHIO_atnMove_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_atnMove_c();
     ~daAlinkHIO_atnMove_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_atnMove_c1 m;
+#endif
 };
 
 class daAlinkHIO_cutNormal_c1 {
@@ -574,12 +613,14 @@ public:
 
 class daAlinkHIO_cutNormal_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutNormal_c(int, float);
     ~daAlinkHIO_cutNormal_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x34 */ f32 field_0x34;
     /* 0x38 */ daAlinkHIO_cutNormal_c1 m;
 };  // Size: 0x58
@@ -628,12 +669,14 @@ public:
 
 class daAlinkHIO_cutFinish_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutFinish_c(int, float);
     ~daAlinkHIO_cutFinish_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x34 */ f32 field_0x34;
     /* 0x38 */ daAlinkHIO_cutFinish_c1 m;
 };
@@ -663,13 +706,17 @@ public:
 
 class daAlinkHIO_cutFnJU_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutFnJU_c();
     ~daAlinkHIO_cutFnJU_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_cutFnJU_c1 m;
+#endif
 };  // Size: 0x88
 
 class daAlinkHIO_cutDash_c1 {
@@ -696,12 +743,14 @@ public:
 
 class daAlinkHIO_cutDash_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutDash_c(int, float);
     ~daAlinkHIO_cutDash_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x34 */ f32 field_0x34;
     /* 0x38 */ daAlinkHIO_cutDash_c1 m;
 };
@@ -726,13 +775,17 @@ public:
 
 class daAlinkHIO_cutJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutJump_c();
     ~daAlinkHIO_cutJump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_cutJump_c1 m;
+#endif
 };  // Size: 0x78
 
 class daAlinkHIO_cutTurn_c1 {
@@ -773,13 +826,17 @@ public:
 
 class daAlinkHIO_cutTurn_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutTurn_c();
     ~daAlinkHIO_cutTurn_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_cutTurn_c1 m;
+#endif
 };  // Size: 0xCC
 
 class daAlinkHIO_hoCut_c1 {
@@ -812,12 +869,14 @@ public:
 
 class daAlinkHIO_hoCut_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_hoCut_c(int, float);
     ~daAlinkHIO_hoCut_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x34 */ f32 field_0x34;
     /* 0x38 */ daAlinkHIO_hoCut_c1 m;
 };  // Size: 0x58
@@ -843,13 +902,17 @@ public:
 
 class daAlinkHIO_hoCutCharge_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_hoCutCharge_c();
     ~daAlinkHIO_hoCutCharge_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_hoCutCharge_c1 m;
+#endif
 };  // Size: 0x88
 
 class daAlinkHIO_cutDown_c1 {
@@ -873,13 +936,17 @@ public:
 
 class daAlinkHIO_cutDown_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutDown_c();
     ~daAlinkHIO_cutDown_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_cutDown_c1 m;
+#endif
 };  // Size: 0xA8
 
 class daAlinkHIO_cutHead_c1 {
@@ -905,13 +972,17 @@ public:
 
 class daAlinkHIO_cutHead_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutHead_c();
     ~daAlinkHIO_cutHead_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_cutHead_c1 m;
+#endif
 };  // Size: 0x94
 
 class daAlinkHIO_cutLargeJump_c1 {
@@ -938,13 +1009,17 @@ public:
 
 class daAlinkHIO_cutLargeJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_cutLargeJump_c();
     ~daAlinkHIO_cutLargeJump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_cutLargeJump_c1 m;
+#endif
 };  // Size: 0xA8
 
 class daAlinkHIO_cut_c1 {
@@ -981,24 +1056,47 @@ public:
 
 class daAlinkHIO_cut_c0 {
 public:
+    static daAlinkHIO_cutNmV_c0 const mCutVertical;
+    static daAlinkHIO_cutNmL_c0 const mCutLeft;
+    static daAlinkHIO_cutNmR_c0 const mCutRight;
+    static daAlinkHIO_cutNmSL_c0 const mCutLeftStab;
+    static daAlinkHIO_cutNmSR_c0 const mCutRightStab;
+    static daAlinkHIO_cutFnL_c0 const mCutFinishLeft;
+    static daAlinkHIO_cutFnV_c0 const mCutFinishVertical;
+    static daAlinkHIO_cutFnS_c0 const mCutFinishStab;
+    static daAlinkHIO_cutFnSl_c0 const mCutFinishSweep;
+    static daAlinkHIO_cutFnSm_c0 const mCutFinishSlash;
+    static daAlinkHIO_cutFnR_c0 const mCutFinishRight;
+    static daAlinkHIO_cutFnJU_c0 const mCutFinishJumpUppercut;
+    static daAlinkHIO_cutJump_c0 const mCutJump;
+    static daAlinkHIO_cutTurn_c0 const mCutTurn;
+    static daAlinkHIO_hoCutLA_c0 const mHorseCutLeftA;
+    static daAlinkHIO_hoCutLB_c0 const mHorseCutLeftB;
+    static daAlinkHIO_hoCutRA_c0 const mHorseCutRightA;
+    static daAlinkHIO_hoCutRB_c0 const mHorseCutRightB;
+    static daAlinkHIO_hoCutCharge_c0 const mHorseCutCharge;
+    static daAlinkHIO_cutDaL_c0 const mCutDashLeft;
+    static daAlinkHIO_cutDaR_c0 const mCutDashRight;
+    static daAlinkHIO_cutDaCharge_c0 const mCutDashCharge;
+    static daAlinkHIO_cutDown_c0 const mCutDown;
+    static daAlinkHIO_cutHead_c0 const mCutHead;
+    static daAlinkHIO_cutLargeJump_c0 const mCutLargeJump;
     static daAlinkHIO_cut_c1 const m;
 };
 
-class daAlinkHIO_cut_c
-#ifdef DEBUG
-    : public daAlinkHIO_data_c
-#endif
-{
+class daAlinkHIO_cut_c : public daAlinkHIO_data_c {
 public:
-#ifdef DEBUG
+#if DEBUG
     daAlinkHIO_cut_c();
-#endif
     ~daAlinkHIO_cut_c();
 
-#ifdef DEBUG
     virtual void genMessage(JORMContext*);
+#else
+    ~daAlinkHIO_cut_c();
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x034 */ daAlinkHIO_cutNormal_c mCutVertical;
     /* 0x08C */ daAlinkHIO_cutNormal_c mCutLeft;
     /* 0x0E4 */ daAlinkHIO_cutNormal_c mCutRight;
@@ -1049,12 +1147,14 @@ public:
 
 class daAlinkHIO_guardAttack_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_guardAttack_c(int, float);
     ~daAlinkHIO_guardAttack_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x34 */ f32 field_0x34;
     /* 0x38 */ daAlinkHIO_guardAttack_c1 m;
 };
@@ -1079,13 +1179,17 @@ public:
 
 class daAlinkHIO_turnMove_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_turnMove_c();
     ~daAlinkHIO_turnMove_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_turnMove_c1 m;
+#endif
 };
 
 class daAlinkHIO_guard_c1 {
@@ -1112,21 +1216,28 @@ public:
 
 class daAlinkHIO_guard_c0 {
 public:
+    static daAlinkHIO_gAtPush_c0 const mAtPush;
+    static daAlinkHIO_gAtKick_c0 const mAtKick;
+    static daAlinkHIO_turnMove_c0 const mTurnMove;
     static daAlinkHIO_guard_c1 const m;
 };
 
 class daAlinkHIO_guard_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_guard_c();
     ~daAlinkHIO_guard_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
-    /* 0x034 */ daAlinkHIO_guardAttack_c mGuardAttack1;
-    /* 0x090 */ daAlinkHIO_guardAttack_c mGuardAttack2;
+public:
+#if DEBUG
+    /* 0x034 */ daAlinkHIO_guardAttack_c mAtPush;
+    /* 0x090 */ daAlinkHIO_guardAttack_c mAtKick;
     /* 0x0EC */ daAlinkHIO_turnMove_c mTurnMove;
     /* 0x14C */ daAlinkHIO_guard_c1 m;
+#endif
 };
 
 class daAlinkHIO_crouch_c1 {
@@ -1152,13 +1263,17 @@ public:
 
 class daAlinkHIO_crouch_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_crouch_c();
     ~daAlinkHIO_crouch_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_crouch_c1 m;
+#endif
 };
 
 class daAlinkHIO_autoJump_c1 {
@@ -1203,13 +1318,17 @@ public:
 
 class daAlinkHIO_autoJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_autoJump_c();
     ~daAlinkHIO_autoJump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_autoJump_c1 m;
+#endif
 };
 
 class daAlinkHIO_smallJump_c1 {
@@ -1229,13 +1348,17 @@ public:
 
 class daAlinkHIO_smallJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_smallJump_c();
     ~daAlinkHIO_smallJump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_smallJump_c1 m;
+#endif
 };
 
 class daAlinkHIO_wallCatch_c1 {
@@ -1254,13 +1377,17 @@ public:
 
 class daAlinkHIO_wallCatch_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wallCatch_c();
     ~daAlinkHIO_wallCatch_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_wallCatch_c1 m;
+#endif
 };
 
 class daAlinkHIO_wallFall_c1 {
@@ -1276,13 +1403,17 @@ public:
 
 class daAlinkHIO_wallFall_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wallFall_c();
     ~daAlinkHIO_wallFall_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_wallFall_c1 m;
+#endif
 };
 
 class daAlinkHIO_wallMove_c1 {
@@ -1301,13 +1432,17 @@ public:
 
 class daAlinkHIO_wallMove_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wallMove_c();
     ~daAlinkHIO_wallMove_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_wallMove_c1 m;
+#endif
 };
 
 class daAlinkHIO_wallHang_c1 {
@@ -1324,22 +1459,30 @@ public:
 
 class daAlinkHIO_wallHang_c0 {
 public:
+    static daAlinkHIO_smallJump_c0 const mSmallJump;
+    static daAlinkHIO_wallCatch_c0 const mWallCatch;
+    static daAlinkHIO_wallFall_c0 const mWallFall;
+    static daAlinkHIO_wallMove_c0 const mWallMove;
     static daAlinkHIO_wallHang_c1 const m;
 };
 
 class daAlinkHIO_wallHang_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wallHang_c();
     ~daAlinkHIO_wallHang_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_smallJump_c mSmallJump;
     /* 0x00 */ daAlinkHIO_wallCatch_c mWallCatch;
     /* 0x00 */ daAlinkHIO_wallFall_c mWallFall;
     /* 0x00 */ daAlinkHIO_wallMove_c mWallMove;
     /* 0x00 */ daAlinkHIO_wallHang_c1 m;
+#endif
 };
 
 class daAlinkHIO_pushpull_c1 {
@@ -1372,13 +1515,17 @@ public:
 
 class daAlinkHIO_pushpull_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_pushpull_c();
     ~daAlinkHIO_pushpull_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_pushpull_c1 m;
+#endif
 };
 
 class daAlinkHIO_damNormal_c1 {
@@ -1402,13 +1549,17 @@ public:
 
 class daAlinkHIO_damNormal_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damNormal_c();
     ~daAlinkHIO_damNormal_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_damNormal_c1 m;
+#endif
 };
 
 class daAlinkHIO_damLaHu_c1 {
@@ -1442,13 +1593,17 @@ public:
 
 class daAlinkHIO_damLaHu_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damLaHu_c(int);
     ~daAlinkHIO_damLaHu_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     daAlinkHIO_damLaHu_c1 m;
+#endif
 };
 
 class daAlinkHIO_damHorse_c1 {
@@ -1466,13 +1621,17 @@ public:
 
 class daAlinkHIO_damHorse_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damHorse_c();
     ~daAlinkHIO_damHorse_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_damHorse_c1 m;
+#endif
 };
 
 class daAlinkHIO_damFall_c1 {
@@ -1497,13 +1656,17 @@ public:
 
 class daAlinkHIO_damFall_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damFall_c();
     ~daAlinkHIO_damFall_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_damFall_c1 m;
+#endif
 };
 
 class daAlinkHIO_damCaught_c1 {
@@ -1523,13 +1686,17 @@ public:
 
 class daAlinkHIO_damCaught_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damCaught_c();
     ~daAlinkHIO_damCaught_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_damCaught_c1 m;
+#endif
 };
 
 class daAlinkHIO_damSwim_c1 {
@@ -1555,13 +1722,17 @@ public:
 
 class daAlinkHIO_damSwim_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damSwim_c();
     ~daAlinkHIO_damSwim_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_damSwim_c1 m;
+#endif
 };
 
 class daAlinkHIO_damage_c1 {
@@ -1594,24 +1765,35 @@ public:
 class daAlinkHIO_damage_c0 {
 public:
     static daAlinkHIO_damage_c1 const m;
+    static daAlinkHIO_damNormal_c0 const mDamNormal;
+    static daAlinkHIO_damLarge_c0 const mDamLarge;
+    static daAlinkHIO_damHuge_c0 const mDamHuge;
+    static daAlinkHIO_damHorse_c0 const mDamHorse;
+    static daAlinkHIO_damFall_c0 const mDamFall;
+    static daAlinkHIO_damCaught_c0 const mDamCaught;
+    static daAlinkHIO_damSwim_c0 const mDamSwim;
 };
 
 class daAlinkHIO_damage_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_damage_c();
     ~daAlinkHIO_damage_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_damage_c1 m;
     /* 0x34 */ daAlinkHIO_damNormal_c mDamNormal;
-    /* 0x00 */ daAlinkHIO_damLaHu_c mDamLaHu0;
-    /* 0x00 */ daAlinkHIO_damLaHu_c mDamLaHu1;
+    /* 0x00 */ daAlinkHIO_damLaHu_c mDamLarge;
+    /* 0x00 */ daAlinkHIO_damLaHu_c mDamHuge;
     /* 0x00 */ daAlinkHIO_damHorse_c mDamHorse;
     /* 0x00 */ daAlinkHIO_damFall_c mDamFall;
     /* 0x00 */ daAlinkHIO_damCaught_c mDamCaught;
     /* 0x00 */ daAlinkHIO_damSwim_c mDamSwim;
+#endif
 };
 
 class daAlinkHIO_horse_c1 {
@@ -1639,13 +1821,17 @@ public:
 
 class daAlinkHIO_horse_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_horse_c();
     ~daAlinkHIO_horse_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_horse_c1 m;
+#endif
 };
 
 class daAlinkHIO_canoe_c1 {
@@ -1674,13 +1860,17 @@ public:
 
 class daAlinkHIO_canoe_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_canoe_c();
     ~daAlinkHIO_canoe_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_canoe_c1 m;
+#endif
 };
 
 class daAlinkHIO_bow_c1 {
@@ -1715,13 +1905,17 @@ public:
 
 class daAlinkHIO_bow_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_bow_c();
     ~daAlinkHIO_bow_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_bow_c1 m;
+#endif
 };
 
 class daAlinkHIO_boom_c1 {
@@ -1747,13 +1941,17 @@ public:
 
 class daAlinkHIO_boom_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_boom_c();
     ~daAlinkHIO_boom_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_boom_c1 m;
+#endif
 };
 
 class daAlinkHIO_bomb_c1 {
@@ -1787,13 +1985,17 @@ public:
 
 class daAlinkHIO_bomb_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_bomb_c();
     ~daAlinkHIO_bomb_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_bomb_c1 m;
+#endif
 };
 
 class daAlinkHIO_huLight_c1 {
@@ -1856,13 +2058,17 @@ public:
 
 class daAlinkHIO_light_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_light_c(int);
     ~daAlinkHIO_light_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_huLight_c1 m;
+#endif
 };
 
 class daAlinkHIO_kandelaar_c1 {
@@ -1888,13 +2094,17 @@ public:
 
 class daAlinkHIO_kandelaar_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_kandelaar_c();
     ~daAlinkHIO_kandelaar_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_kandelaar_c1 m;
+#endif
 };
 
 class daAlinkHIO_magneBoots_c1 {
@@ -1923,13 +2133,17 @@ public:
 
 class daAlinkHIO_magneBoots_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_magneBoots_c();
     ~daAlinkHIO_magneBoots_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_magneBoots_c1 m;
+#endif
 };
 
 class daAlinkHIO_fmChain_c1 {
@@ -1945,13 +2159,17 @@ public:
 
 class daAlinkHIO_fmChain_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_fmChain_c();
     ~daAlinkHIO_fmChain_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_fmChain_c1 m;
+#endif
 };
 
 class daAlinkHIO_hookshot_c1 {
@@ -1981,13 +2199,17 @@ public:
 
 class daAlinkHIO_hookshot_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_hookshot_c();
     ~daAlinkHIO_hookshot_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_hookshot_c1 m;
+#endif
 };
 
 class daAlinkHIO_spinner_c1 {
@@ -2015,13 +2237,17 @@ public:
 
 class daAlinkHIO_spinner_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_spinner_c();
     ~daAlinkHIO_spinner_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_spinner_c1 m;
+#endif
 };
 
 class daAlinkHIO_ironBall_c1 {
@@ -2067,13 +2293,17 @@ public:
 
 class daAlinkHIO_ironBall_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_ironBall_c();
     ~daAlinkHIO_ironBall_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_ironBall_c1 m;
+#endif
 };
 
 class daAlinkHIO_copyRod_c1 {
@@ -2093,13 +2323,17 @@ public:
 
 class daAlinkHIO_copyRod_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_copyRod_c();
     ~daAlinkHIO_copyRod_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_copyRod_c1 m;
+#endif
 };
 
 class daAlinkHIO_pickUp_c1 {
@@ -2117,13 +2351,17 @@ public:
 
 class daAlinkHIO_pickUp_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_pickUp_c();
     ~daAlinkHIO_pickUp_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_pickUp_c1 m;
+#endif
 };
 
 class daAlinkHIO_board_c1 {
@@ -2160,13 +2398,17 @@ public:
 
 class daAlinkHIO_board_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_board_c();
     ~daAlinkHIO_board_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_board_c1 m;
+#endif
 };
 
 class daAlinkHIO_bottle_c1 {
@@ -2189,13 +2431,17 @@ public:
 
 class daAlinkHIO_bottle_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_bottle_c();
     ~daAlinkHIO_bottle_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_bottle_c1 m;
+#endif
 };
 
 class daAlinkHIO_item_c1 {
@@ -2213,17 +2459,35 @@ public:
 
 class daAlinkHIO_item_c0 {
 public:
+    static daAlinkHIO_bow_c0 const mBow;
+    static daAlinkHIO_boom_c0 const mBoomerang;
+    static daAlinkHIO_bomb_c0 const mBomb;
+    static daAlinkHIO_huLight_c0 const mLanternPL;
+    static daAlinkHIO_kandelaar_c0 const mLantern;
+    static daAlinkHIO_fmChain_c0 const mFmChain;
+    static daAlinkHIO_magneBoots_c0 const mIronBoots;
+    static daAlinkHIO_pickUp_c0 const mPickUp;
+    static daAlinkHIO_board_c0 const mBoard;
+    static daAlinkHIO_bottle_c0 const mBottle;
+    static daAlinkHIO_hookshot_c0 const mHookshot;
+    static daAlinkHIO_spinner_c0 const mSpinner;
+    static daAlinkHIO_ironBall_c0 const mIronBall;
+    static daAlinkHIO_copyRod_c0 const mCopyRod;
+    static daAlinkHIO_zwLight_c0 const mZoraArmorPL;
     static daAlinkHIO_item_c1 const m;
 };
 
 class daAlinkHIO_item_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_item_c();
     ~daAlinkHIO_item_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_bow_c mBow;
     /* 0x00 */ daAlinkHIO_boom_c mBoomerang;
     /* 0x00 */ daAlinkHIO_bomb_c mBomb;
@@ -2240,6 +2504,7 @@ private:
     /* 0x00 */ daAlinkHIO_copyRod_c mCopyRod;
     /* 0x00 */ daAlinkHIO_light_c mZoraArmorPL;
     /* 0x00 */ daAlinkHIO_item_c1 m;
+#endif
 };
 
 class daAlinkHIO_ladder_c1 {
@@ -2273,13 +2538,17 @@ public:
 
 class daAlinkHIO_ladder_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_ladder_c();
     ~daAlinkHIO_ladder_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_ladder_c1 m;
+#endif
 };
 
 class daAlinkHIO_roofHang_c1 {
@@ -2309,13 +2578,17 @@ public:
 
 class daAlinkHIO_roofHang_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_roofHang_c();
     ~daAlinkHIO_roofHang_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_roofHang_c1 m;
+#endif
 };
 
 class daAlinkHIO_grab_c1 {
@@ -2343,13 +2616,17 @@ public:
 
 class daAlinkHIO_grab_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_grab_c();
     ~daAlinkHIO_grab_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_grab_c1 m;
+#endif
 };
 
 class daAlinkHIO_swim_c1 {
@@ -2414,13 +2691,17 @@ public:
 
 class daAlinkHIO_swim_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_swim_c();
     ~daAlinkHIO_swim_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_swim_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlMove_c1 {
@@ -2486,13 +2767,17 @@ public:
 
 class daAlinkHIO_wlMove_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlMove_c();
     ~daAlinkHIO_wlMove_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlMove_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlMoveNoP_c1 {
@@ -2525,13 +2810,17 @@ public:
 
 class daAlinkHIO_wlMoveNoP_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlMoveNoP_c();
     ~daAlinkHIO_wlMoveNoP_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlMoveNoP_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlAtnMove_c1 {
@@ -2560,13 +2849,17 @@ public:
 
 class daAlinkHIO_wlAtnMove_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtnMove_c();
     ~daAlinkHIO_wlAtnMove_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlAtnMove_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlHowl_c1 {
@@ -2588,13 +2881,17 @@ public:
 
 class daAlinkHIO_wlHowl_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlHowl_c();
     ~daAlinkHIO_wlHowl_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlHowl_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlSideStep_c1 {
@@ -2618,13 +2915,17 @@ public:
 
 class daAlinkHIO_wlSideStep_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlSideStep_c();
     ~daAlinkHIO_wlSideStep_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlSideStep_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlBackJump_c1 {
@@ -2644,13 +2945,17 @@ public:
 
 class daAlinkHIO_wlBackJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlBackJump_c();
     ~daAlinkHIO_wlBackJump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlBackJump_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlAutoJump_c1 {
@@ -2685,13 +2990,17 @@ public:
 
 class daAlinkHIO_wlAutoJump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAutoJump_c();
     ~daAlinkHIO_wlAutoJump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlAutoJump_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlPush_c1 {
@@ -2710,13 +3019,17 @@ public:
 
 class daAlinkHIO_wlPush_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlPush_c();
     ~daAlinkHIO_wlPush_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlPush_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlLie_c1 {
@@ -2742,13 +3055,17 @@ public:
 
 class daAlinkHIO_wlLie_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlLie_c();
     ~daAlinkHIO_wlLie_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlLie_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlWallHang_c1 {
@@ -2777,13 +3094,17 @@ public:
 
 class daAlinkHIO_wlWallHang_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlWallHang_c();
     ~daAlinkHIO_wlWallHang_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlWallHang_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlDamNormal_c1 {
@@ -2805,13 +3126,17 @@ public:
 
 class daAlinkHIO_wlDamNormal_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlDamNormal_c();
     ~daAlinkHIO_wlDamNormal_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlDamNormal_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlDamLaHu_c1 {
@@ -2841,13 +3166,17 @@ public:
 
 class daAlinkHIO_wlDamLaHu_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlDamLaHu_c(int);
     ~daAlinkHIO_wlDamLaHu_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlDamLaHu_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlDamCaught_c1 {
@@ -2866,13 +3195,17 @@ public:
 
 class daAlinkHIO_wlDamCaught_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlDamCaught_c();
     ~daAlinkHIO_wlDamCaught_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlDamCaught_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlDamFall_c1 {
@@ -2895,13 +3228,17 @@ public:
 
 class daAlinkHIO_wlDamFall_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlDamFall_c();
     ~daAlinkHIO_wlDamFall_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlDamFall_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlDamage_c1 {
@@ -2914,20 +3251,29 @@ public:
 class daAlinkHIO_wlDamage_c0 {
 public:
     static daAlinkHIO_wlDamage_c1 const m;
+    static daAlinkHIO_wlDamNormal_c0 const mNormal;
+    static daAlinkHIO_wlDamLarge_c0 const mLarge;
+    static daAlinkHIO_wlDamHuge_c0 const mHuge;
+    static daAlinkHIO_wlDamFall_c0 const mFall;
+    static daAlinkHIO_wlDamCaught_c0 const mCapture;
 };
 
 class daAlinkHIO_wlDamage_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlDamage_c();
     ~daAlinkHIO_wlDamage_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlDamage_c1 m;
+#endif
     /* 0x00 */ daAlinkHIO_wlDamNormal_c mNormal;
     /* 0x00 */ daAlinkHIO_wlDamLaHu_c mLarge;
-    /* 0x00 */ daAlinkHIO_wlDamLaHu_c mStrongLarge;
+    /* 0x00 */ daAlinkHIO_wlDamLaHu_c mHuge;
     /* 0x00 */ daAlinkHIO_wlDamFall_c mFall;
     /* 0x00 */ daAlinkHIO_wlDamCaught_c mCapture;
 };
@@ -2959,13 +3305,17 @@ public:
 
 class daAlinkHIO_wlSlide_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlSlide_c();
     ~daAlinkHIO_wlSlide_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlSlide_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlRope_c1 {
@@ -2990,13 +3340,17 @@ public:
 
 class daAlinkHIO_wlRope_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlRope_c();
     ~daAlinkHIO_wlRope_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlRope_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlAtWait_c1 {
@@ -3032,12 +3386,14 @@ public:
 
 class daAlinkHIO_wlAtWait_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtWait_c(int, float);
     ~daAlinkHIO_wlAtWait_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x34 */ f32 field_0x34;
     /* 0x38 */ daAlinkHIO_wlAtWait_c1 m;
 };  // Size: 0x74
@@ -3057,13 +3413,17 @@ public:
 
 class daAlinkHIO_wlAtRoll_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtRoll_c();
     ~daAlinkHIO_wlAtRoll_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtRoll_c1 m;
+#endif
 };  // Size: 0x54
 
 class daAlinkHIO_wlAtNjump_c1 {
@@ -3088,13 +3448,17 @@ public:
 
 class daAlinkHIO_wlAtNjump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtNjump_c();
     ~daAlinkHIO_wlAtNjump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtNjump_c1 m;
+#endif
 };  // Size: 0x70
 
 class daAlinkHIO_wlAtCjump_c1 {
@@ -3125,13 +3489,17 @@ public:
 
 class daAlinkHIO_wlAtCjump_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtCjump_c();
     ~daAlinkHIO_wlAtCjump_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtCjump_c1 m;
+#endif
 };  // Size: 0x98
 
 class daAlinkHIO_wlAtLand_c1 {
@@ -3149,13 +3517,17 @@ public:
 
 class daAlinkHIO_wlAtLand_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtLand_c();
     ~daAlinkHIO_wlAtLand_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtLand_c1 m;
+#endif
 };  // Size: 0x74
 
 class daAlinkHIO_wlAtDown_c1 {
@@ -3181,13 +3553,17 @@ public:
 
 class daAlinkHIO_wlAtDown_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtDown_c();
     ~daAlinkHIO_wlAtDown_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtDown_c1 m;
+#endif
 };  // Size: 0xD0
 
 class daAlinkHIO_wlAtLock_c1 {
@@ -3214,13 +3590,17 @@ public:
 
 class daAlinkHIO_wlAtLock_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtLock_c();
     ~daAlinkHIO_wlAtLock_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtLock_c1 m;
+#endif
 };  // Size: 0x88
 
 class daAlinkHIO_wlAtBite_c1 {
@@ -3250,13 +3630,17 @@ public:
 
 class daAlinkHIO_wlAtBite_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAtBite_c();
     ~daAlinkHIO_wlAtBite_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlAtBite_c1 m;
+#endif
 };  // Size: 0x90
 
 class daAlinkHIO_wlAttack_c1 {
@@ -3276,17 +3660,29 @@ public:
 
 class daAlinkHIO_wlAttack_c0 {
 public:
-    static daAlinkHIO_wlAttack_c1 const m;
+    static  daAlinkHIO_wlAtWaLr_c0 const mHorizontalAttack;
+    static  daAlinkHIO_wlAtWaSc_c0 const mScratchAttack;
+    static  daAlinkHIO_wlAtWaTl_c0 const mTailAttack;
+    static  daAlinkHIO_wlAtRoll_c0 const mAtRoll;
+    static  daAlinkHIO_wlAtNjump_c0 const mWlAtNjump;
+    static  daAlinkHIO_wlAtCjump_c0 const mWlAtCjump;
+    static  daAlinkHIO_wlAtLand_c0 const mWlAtLand;
+    static  daAlinkHIO_wlAtDown_c0 const mWlAtDown;
+    static  daAlinkHIO_wlAtLock_c0 const mWlAtLock;
+    static  daAlinkHIO_wlAtBite_c0 const mWlAtBite;
+    static  daAlinkHIO_wlAttack_c1 const m;
 };
 
 class daAlinkHIO_wlAttack_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlAttack_c();
     ~daAlinkHIO_wlAttack_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
     /* 0x034 */ daAlinkHIO_wlAtWait_c mHorizontalAttack;
     /* 0x0A8 */ daAlinkHIO_wlAtWait_c mScratchAttack;
     /* 0x11C */ daAlinkHIO_wlAtWait_c mTailAttack;
@@ -3326,13 +3722,17 @@ public:
 
 class daAlinkHIO_wlPoint_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlPoint_c();
     ~daAlinkHIO_wlPoint_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlPoint_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlChain_c1 {
@@ -3358,13 +3758,17 @@ public:
 
 class daAlinkHIO_wlChain_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlChain_c();
     ~daAlinkHIO_wlChain_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlChain_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlSwim_c1 {
@@ -3411,13 +3815,17 @@ public:
 
 class daAlinkHIO_wlSwim_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlSwim_c();
     ~daAlinkHIO_wlSwim_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlSwim_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlGrab_c1 {
@@ -3436,13 +3844,17 @@ public:
 
 class daAlinkHIO_wlGrab_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlGrab_c();
     ~daAlinkHIO_wlGrab_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlGrab_c1 m;
+#endif
 };
 
 class daAlinkHIO_wlBall_c1 {
@@ -3462,13 +3874,17 @@ public:
 
 class daAlinkHIO_wlBall_c : public daAlinkHIO_data_c {
 public:
+#if DEBUG
     daAlinkHIO_wlBall_c();
     ~daAlinkHIO_wlBall_c();
 
     virtual void genMessage(JORMContext*);
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x00 */ daAlinkHIO_wlBall_c1 m;
+#endif
 };
 
 class daAlinkHIO_wolf_c1 {
@@ -3488,24 +3904,42 @@ public:
 
 class daAlinkHIO_wolf_c0 {
 public:
+    static daAlinkHIO_wlMove_c0 const mWlMove;
+    static daAlinkHIO_wlMoveNoP_c0 const mWlMoveNoP;
+    static daAlinkHIO_wlAtnMove_c0 const mWlAtnMove;
+    static daAlinkHIO_wlSideStep_c0 const mWlSideStep;
+    static daAlinkHIO_wlBackJump_c0 const mWlBackJump;
+    static daAlinkHIO_wlHowl_c0 const mWlHowl;
+    static daAlinkHIO_wlAutoJump_c0 const mWlAutoJump;
+    static daAlinkHIO_wlPush_c0 const mWlPush;
+    static daAlinkHIO_wlLie_c0 const mWlLie;
+    static daAlinkHIO_wlLight_c0 const mLight;
+    static daAlinkHIO_wlWallHang_c0 const mWlWallHang;
+    static daAlinkHIO_wlDamage_c0 const mWlDamage;
+    static daAlinkHIO_wlSlide_c0 const mWlSlide;
+    static daAlinkHIO_wlRope_c0 const mWlRope;
+    static daAlinkHIO_wlAttack_c0 const mWlAttack;
+    static daAlinkHIO_wlPoint_c0 const mWlPoint;
+    static daAlinkHIO_wlChain_c0 const mWlChain;
+    static daAlinkHIO_wlSwim_c0 const mWlSwim;
+    static daAlinkHIO_wlGrab_c0 const mWlGrab;
+    static daAlinkHIO_wlBall_c0 const mWlBall;
     static daAlinkHIO_wolf_c1 const m;
 };
 
-class daAlinkHIO_wolf_c
-#ifdef DEBUG
-    : public daAlinkHIO_data_c
-#endif
-{
+class daAlinkHIO_wolf_c : public daAlinkHIO_data_c {
 public:
-#ifdef DEBUG
+#if DEBUG
     daAlinkHIO_wolf_c();
-#endif
     ~daAlinkHIO_wolf_c();
 
-#ifdef DEBUG
     virtual void genMessage(JORMContext*);
+#else
+    ~daAlinkHIO_wolf_c();
+#endif
 
-private:
+public:
+#if DEBUG
     /* 0x34 */ daAlinkHIO_wlMove_c mWlMove;
     /* 0x00 */ daAlinkHIO_wlMoveNoP_c mWlMoveNoP;
     /* 0x00 */ daAlinkHIO_wlAtnMove_c mWlAtnMove;
@@ -3531,7 +3965,7 @@ private:
 };
 
 class daAlinkHIO_c
-#ifdef DEBUG
+#if DEBUG
     : public mDoHIO_entry_c
 #endif
 {
@@ -3541,40 +3975,69 @@ public:
 
     void jumpStateUpdate(const cXyz*, const cXyz*, f32);
     void genMessage(JORMContext*);
-#ifdef DEBUG
+#if DEBUG
     void readFileData(char*);
     size_t makeFileOutData(char*, char*);
     void listenPropertyEvent(const JORPropertyEvent*);
 
-    daAlinkHIO_basic_c mBasic;
-    daAlinkHIO_move_c mMove;
-    daAlinkHIO_atnMove_c mAtnMove;
-    daAlinkHIO_noActAtnMove_c mNoActAtnMove;
-    daAlinkHIO_frontRoll_c mFrontRoll;
-    daAlinkHIO_backJump_c mBackJump;
-    daAlinkHIO_sideStep_c mSideStep;
-    daAlinkHIO_slide_c mSlide;
-    daAlinkHIO_cut_c mCut;
-    daAlinkHIO_guard_c mGuard;
-    daAlinkHIO_crouch_c mCrouch;
-    daAlinkHIO_autoJump_c mAutoJump;
-    daAlinkHIO_wallHang_c mWallHang;
-    daAlinkHIO_pushpull_c mPushpull;
-    daAlinkHIO_damage_c mDamage;
-    daAlinkHIO_horse_c mHorse;
-    daAlinkHIO_canoe_c mCanoe;
-    daAlinkHIO_item_c mItem;
-    daAlinkHIO_ladder_c mLadder;
-    daAlinkHIO_roofHang_c mRoofHang;
-    daAlinkHIO_grab_c mGrab;
-    daAlinkHIO_swim_c mSwim;
-    daAlinkHIO_wolf_c mWolf;
+    /* 0x0008 */ daAlinkHIO_basic_c mBasic;
+    /* 0x0094 */ daAlinkHIO_move_c mMove;
+    /* 0x0120 */ daAlinkHIO_atnMove_c mAtnMove;
+    /* 0x01A8 */ daAlinkHIO_noActAtnMove_c mNoActAtnMove;
+    /* 0x0230 */ daAlinkHIO_frontRoll_c mFrontRoll;
+    /* 0x02D4 */ daAlinkHIO_backJump_c mBackJump;
+    /* 0x0340 */ daAlinkHIO_sideStep_c mSideStep;
+    /* 0x03DC */ daAlinkHIO_slide_c mSlide;
+    /* 0x0488 */ daAlinkHIO_cut_c mCut;
+    /* 0x0FFC */ daAlinkHIO_guard_c mGuard;
+    /* 0x11C8 */ daAlinkHIO_crouch_c mCrouch;
+    /* 0x1248 */ daAlinkHIO_autoJump_c mAutoJump;
+    /* 0x1330 */ daAlinkHIO_wallHang_c mWallHang;
+    /* 0x1528 */ daAlinkHIO_pushpull_c mPushpull;
+    /* 0x1598 */ daAlinkHIO_damage_c mDamage;
+    /* 0x1A90 */ daAlinkHIO_horse_c mHorse;
+    /* 0x1B30 */ daAlinkHIO_canoe_c mCanoe;
+    /* 0x1BAC */ daAlinkHIO_item_c mItem;
+    /* 0x2420 */ daAlinkHIO_ladder_c mLadder;
+    /* 0x24C4 */ daAlinkHIO_roofHang_c mRoofHang;
+    /* 0x2544 */ daAlinkHIO_grab_c mGrab;
+    /* 0x265C */ daAlinkHIO_swim_c mSwim;
+    /* 0x278C */ daAlinkHIO_wolf_c mWolf;
 #else
+    // TODO: What's with these first few members on retail?
+    // The individual HIO members (e.g. mCut) have their class changed on retail compared to debug (_c -> _c0).
+    // But it seems like the debug _c members might also exist on retail based on the dtor.
+    // But they can't have the same name as they do on debug since those names are reserved for the _c0 version.
     /* 0x04 */ u8 field_0x4[0xC - 0x4];
-    /* 0x0C */ daAlinkHIO_cut_c mCut;
+    /* 0x0C */ daAlinkHIO_cut_c mCut_2;
     /* 0x0D */ u8 field_0xD[0x4B - 0xD];
-    /* 0x4B */ daAlinkHIO_wolf_c mWolf;
-    /* 0x4C */ u8 field_0x4C[0x6C - 0x4C];
+    /* 0x4B */ daAlinkHIO_wolf_c mWolf_2;
+
+    daAlinkHIO_basic_c0 mBasic;
+    daAlinkHIO_move_c0 mMove;
+    daAlinkHIO_atnMove_c0 mAtnMove;
+    daAlinkHIO_noActAtnMove_c0 mNoActAtnMove;
+    daAlinkHIO_frontRoll_c0 mFrontRoll;
+    daAlinkHIO_backJump_c0 mBackJump;
+    daAlinkHIO_sideStep_c0 mSideStep;
+    daAlinkHIO_slide_c0 mSlide;
+    daAlinkHIO_cut_c0 mCut;
+    daAlinkHIO_guard_c0 mGuard;
+    daAlinkHIO_crouch_c0 mCrouch;
+    daAlinkHIO_autoJump_c0 mAutoJump;
+    daAlinkHIO_wallHang_c0 mWallHang;
+    daAlinkHIO_pushpull_c0 mPushpull;
+    daAlinkHIO_damage_c0 mDamage;
+    daAlinkHIO_horse_c0 mHorse;
+    daAlinkHIO_canoe_c0 mCanoe;
+    daAlinkHIO_item_c0 mItem;
+    daAlinkHIO_ladder_c0 mLadder;
+    daAlinkHIO_roofHang_c0 mRoofHang;
+    daAlinkHIO_grab_c0 mGrab;
+    daAlinkHIO_swim_c0 mSwim;
+    daAlinkHIO_wolf_c0 mWolf;
+
+    u8 padding[0x6C - 0x64];
 #endif
 };
 
@@ -4709,7 +5172,7 @@ public:
     BOOL checkHorseStart(u32, int);
     int setStartProcInit();
     int create();
-    s32 setRoomInfo();
+    int setRoomInfo();
     void setShapeAngleOnGround();
     void setStepsOffset();
     void iceSlipBgCheck();
@@ -6376,7 +6839,18 @@ public:
     BOOL checkCutHeadProc() const { return mProcID == PROC_CUT_HEAD; }
     fopAc_ac_c* getRideActor() { return mRideAcKeep.getActor(); }
 
-    virtual cXyz* getMidnaAtnPos() const { return (cXyz*)&mMidnaAtnPos; }
+    virtual bool checkAcceptDungeonWarpAlink(int) { return checkAcceptWarp(); }
+    virtual daSpinner_c* getSpinnerActor() {
+        daSpinner_c* spinnerActor;
+        if (!checkSpinnerRide()) {
+            spinnerActor = NULL;
+        } else {
+            spinnerActor = (daSpinner_c*)mRideAcKeep.getActor();
+        }
+        return (daSpinner_c*)spinnerActor;
+    }
+    virtual s16 getSumouCounter() const { return mProcVar2.field_0x300c; }
+    virtual s16 checkSumouWithstand() const { return mProcVar3.field_0x300e; }
     virtual void setMidnaMsgNum(fopAc_ac_c* param_0, u16 pMsgNum) {
         mMidnaMsgNum = pMsgNum;
         mMidnaMsg = (daTagMmsg_c*)param_0;
@@ -6384,7 +6858,6 @@ public:
     virtual MtxP getModelMtx() { return mpLinkModel->getBaseTRMtx(); }
     virtual MtxP getInvMtx() { return mInvMtx; }
     virtual cXyz* getShadowTalkAtnPos() { return &field_0x375c; }
-    virtual f32 getGroundY() { return mLinkAcch.GetGroundH(); }
     virtual MtxP getLeftItemMatrix();
     virtual MtxP getRightItemMatrix();
     virtual MtxP getLeftHandMatrix();
@@ -6396,8 +6869,26 @@ public:
         if (mHeldItemModel != NULL && checkBottleItem(mEquipItem)) {
             return mHeldItemModel->getBaseTRMtx();
         }
-
         return NULL;
+    }
+
+    virtual MtxP getHeadMtx() {
+        return mpLinkModel->getAnmMtx(field_0x30b4);
+    }
+    virtual f32 getGroundY() { return mLinkAcch.GetGroundH(); }
+    virtual f32 getBaseAnimeFrameRate() const { return mUnderFrameCtrl[0].getRate(); }
+    virtual fpc_ProcID getAtnActorID() const { return mAtnActorID; }
+    virtual fpc_ProcID getItemID() const { return mItemAcKeep.getID(); }
+    virtual fpc_ProcID getGrabActorID() const {
+        if (mEquipItem == 0x102) {
+            return mItemAcKeep.getID();
+        } else {
+            return mGrabItemAcKeep.getID();
+        }
+    }
+    virtual void setForcePutPos(cXyz const& pPutPos) {
+        mForcePutPos = pPutPos;
+        onEndResetFlg1(ERFLG1_UNK_2000);
     }
     virtual BOOL checkPlayerGuard() const;
     virtual u32 checkPlayerFly() const {
@@ -6466,26 +6957,17 @@ public:
     }
     virtual BOOL checkGrassWhistle() const { return mProcID == PROC_GRASS_WHISTLE_WAIT; }
     virtual BOOL checkBoarRun() const { return mProcID == PROC_BOAR_RUN; }
-    virtual f32 getBaseAnimeFrameRate() const { return mUnderFrameCtrl[0].getRate(); }
+    virtual BOOL checkHorseRideNotReady() const {
+        return checkHorseRide() && mProcID != PROC_HORSE_RIDE && mProcID != PROC_HORSE_GETOFF;
+    }
+    virtual f32 getSearchBallScale() const { return mSearchBallScale; }
+    virtual int checkFastShotTime() { return mFastShotTime; }
     virtual f32 getBaseAnimeFrame() const;
     virtual void setAnimeFrame(f32);
     virtual BOOL checkWolfLock(fopAc_ac_c*) const;
     virtual bool cancelWolfLock(fopAc_ac_c*);
-    virtual s32 getAtnActorID() const { return mAtnActorID; }
-    virtual s32 getItemID() const { return mItemAcKeep.getID(); }
-    virtual u32 getGrabActorID() const {
-        if (mEquipItem == 0x102) {
-            return mItemAcKeep.getID();
-        } else {
-            return mGrabItemAcKeep.getID();
-        }
-    }
     virtual BOOL exchangeGrabActor(fopAc_ac_c*);
     virtual BOOL setForceGrab(fopAc_ac_c*, int, int);
-    virtual void setForcePutPos(cXyz const& pPutPos) {
-        mForcePutPos = pPutPos;
-        onEndResetFlg1(ERFLG1_UNK_2000);
-    }
     virtual u32 checkPlayerNoDraw();
     virtual void voiceStart(u32);
     virtual void seStartOnlyReverb(u32);
@@ -6494,10 +6976,6 @@ public:
     virtual void setGrabCollisionOffset(f32, f32, cBgS_PolyInfo*);
     virtual void onFrollCrashFlg(u8, int);
     virtual MtxP getModelJointMtx(u16);
-    virtual MtxP getHeadMtx() {
-        return mpLinkModel->getAnmMtx(field_0x30b4);
-        ;
-    }
     virtual bool setHookshotCarryOffset(fpc_ProcID, cXyz const*);
     virtual BOOL checkCutJumpCancelTurn() const {
         return (mProcID == PROC_CUT_JUMP || mProcID == PROC_CUT_JUMP_LAND) && field_0x3198 != 2;
@@ -6514,9 +6992,6 @@ public:
     virtual bool setThrowDamage(short, f32, f32, int, int, int);
     virtual bool checkSetNpcTks(cXyz*, int, int);
     virtual int setRollJump(f32, f32, short);
-    virtual void playerStartCollisionSE(u32 param_0, u32 param_1) {
-        mZ2Link.startCollisionSE(param_0, param_1);
-    }
     virtual void cancelDungeonWarpReadyNeck() {
         if (mProcID != PROC_DUNGEON_WARP_READY) {
             return;
@@ -6541,21 +7016,7 @@ public:
     virtual u32 checkCanoeRide() const;
     virtual u32 checkBoardRide() const;
     virtual u32 checkSpinnerRide() const;
-    virtual daSpinner_c* getSpinnerActor() {
-        daSpinner_c* spinnerActor;
-        if (!checkSpinnerRide()) {
-            spinnerActor = NULL;
-        } else {
-            spinnerActor = (daSpinner_c*)mRideAcKeep.getActor();
-        }
-        return (daSpinner_c*)spinnerActor;
-    }
-    virtual BOOL checkHorseRideNotReady() const {
-        return checkHorseRide() && mProcID != PROC_HORSE_RIDE && mProcID != PROC_HORSE_GETOFF;
-    }
     virtual bool checkArrowChargeEnd() const;
-    virtual f32 getSearchBallScale() const { return mSearchBallScale; }
-    virtual int checkFastShotTime() { return mFastShotTime; }
     virtual bool checkNoEquipItem() const { return mEquipItem == fpcNm_ITEM_NONE; }
     virtual bool checkKandelaarSwing(int) const;
     virtual s16 getBoardCutTurnOffsetAngleY() const {
@@ -6565,6 +7026,31 @@ public:
         return 0;
     }
     virtual cXyz* getMagneBootsTopVec() { return &mMagneBootsTopVec; }
+    virtual void setCargoCarry(fopAc_ac_c* p_actor) {
+        mSpecialMode = SMODE_CARGO_CARRY;
+        mCargoCarryAcKeep.setData(p_actor);
+    }
+    virtual void setGoronSideMove(fopAc_ac_c* p_actor) {
+        mSpecialMode = SMODE_GORON_THROW;
+        mCargoCarryAcKeep.setData(p_actor);
+    }
+    virtual void setSumouReady(fopAc_ac_c* p_actor) {
+        mSpecialMode = SMODE_SUMO_READY;
+        mCargoCarryAcKeep.setData(p_actor);
+        mDemo.setDemoMode(1);
+    }
+    virtual void setSumouPushBackDirection(short param_0) {
+        if (mProcID != PROC_SUMOU_MOVE) {
+            return;
+        }
+        mProcVar4.field_0x3010 = param_0;
+    }
+    virtual void setSumouLoseHeadUp() {
+        if (mProcID != PROC_SUMOU_WIN_LOSE) {
+            return;
+        }
+        mSpecialMode = SMODE_SUMO_LOSE;
+    }
     virtual cXyz* getKandelaarFlamePos();
     virtual bool checkUseKandelaar(int);
     virtual void setDkCaught(fopAc_ac_c*);
@@ -6582,6 +7068,24 @@ public:
         }
         mProcVar4.field_0x3010 = angle;
     }
+    virtual void setSumouGraspCancelCount(int param_0) {
+        if (mProcID != PROC_SUMOU_MOVE) {
+            return;
+        }
+        mProcVar2.field_0x300c = param_0;
+    }
+    virtual bool checkItemSwordEquip() const { return mEquipItem == 0x103; }
+    virtual f32 getSinkShapeOffset() const { return mSinkShapeOffset; }
+    virtual BOOL checkSinkDead() const { return field_0x2fbd == 0xFF; }
+    virtual BOOL checkCutJumpMode() const { return mProcID == PROC_CUT_JUMP; }
+    virtual s16 getGiantPuzzleAimAngle() const { return mProcVar2.mPuzzleAimAngle; }
+    virtual u8 getSwordChangeWaitTimer() const { return mSwordChangeWaitTimer; }
+    virtual BOOL checkMetamorphose() const {
+        return mProcID == PROC_METAMORPHOSE && mProcVar1.field_0x300a == 0;
+    }
+    virtual BOOL checkWolfDownAttackPullOut() const { return mProcID == PROC_WOLF_DOWN_AT_LAND; }
+    virtual cXyz* getMidnaAtnPos() const { return (cXyz*)&mMidnaAtnPos; }
+    virtual bool checkCopyRodEquip() const { return mEquipItem == fpcNm_ITEM_COPY_ROD; }
     virtual void setKandelaarMtx(f32 (*)[4], int, int);
     virtual bool getStickAngleFromPlayerShape(short*) const;
     virtual bool checkSpinnerPathMove();
@@ -6596,44 +7100,13 @@ public:
         return mProcID == PROC_CANOE_FISHING_GET && mProcVar3.field_0x300e == 1;
     }
     virtual u8 checkBeeChildDrink() const { return field_0x2fd3; }
+    virtual Z2WolfHowlMgr* getWolfHowlMgrP() { return &mZ2WolfHowlMgr; }
+    virtual BOOL checkWolfHowlSuccessAnime() const {
+        return checkUnderMove0BckNoArcWolf(WANM_HOWL_SUCCESS);
+    }
     virtual void skipPortalObjWarp();
     virtual BOOL checkTreasureRupeeReturn(int) const;
-    virtual void setSumouReady(fopAc_ac_c* p_actor) {
-        mSpecialMode = SMODE_SUMO_READY;
-        mCargoCarryAcKeep.setData(p_actor);
-        mDemo.setDemoMode(1);
-    }
-    virtual bool checkAcceptDungeonWarpAlink(int) { return checkAcceptWarp(); }
-    virtual s16 getSumouCounter() const { return mProcVar2.field_0x300c; }
-    virtual s16 checkSumouWithstand() const { return mProcVar3.field_0x300e; }
     virtual void cancelGoronThrowEvent();
-    virtual void setSumouGraspCancelCount(int param_0) {
-        if (mProcID != PROC_SUMOU_MOVE) {
-            return;
-        }
-        mProcVar2.field_0x300c = param_0;
-    }
-    virtual void setSumouPushBackDirection(short param_0) {
-        if (mProcID != PROC_SUMOU_MOVE) {
-            return;
-        }
-        mProcVar4.field_0x3010 = param_0;
-    }
-    virtual void setSumouLoseHeadUp() {
-        if (mProcID != PROC_SUMOU_WIN_LOSE) {
-            return;
-        }
-        mSpecialMode = SMODE_SUMO_LOSE;
-    }
-    virtual s16 getGiantPuzzleAimAngle() const { return mProcVar2.mPuzzleAimAngle; }
-    virtual void setGoronSideMove(fopAc_ac_c* p_actor) {
-        mSpecialMode = SMODE_GORON_THROW;
-        mCargoCarryAcKeep.setData(p_actor);
-    }
-    virtual void setCargoCarry(fopAc_ac_c* p_actor) {
-        mSpecialMode = SMODE_CARGO_CARRY;
-        mCargoCarryAcKeep.setData(p_actor);
-    }
     virtual cXyz* getHookshotTopPos();
     virtual bool checkHookshotReturnMode() const;
     virtual bool checkHookshotShootReturnMode() const;
@@ -6661,27 +7134,16 @@ public:
     virtual bool checkDragonHangRide() const {
         return mProcID == PROC_BOSS_BODY_HANG && field_0x32cc != 0;
     }
+    virtual void playerStartCollisionSE(u32 param_0, u32 param_1) {
+        mZ2Link.startCollisionSE(param_0, param_1);
+    }
     virtual void changeDragonActor(fopAc_ac_c*);
     virtual u8 getClothesChangeWaitTimer() const { return mClothesChangeWaitTimer; }
     virtual u8 getShieldChangeWaitTimer() const { return mShieldChangeWaitTimer; }
-    virtual u8 getSwordChangeWaitTimer() const { return mSwordChangeWaitTimer; }
-    virtual BOOL checkMetamorphose() const {
-        return mProcID == PROC_METAMORPHOSE && mProcVar1.field_0x300a == 0;
-    }
-    virtual BOOL checkWolfDownAttackPullOut() const { return mProcID == PROC_WOLF_DOWN_AT_LAND; }
     virtual BOOL checkBootsOrArmorHeavy() const;
-    virtual s32 getBottleOpenAppearItem() const;
-    virtual bool checkItemSwordEquip() const { return mEquipItem == 0x103; }
-    virtual f32 getSinkShapeOffset() const { return mSinkShapeOffset; }
-    virtual BOOL checkSinkDead() const { return field_0x2fbd == 0xFF; }
+    virtual fpc_ProcID getBottleOpenAppearItem() const;
     virtual BOOL checkHorseStart() { return checkHorseStart(getLastSceneMode(), getStartMode()); }
-    virtual Z2WolfHowlMgr* getWolfHowlMgrP() { return &mZ2WolfHowlMgr; }
-    virtual BOOL checkWolfHowlSuccessAnime() const {
-        return checkUnderMove0BckNoArcWolf(WANM_HOWL_SUCCESS);
-    }
     virtual BOOL checkCopyRodTopUse();
-    virtual bool checkCopyRodEquip() const { return mEquipItem == fpcNm_ITEM_COPY_ROD; }
-    virtual BOOL checkCutJumpMode() const { return mProcID == PROC_CUT_JUMP; }
 
     static BOOL checkDebugMoveInput() {
         if (mDoCPd_c::isConnect(PAD_3)) {
@@ -6708,8 +7170,8 @@ public:
     bool checkHorseTurnLAnime() const { return checkUpperAnime(0x24C); }
     bool checkHorseTurnRAnime() const { return checkUpperAnime(0x24D); }
     bool checkHorseTurnAnime() const { return checkHorseTurnLAnime() || checkHorseTurnRAnime(); }
-    bool checkHookshotShootAnime() const { return checkUpperAnime(0x18C); }
-    bool checkHookshotReadyAnime() const { return checkUpperAnime(0x18D); }
+    bool checkHookshotShootAnime() const { return checkUpperAnime(dRes_ID_ALANM_BCK_HSSHOOT_e); }
+    bool checkHookshotReadyAnime() const { return checkUpperAnime(dRes_ID_ALANM_BCK_HSWAIT_e); }
     BOOL checkHookshotAnime() const {
         return checkHookshotReadyAnime() || checkHookshotShootAnime();
     }
@@ -6768,7 +7230,7 @@ public:
     void offModeFlg(u32 flag) { mModeFlg &= ~flag; }
     bool swordButton() { return itemButtonCheck(8); }
     daPy_actorKeep_c* getThrowBoomerangAcKeep() { return &mThrowBoomerangAcKeep; }
-    s32 getStartRoomNo() { return fopAcM_GetParam(this) & 0x3F; }
+    int getStartRoomNo() { return fopAcM_GetParam(this) & 0x3F; }
     bool checkFisingRodLure() const { return mEquipItem == 0x105; }
     BOOL doTrigger() const { return mItemTrigger & BTN_A; }
     bool swordTrigger() { return itemTriggerCheck(BTN_B); }
@@ -6802,7 +7264,7 @@ public:
         field_0x2844.clearData();
     }
 
-    s32 checkPlayerDemoMode() const { return mDemo.getDemoType(); }
+    int checkPlayerDemoMode() const { return mDemo.getDemoType(); }
     BOOL checkSpecialDemoMode() const {
         return mDemo.getDemoType() == daPy_demo_c::DEMO_TYPE_SPECIAL_e;
     }
@@ -6811,19 +7273,19 @@ public:
     u32 getStartEvent() { return fopAcM_GetParam(this) >> 0x18; }
     BOOL checkClimbFall() { return checkLadderFall(); }
 
-    bool checkMidnaWolfDashAnime() const { return checkNoResetFlg1(FLG1_DASH_MODE); }
-    bool checkMidnaClingAnime() const { return mMidnaAnm == 1; }
-    bool checkMidnaLowClingAnime() const { return mMidnaAnm == 2; }
-    bool checkMidnaLookAroundAnime() const { return mMidnaAnm == 3; }
-    bool checkMidnaPanicAnime() const { return mMidnaAnm == 5; }
-    bool checkMidnaWolfDeadAnime() const { return mMidnaAnm == 6; }
-    bool checkMidnaWolfSwimDeadAnime() const { return mMidnaAnm == 7; }
-    bool checkMidnaRopeWaitStaggerAnime() const { return mMidnaAnm == 8; }
-    bool checkMidnaRopeMoveStaggerAnime() const { return mMidnaAnm == 9; }
-    bool checkMidnaGanonCatchAnm() const { return mMidnaAnm == 10; }
-    bool checkMidnaGanonThrowLeftAnm() const { return mMidnaAnm == 11; }
-    bool checkMidnaGanonThrowRightAnm() const { return mMidnaAnm == 12; }
-    bool checkMidnaDigInAnime() const { return mMidnaAnm == 13; }
+    BOOL checkMidnaWolfDashAnime() const { return checkNoResetFlg1(FLG1_DASH_MODE); }
+    BOOL checkMidnaClingAnime() const { return mMidnaAnm == 1; }
+    BOOL checkMidnaLowClingAnime() const { return mMidnaAnm == 2; }
+    BOOL checkMidnaLookAroundAnime() const { return mMidnaAnm == 3; }
+    BOOL checkMidnaPanicAnime() const { return mMidnaAnm == 5; }
+    BOOL checkMidnaWolfDeadAnime() const { return mMidnaAnm == 6; }
+    BOOL checkMidnaWolfSwimDeadAnime() const { return mMidnaAnm == 7; }
+    BOOL checkMidnaRopeWaitStaggerAnime() const { return mMidnaAnm == 8; }
+    BOOL checkMidnaRopeMoveStaggerAnime() const { return mMidnaAnm == 9; }
+    BOOL checkMidnaGanonCatchAnm() const { return mMidnaAnm == 10; }
+    BOOL checkMidnaGanonThrowLeftAnm() const { return mMidnaAnm == 11; }
+    BOOL checkMidnaGanonThrowRightAnm() const { return mMidnaAnm == 12; }
+    BOOL checkMidnaDigInAnime() const { return mMidnaAnm == 13; }
 
     void clearMidnaMsgNum() {
         mMidnaMsgNum = 0xffff;
@@ -6867,37 +7329,9 @@ public:
     MtxP getMagneBootsInvMtx() { return mMagneBootInvMtx; }
     s16 getMagneBootsModelShapeAngle() const { return field_0x3118; }
 
-    bool checkFishingCastMode() const {
-        bool var_r5;
-        bool var_r4 = 1;
-        bool var_r3 = 0;
-
-        if (mProcID == PROC_FISHING_CAST) {
-            var_r5 = 0;
-
-            if (mItemAcKeep.getActor() != NULL &&
-                mItemAcKeep.getActor()->eventInfo.checkCommandDemoAccrpt() != 0)
-            {
-                var_r5 = 1;
-            }
-
-            if (!var_r5) {
-                var_r3 = 1;
-            }
-        }
-
-        if (!var_r3) {
-            bool var_r3_2 = 0;
-            if (mProcID != PROC_FISHING_CAST && checkNoResetFlg2(FLG2_UNK_20000000)) {
-                var_r3_2 = 1;
-            }
-
-            if (!var_r3_2) {
-                var_r4 = 0;
-            }
-        }
-
-        return var_r4;
+    BOOL checkFishingCastMode() const {
+        return (mProcID == PROC_FISHING_CAST && !(mItemAcKeep.getActor() != NULL && mItemAcKeep.getActor()->eventInfo.checkCommandDemoAccrpt())) ||
+               (mProcID != PROC_FISHING_CAST && checkNoResetFlg2(FLG2_UNK_20000000) != 0);
     }
 
     BOOL setCanoeCast() {
@@ -7344,10 +7778,10 @@ public:
     /* 0x02864 */ dMsgFlow_c mMsgFlow;
     /* 0x028B0 */ fpc_ProcID mShieldArrowIDs[16];
     /* 0x028F0 */ fpc_ProcID mMsgClassID;
-    /* 0x028F4 */ int mAtnActorID;
+    /* 0x028F4 */ fpc_ProcID mAtnActorID;
     /* 0x028F8 */ fpc_ProcID field_0x28f8;
     /* 0x028FC */ fpc_ProcID field_0x28fc;
-    /* 0x02900 */ u32 field_0x2900;
+    /* 0x02900 */ fpc_ProcID field_0x2900;
     /* 0x02904 */ daAlink_footData_c mFootData1[2];
     /* 0x02A4C */ daAlink_footData_c mFootData2[2];
     /* 0x02B94 */ f32 field_0x2b94;
@@ -7835,5 +8269,9 @@ static fopAc_ac_c* daAlink_searchPortal(fopAc_ac_c* param_0, void* param_1);
 static fopAc_ac_c* daAlink_searchCanoe(fopAc_ac_c* param_0, void* param_1);
 static void* daAlink_searchBoar(fopAc_ac_c* param_0, void* param_1);
 static fopAc_ac_c* daAlink_searchLightBall(fopAc_ac_c* p_actor, void* param_1);
+
+inline daAlink_c* daAlink_getAlinkActorClass() {
+    return (daAlink_c*)g_dComIfG_gameInfo.play.getPlayerPtr(LINK_PTR);
+}
 
 #endif /* D_A_D_A_ALINK_H */

@@ -10,7 +10,7 @@
 #include "d/d_meter2_info.h"
 #include "d/d_s_play.h"
 
-#ifdef DEBUG
+#if DEBUG
 class daObjSmgDoor_HIO_c : public mDoHIO_entry_c {
 public:
     daObjSmgDoor_HIO_c();
@@ -87,13 +87,13 @@ static char* l_eventName[2] = {
     "OLD_DOOR_IN",
 };
 
-static Vec l_cull_box[2] = {{-200.0f, 0.0f, -50.0f}, {200.0f, 400.0f, 50.0f}};
+static cull_box l_cull_box = {{-200.0f, 0.0f, -50.0f}, {200.0f, 400.0f, 50.0f}};
 
 int daObjSmgDoor_c::Create() {
     initBaseMtx();
     fopAcM_SetMtx(this, field_0x5b8);
-    fopAcM_setCullSizeBox(this, l_cull_box[0].x, l_cull_box[0].y, l_cull_box[0].z, l_cull_box[1].x,
-                          l_cull_box[1].y, l_cull_box[1].z);
+    fopAcM_setCullSizeBox(this, l_cull_box.min.x, l_cull_box.min.y, l_cull_box.min.z, l_cull_box.max.x,
+                          l_cull_box.max.y, l_cull_box.max.z);
     attention_info.position.y += 150.0f;
     eyePos.y += 150.0f;
     attention_info.flags = fopAc_AttnFlag_DOOR_e;
@@ -133,7 +133,7 @@ int daObjSmgDoor_c::create1st() {
         }
     }
 
-#ifdef DEBUG
+#if DEBUG
     // Present or Past Door
     l_HIO.entryHIO("現在or過去の扉");
 #endif
@@ -162,7 +162,7 @@ int daObjSmgDoor_c::demoProc() {
 
     if (dComIfGp_evmng_getIsAddvance(mStaffId) != 0) {
         switch (demo_action) {
-        case 0:
+        case 0: {
             int* intP = dComIfGp_evmng_getMyIntegerP(mStaffId, "Timer");
             if (intP == NULL) {
                 field_0x5e9 = 1;
@@ -170,6 +170,7 @@ int daObjSmgDoor_c::demoProc() {
                 field_0x5e9 = *intP;
             }
             break;
+        }
         case 1:
             openInit();
             break;
@@ -384,7 +385,7 @@ int daObjSmgDoor_c::Draw() {
     mDoExt_modelUpdateDL(mpModel[1]);
     dComIfGd_setList();
 
-#ifdef DEBUG
+#if DEBUG
     if (l_HIO.field_0x6 != 0) {
         mpBgW->CalcPlane();
     }
@@ -395,7 +396,7 @@ int daObjSmgDoor_c::Draw() {
 
 int daObjSmgDoor_c::Delete() {
     dComIfG_resDelete(&mPhase, l_arcName[mType]);
-#ifdef DEBUG
+#if DEBUG
     l_HIO.removeHIO();
 #endif
     return 1;

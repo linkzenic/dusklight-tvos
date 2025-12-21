@@ -926,7 +926,7 @@ void dMenu_save_c::memCardCheck() {
             field_0x1c0 = 0;
             errDispInitSet(0x3B4);  // There is Insufficient space on the Memory Card in Slot A.
             field_0x9e = 0;
-            mpErrFunc = &iplSelMsgInitSet;
+            mpErrFunc = &dMenu_save_c::iplSelMsgInitSet;
             mErrProc = PROC_IPL_SELECT_DISP1;
             field_0x1b4 = 9;
             break;
@@ -938,7 +938,7 @@ void dMenu_save_c::memCardCheck() {
             field_0x1c0 = 0;
             errDispInitSet(0x3C4);  // There is no save for this game on the Memory Card in Slot A.
             field_0x9e = 0;
-            mpErrFunc = &gameFileMakeSelInitSet;
+            mpErrFunc = &dMenu_save_c::gameFileMakeSelInitSet;
             mErrProc = PROC_MAKE_GAME_FILE_SEL_DISP;
             field_0x1b4 = 9;
             break;
@@ -1048,7 +1048,7 @@ void dMenu_save_c::iplSelInitSet() {
 
 void dMenu_save_c::IPLSelectDisp1() {
     if (errorTxtChangeAnm() == true) {
-        mpErrFunc = &iplSelInitSet;
+        mpErrFunc = &dMenu_save_c::iplSelInitSet;
         mErrProc = PROC_IPL_SELECT_DISP2;
         mMenuProc = PROC_MEMCARD_ERRMSG_WAIT_KEY;
     }
@@ -1296,7 +1296,7 @@ void dMenu_save_c::memCardCommandEnd2() {
     bool headerTxtChanged = headerTxtChangeAnm();
     bool ketteiDispAnm = ketteiTxtDispAnm();
     bool modoruDispAnm = modoruTxtDispAnm();
-    u32 check = mWarning->getStatus() != 0;
+    u32 check = mWarning->getStatus();
 
     if (headerTxtChanged == true && ketteiDispAnm == true && modoruDispAnm == true && check == 1) {
         mpErrFunc = NULL;
@@ -1388,7 +1388,7 @@ void dMenu_save_c::gameContinueDisp() {
     bool headerTxtChanged = headerTxtChangeAnm();
     bool moveAnm = yesnoMenuMoveAnm();
     bool ketteiDispAnm = ketteiTxtDispAnm();
-    u32 check = mWarning->getStatus() != 0;
+    u32 check = mWarning->getStatus();
 
     if (headerTxtChanged == true && moveAnm == true && ketteiDispAnm == true && check == 1) {
         yesnoCursorShow();
@@ -1466,7 +1466,7 @@ void dMenu_save_c::gameContinue3() {
 void dMenu_save_c::saveEnd() {
     bool headerTxtChanged = headerTxtChangeAnm();
     bool ketteiDispAnm = ketteiTxtDispAnm();
-    u32 check = mWarning->getStatus() != 0;
+    u32 check = mWarning->getStatus();
 
     if (headerTxtChanged == true && ketteiDispAnm == true && check == 1) {
         if (mUseType == TYPE_BLACK_EVENT) {
@@ -1938,7 +1938,7 @@ void dMenu_save_c::saveMoveDisp() {
     bool yesnoAnmComplete = yesnoMenuMoveAnm();
     bool ketteiAnmComplete = ketteiTxtDispAnm();
     bool modoruAnmComplete = modoruTxtDispAnm();
-    u32 check = mWarning->getStatus() != 0;
+    u32 check = mWarning->getStatus();
 
     if (headerTxtChanged == true && yesnoAnmComplete == true && ketteiAnmComplete == true &&
         modoruAnmComplete == 1 && check == 1) {
@@ -1956,7 +1956,7 @@ void dMenu_save_c::saveMoveDisp2() {
     bool wakuAnmComplete = selectWakuAlpahAnm(mSelectedFile);
     bool ketteiAnmComplete = ketteiTxtDispAnm();
     bool modoruAnmComplete = modoruTxtDispAnm();
-    u32 check = mWarning->getStatus() != 0;
+    u32 check = mWarning->getStatus();
 
     if (headerTxtChanged == true && dataMoveAnm == true && wakuAnmComplete == true &&
         ketteiAnmComplete == true && modoruAnmComplete == 1 && check == 1) {

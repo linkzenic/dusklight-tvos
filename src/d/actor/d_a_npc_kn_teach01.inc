@@ -330,6 +330,7 @@ int daNpc_Kn_c::ctrlWarp() {
                 field_0x16f4.set(1.0f, 1.0f, 1.0f);
             }
         }
+        void(0);
         break;
     }
     case 1:
@@ -365,6 +366,7 @@ int daNpc_Kn_c::ctrlWarp() {
             field_0x170c = 2;
             field_0x170d = 0;
         }
+        void(0);
         break;
     case 2:
         sp28 = 1;
@@ -405,7 +407,6 @@ int daNpc_Kn_c::ctrlWarp() {
             field_0x170c = 0;
             field_0x170d = 0;
         }
-        break;
     }
 
     return sp28;
@@ -432,7 +433,7 @@ int daNpc_Kn_c::ECut_firstEncount(int i_idx) {
             break;
         case 10:
             daPy_getPlayerActorClass()->changeDemoMoveAngle(fopAcM_searchPlayerAngleY(this) + 0x8000);
-#if VERSION == VERSION_SHIELD_DEBUG
+#if VERSION >= VERSION_WII_USA_R0
             field_0xdec = 50;
 #else
             field_0xdec = 52;

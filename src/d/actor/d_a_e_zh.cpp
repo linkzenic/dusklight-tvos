@@ -130,6 +130,7 @@ static int mStartFlag;
 
 int daE_ZH_c::draw() {
     GXColor i_color, i_color2;
+#if DEBUG
     if (WREG_S(0) != 0) {
         cXyz i_pos = home.pos;
         i_color.r = 0x82;
@@ -212,6 +213,7 @@ int daE_ZH_c::draw() {
             }
         }
     }
+#endif
 
     J3DModelData* modelData;
     J3DMaterial* matNodeP;
@@ -224,7 +226,7 @@ int daE_ZH_c::draw() {
         return 1;
     }
 
-    #ifdef DEBUG
+    #if DEBUG
     mBgc.DrawWall(dComIfG_Bgsp());
     #endif
     
@@ -1069,7 +1071,7 @@ void daE_ZH_c::executeOpenStart() {
                 break;
             }
 
-            #ifdef DEBUG
+            #if DEBUG
             if (ZREG_S(0) == 0) {
                 break;
             }

@@ -381,7 +381,7 @@ int daNpc_Kolinb_c::Draw() {
         modelData->getMaterialNodePointer(getEyeballMaterialNo())->setMaterialAnm(mpMatAnm[0]);
     }
 
-    draw(FALSE, FALSE, mRealShadowSize, NULL, 100.0f, FALSE, FALSE, FALSE);
+    return draw(FALSE, FALSE, mRealShadowSize, NULL, 100.0f, FALSE, FALSE, FALSE);
 }
 
 int daNpc_Kolinb_c::createHeapCallBack(fopAc_ac_c* a_this) {
@@ -590,7 +590,7 @@ int daNpc_Kolinb_c::drawDbgInfo() {
 int daNpc_Kolinb_c::selectAction() {
     mNextAction = NULL;
 
-#ifdef DEBUG
+#if DEBUG
     if (daNpc_Kolinb_Param_c::m.common.debug_mode_ON) {
         mNextAction = &daNpc_Kolinb_c::test;
         return 1;

@@ -16,7 +16,9 @@
 #include "SSystem/SComponent/c_malloc.h"
 #include "SSystem/SComponent/c_math.h"
 #include "SSystem/SComponent/c_API_controller_pad.h"
+#ifdef __MWERKS__
 #include "base/PPCArch.h"
+#endif
 #include "m_Do/m_Do_DVDError.h"
 #include "m_Do/m_Do_MemCard.h"
 #include "m_Do/m_Do_Reset.h"
@@ -219,7 +221,7 @@ GXRenderModeObj g_ntscZeldaProg = {
 };
 #endif
 
-#ifdef DEBUG
+#if DEBUG
 static void myGXVerifyCallback(GXWarningLevel, u32, const char*);
 
 GXRenderModeObj g_palZeldaProg60 = {
@@ -458,7 +460,7 @@ void myExceptionCallback(u16, OSContext*, u32, u32) {
         }
     }
     DVDChangeDir("/map/Final/Release");
-    JUTVideo::destroyManager();
+    JUTDestroyVideoManager();
     GXSetDrawDoneCallback(NULL);
     VISetBlack(0);
     VIFlush();
@@ -601,14 +603,14 @@ int mDoMch_Create() {
     }
 
     JKRHeap::setDefaultDebugFill(mDoMch::mDebugFill);
-    #ifdef DEBUG
+    #if DEBUG
     JKRSetDebugFillNotuse(mDoMch::mDebugFillNotUse);
     JKRSetDebugFillNew(mDoMch::mDebugFillNew);
     JKRSetDebugFillDelete(mDoMch::mDebugFillDelete);
     #endif
     JFWSystem::setMaxStdHeap(1);
 
-    #ifndef DEBUG
+    #if !DEBUG
     uintptr_t arenaHi = (uintptr_t)OSGetArenaHi();
     uintptr_t arenaLo = (uintptr_t)OSGetArenaLo();
 
@@ -654,7 +656,7 @@ int mDoMch_Create() {
     gameHeapSize += 0x100000;
     dynamicLinkHeapSize = 0x180000;
 
-    #ifndef DEBUG
+    #if !DEBUG
     // Fakematch because the heap sizes differ between debug and retail.
     // Maybe the actual calculations above use sizeof or constants and that's why it's different?
     archiveHeapSize -= 0x641800;
@@ -666,7 +668,7 @@ int mDoMch_Create() {
     gameHeapSize += 0xC800;
     #endif
 
-    #ifdef DEBUG
+    #if DEBUG
     if (mDoMain::archiveHeapSize != -1) {
         OSReport_Error("アーカイブヒープサイズ指定！\n");
         archiveHeapSize = mDoMain::archiveHeapSize;
@@ -685,7 +687,7 @@ int mDoMch_Create() {
 
     arenaSize -= (dbPrintHeapSize + 0x10);
     arenaSize -= 0x120;
-    #ifndef DEBUG
+    #if !DEBUG
     arenaSize -= 0xDAB400;
     #endif
     #if VERSION == VERSION_GCN_JPN
@@ -700,14 +702,14 @@ int mDoMch_Create() {
     }
 
     JFWSystem::setFifoBufSize(0xA0000);
-    #ifdef DEBUG
+    #if DEBUG
     JFWSystem::setAramAudioBufSize(0xB00000);
     #else
     JFWSystem::setAramAudioBufSize(0xA00000);
     #endif
     JFWSystem::setAramGraphBufSize(-1);
 
-    #ifdef DEBUG
+    #if DEBUG
     VIInit();
     if (VIGetDTVStatus() != 0 && mDoMch_IsProgressiveMode()) {
         mDoMch_render_c::setProgressiveMode();
@@ -752,7 +754,7 @@ int mDoMch_Create() {
     JKRSetErrorFlag(JFWSystem::getSystemHeap(), true);
 
     JKRHeap* rootHeap = (JKRHeap*)JKRGetRootHeap();
-    #ifdef DEBUG
+    #if DEBUG
     JKRHeap* rootHeap2 = JKRGetRootHeap2();
     #else
     JKRHeap* rootHeap2 = rootHeap;
@@ -762,7 +764,7 @@ int mDoMch_Create() {
     heap = mDoExt_createCommandHeap(commandHeapSize, rootHeap);
     my_SysPrintHeap("コマンドヒープ", heap, commandHeapSize);
 
-    #ifdef DEBUG
+    #if DEBUG
     heap = DynamicModuleControlBase::createHeap(dynamicLinkHeapSize, rootHeap);
     my_SysPrintHeap("ダイナミックリンクヒープ", heap, dynamicLinkHeapSize);
     #endif
@@ -779,7 +781,7 @@ int mDoMch_Create() {
     heap = mDoExt_createGameHeap(gameHeapSize, rootHeap);
     my_SysPrintHeap("ゲームヒープ", heap, gameHeapSize);
 
-    #ifdef DEBUG
+    #if DEBUG
     JKRHeap* sp28 = rootHeap2;
     u32 hostIOHeapSize = 0x71450;
     hostIOHeapSize += 0x32000;
@@ -795,7 +797,7 @@ int mDoMch_Create() {
     my_SysPrintHeap("ゼルダヒープ", zeldaHeap, size);
     JKRSetCurrentHeap(zeldaHeap);
 
-    #ifdef DEBUG
+    #if DEBUG
     my_PrintHeap("システムヒープ", JKRGetSystemHeap()->getTotalFreeSize());
     my_PrintHeap("ルートヒープ", JKRGetRootHeap()->getTotalFreeSize());
     my_PrintHeap("ルートヒープ2", JKRGetRootHeap2()->getTotalFreeSize());
@@ -811,7 +813,7 @@ int mDoMch_Create() {
     sysConsole->setOutput(JUTConsole::OUTPUT_CONSOLE | JUTConsole::OUTPUT_OSREPORT);
     sysConsole->setPosition(16, 42);
 
-#ifdef DEBUG
+#if DEBUG
     JUTException::setMapFile("/map/RVL/Debug/RframeworkD.map");
 #else
     JUTException::appendMapFile("/map/Final/Release/frameworkF.map");
@@ -821,7 +823,7 @@ int mDoMch_Create() {
 
     cMl::init(mDoExt_getZeldaHeap());
     cM_initRnd(100, 100, 100);
-    #ifdef DEBUG
+    #if DEBUG
     GXSetVerifyLevel((GXWarningLevel)mDoMch::GXWarningLevel);
     GXSetVerifyCallback((GXVerifyCallback)&myGXVerifyCallback);
     #endif

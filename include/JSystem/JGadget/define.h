@@ -17,7 +17,7 @@ public:
 
     JGadget_outMessage& operator<<(int param_1) { return *this << (s32)param_1; }
     JGadget_outMessage& operator<<(u16);
-    JGadget_outMessage& operator<<(unsigned int);
+    JGadget_outMessage& operator<<(uint);
     JGadget_outMessage& operator<<(u8 param_1) { return *this << (char)param_1; }
     JGadget_outMessage& operator<<(const char* str);
     JGadget_outMessage& operator<<(char);
@@ -33,7 +33,7 @@ private:
     int mLine;
 };
 
-#ifdef DEBUG
+#if DEBUG
 
 #define JGADGET_ASSERTWARN(line, COND) \
     ((COND)) || (JGadget_outMessage(JGadget_outMessage::warning, __FILE__, line) << #COND, false);
@@ -44,6 +44,10 @@ private:
 #define JGADGET_WARNMSG1(line, msg, arg)                                      \
         JGadget_outMessage out(JGadget_outMessage::warning, __FILE__, line);  \
         out << msg << (arg);
+
+#define JGADGET_WARNMSG3(line, msg, arg1, arg2, arg3)                         \
+        JGadget_outMessage out(JGadget_outMessage::warning, __FILE__, line);  \
+        out << msg << (arg1) << (arg2) << (arg3);
 
 #define JGADGET_WARNMSG4(line, msg, arg1, arg2, arg3, arg4)                   \
         JGadget_outMessage out(JGadget_outMessage::warning, __FILE__, line);  \

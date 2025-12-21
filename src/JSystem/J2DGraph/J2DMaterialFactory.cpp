@@ -270,18 +270,8 @@ J2DTevOrder J2DMaterialFactory::newTevOrder(int param_0, int param_1) const {
 }
 
 J2DGXColorS10 J2DMaterialFactory::newTevColor(int param_0, int param_1) const {
-    // FAKEMATCH
-    #if DEBUG || VERSION == VERSION_WII_USA_R0 || VERSION == VERSION_WII_USA_R2
     GXColorS10 color = {0, 0, 0, 0};
     J2DGXColorS10 rv = color;
-    #else
-    GXColorS10 color = {0, 0, 0, 0};
-    J2DGXColorS10 rv;
-    rv.r = color.r;
-    rv.g = color.g;
-    rv.b = color.b;
-    rv.a = color.a;
-    #endif
     J2DMaterialInitData* iVar2 = &field_0x4[field_0x8[param_0]];
 
     if (iVar2->field_0x92[param_1] != 0xffff) {
@@ -395,9 +385,4 @@ u8 J2DMaterialFactory::newDither(int param_0) const {
         return field_0x58[iVar2->field_0x5];
     }
     return 0;
-}
-
-J2DTevStage::J2DTevStage(J2DTevStageInfo const& param_0) {
-    setTevStageInfo(param_0);
-    setTevSwapModeInfo(j2dDefaultTevSwapMode);
 }

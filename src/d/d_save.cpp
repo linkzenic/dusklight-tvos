@@ -709,7 +709,7 @@ void dSv_player_item_record_c::init() {
 }
 
 void dSv_player_item_record_c::setBombNum(u8 i_bagIdx, u8 i_bombNum) {
-#if VERSION == VERSION_SHIELD_DEBUG
+#if DEBUG
     if (i_bagIdx == 8) {
         return;
     }
@@ -989,10 +989,10 @@ void dSv_player_config_c::init() {
     mAttentionType = 0;
     mVibration = 1;
 
-#if VERSION == VERSION_GCN_PAL
-    mLanguage = OSGetLanguage();
-#elif VERSION == VERSION_SHIELD_DEBUG
+#if DEBUG
     mLanguage = SCGetLanguage();
+#elif REGION_PAL || VERSION >= VERSION_WII_USA_R2
+    mLanguage = OSGetLanguage();
 #else
     mLanguage = 0;
 #endif
@@ -1043,7 +1043,7 @@ u8 dSv_player_config_c::getPalLanguage() const {
     case 4:
         return LANGAUGE_ITALIAN;
     }
-#elif VERSION == VERSION_SHIELD_DEBUG
+#elif VERSION >= VERSION_WII_USA_R0
     switch (SCGetLanguage()) {
     case 1:
         return 0;
@@ -1298,7 +1298,7 @@ BOOL dSv_danBit_c::isItem(int i_no) const {
     return mItem[i_no >> 5] & 1 << (i_no & 0x1F) ? TRUE : FALSE;
 }
 
-#if VERSION == VERSION_SHIELD_DEBUG
+#if DEBUG
 static void dummyString() {
     DEAD_STRING("i_no < 6");
 }
@@ -1449,7 +1449,7 @@ void dSv_info_c::init() {
     initZone();
     mTmp.init();
 
-#if VERSION == VERSION_SHIELD_DEBUG
+#if DEBUG
     unk_0x0 = 0;
     unk_0x1 = 0;
 #endif
@@ -1708,14 +1708,14 @@ int dSv_info_c::memory_to_card(char* card_ptr, int dataNum) {
     #endif
     
     // If haven't gotten then lantern back from the monkey
-    if (!dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[226])) {
+    if (!dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[226])) {
         // Store whether or not it's stolen and dropped
-        lantern_dropped = dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[224]);
-        lantern_stolen = dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[225]);
+        lantern_dropped = dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[224]);
+        lantern_stolen = dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[225]);
 
         // Then turn those events off
-        dComIfGs_offEventBit((u16)dSv_event_flag_c::saveBitLabels[224]);
-        dComIfGs_offEventBit((u16)dSv_event_flag_c::saveBitLabels[225]);
+        dComIfGs_offEventBit(dSv_event_flag_c::saveBitLabels[224]);
+        dComIfGs_offEventBit(dSv_event_flag_c::saveBitLabels[225]);
 
         // Used to turn events back on later
         lantern_not_recovered = true;
@@ -1765,10 +1765,10 @@ int dSv_info_c::memory_to_card(char* card_ptr, int dataNum) {
     // Now that we've saved, reset events if needed
     if (lantern_not_recovered == true) {
         if (lantern_dropped) {
-            dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[224]);
+            dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[224]);
         }
         if (lantern_stolen) {
-            dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[225]);
+            dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[225]);
         }
     }
 
@@ -1856,7 +1856,7 @@ int dSv_info_c::initdata_to_card(char* i_cardPtr, int i_dataNum) {
     return 0;
 }
 
-#ifdef DEBUG
+#if DEBUG
 flagFile_c::flagFile_c() {
     m_no = mDoHIO_CREATE_CHILD("フラグファイル", this);
     m_flags = FLAG_ALL_e;
@@ -2014,7 +2014,12 @@ BOOL flagFile_c::check_flag(u16 i_flag) {
 #if VERSION > VERSION_GCN_JPN
 const
 #endif
-u16 dSv_event_flag_c::saveBitLabels[822] = {
+#if PLATFORM_SHIELD
+s16
+#else
+u16
+#endif
+dSv_event_flag_c::saveBitLabels[822] = {
     UNUSED, TEST_001, TEST_002, TEST_003, TEST_004, F_0001, F_0002, F_0003, F_0004, F_0005, F_0006, 
     F_0007, F_0008, F_0009, F_0010, F_0011, F_0012, F_0013, F_0014, F_0015, F_0016, F_0017, F_0018, 
     F_0019, F_0020, D_0001, F_0021, F_0022, F_0023, F_0024, F_0025, F_0026, F_0027, F_0028, F_0029, 

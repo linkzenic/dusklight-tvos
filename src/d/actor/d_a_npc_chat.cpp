@@ -2383,7 +2383,7 @@ int daNpcChat_c::getObjNum() {
         }
 
         // dSv_event_flag_c::F_0281 - Shop - Malo Mart opens in Castle Town
-        if (dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[281]) &&
+        if (dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[281]) &&
             objNum == OBJ_CELEB_BAG_M) {
             objNum = OBJ_MARO_BAG_M;
         }
@@ -2427,7 +2427,7 @@ int daNpcChat_c::getObjNum() {
         }
 
         // dSv_event_flag_c::F_0281 - Shop - Malo Mart opens in Castle Town
-        if (dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[281]) &&
+        if (dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[281]) &&
             objNum == OBJ_CELEB_BAG_W) {
             objNum = OBJ_MARO_BAG_W;
         }
@@ -2700,7 +2700,7 @@ cPhs__Step daNpcChat_c::Create() {
         mSound.init(&current.pos, &eyePos, 3, 1);
         mSound.setMdlType(mType, false, mTwilight & 0xFF);
 
-        #ifdef DEBUG
+        #if DEBUG
         // mHIO = l_HIO;
         mHIO->entryHIO("多人数会話NPC");
         #endif
@@ -3065,7 +3065,7 @@ void daNpcChat_c::setParam() {
         }
     }
 
-    #ifdef DEBUG
+    #if DEBUG
     scale.set(daNpcChat_Param_c::m.common.scale, daNpcChat_Param_c::m.common.scale, daNpcChat_Param_c::m.common.scale);
     mAcchCir.SetWallR(daNpcChat_Param_c::m.common.width);
     mAcchCir.SetWallH(daNpcChat_Param_c::m.common.knee_length);

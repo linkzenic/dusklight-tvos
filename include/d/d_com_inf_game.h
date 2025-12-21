@@ -14,6 +14,7 @@
 #include "f_op/f_op_actor.h"
 #include "global.h"
 #include "m_Do/m_Do_controller_pad.h"
+#include "m_Do/m_Do_graphic.h"
 
 class JKRAramArchive;
 class dSmplMdl_draw_c;
@@ -290,7 +291,7 @@ public:
     dVibration_c& getVibration() { return mVibration; }
     camera_class* getCamera(int idx) { return mCameraInfo[idx].mCamera; }
     void* getPlayerPtr(int ptrIdx) { return mPlayerPtr[ptrIdx]; }
-    fopAc_ac_c* getPlayer(int idx) { return (fopAc_ac_c*)mPlayer[idx * 2]; }
+    fopAc_ac_c* getPlayer(int idx) { return mPlayerInfo[idx].mpPlayer; }
     dPa_control_c* getParticle() { return mParticle; }
     dEvent_manager_c& getEvtManager() { return mEvtManager; }
     dAttention_c* getAttention() { return &mAttention; }
@@ -350,7 +351,7 @@ public:
     u8 getYSetFlagForce() { return mItemInfo.mYSetFlagForce; }
     u8 getFaceAnimeID() { return mItemInfo.mFaceAnimeID; }
     u8 getBaseAnimeID() { return mItemInfo.mBaseAnimeID; }
-    bool isCStickSetFlag(u8 flag) { return mItemInfo.mCStickSetFlag & flag; }
+    bool isCStickSetFlag(u8 flag) { return (mItemInfo.mCStickSetFlag & flag) ? true : false; }
     bool isDoSetFlag(u8 flag) { return (mItemInfo.mDoSetFlag & flag) ? true : false; }
     bool isASetFlag(u8 flag) { return (mItemInfo.mASetFlag & flag) ? true : false; }
     bool isRSetFlag(u8 flag) { return (mItemInfo.mRSetFlag & flag) ? true : false; }
@@ -653,16 +654,16 @@ public:
     void* getItemTable() { return mItemTable; }
 
     void setPlayerPtr(int i, fopAc_ac_c* ptr) { mPlayerPtr[i] = ptr; }
-    void setPlayer(int i, fopAc_ac_c* player) { mPlayer[i] = (daAlink_c*)player; }
-    void setPlayerInfo(int i, fopAc_ac_c* ptr, int camIdx) {
-        mPlayer[i] = (daAlink_c*)ptr;
-        mPlayerCameraID[camIdx] = 0;
+    void setPlayer(int i, fopAc_ac_c* player) { mPlayerInfo[i].mpPlayer = player; }
+    void setPlayerInfo(int i, fopAc_ac_c* player, int cam) {
+        mPlayerInfo[i].mpPlayer = player;
+        mPlayerInfo[i].mCameraID = cam;
     }
     void setPlayerStatus(int param_0, int i, u32 flag) { mPlayerStatus[param_0][i] |= flag; }
     void clearPlayerStatus(int param_0, int i, u32 flag) { mPlayerStatus[param_0][i] &= ~flag; }
     u32 checkPlayerStatus(int param_0, int i, u32 flag) { return mPlayerStatus[param_0][i] & flag; }
 
-    int getPlayerCameraID(int i) { return mPlayerCameraID[i * 8]; }
+    int getPlayerCameraID(int i) { return mPlayerInfo[i].mCameraID; }
     int getCameraPlayer1ID(int i) { return mCameraInfo[i].field_0x5; }
     int getCameraPlayer2ID(int i) { return mCameraInfo[i].field_0x6; }
     int getCameraWinID(int i) { return mCameraInfo[i].field_0x4; }
@@ -814,8 +815,10 @@ public:
     /* 0x04E0E */ u16 mStatus;
     /* 0x04E10 */ dDlst_window_c mWindow[1];
     /* 0x04E3C */ dComIfG_camera_info_class mCameraInfo[1];
-    /* 0x04E74 */ daAlink_c* mPlayer[1];
-    /* 0x04E78 */ s8 mPlayerCameraID[1];
+    /* 0x04E74 */ struct {
+        /* 0x0 */ fopAc_ac_c* mpPlayer;
+        /* 0x4 */ s8 mCameraID;
+    } mPlayerInfo[1];
     /* 0x04E7C */ fopAc_ac_c* mPlayerPtr[2];  // 0: Player, 1: Horse ; type may be wrong
     /* 0x04E84 */ dComIfG_item_info_class mItemInfo;
     /* 0x04FB0 */ dComIfG_MesgCamInfo_c mMesgCamInfo;
@@ -836,7 +839,56 @@ public:
     dComIfG_inf_c() { this->ct(); }
     ~dComIfG_inf_c() {}
     void ct();
+    void createBaseCsr();
     dComIfG_play_c& getPlay() { return play; }
+
+#if PLATFORM_WII || VERSION == VERSION_SHIELD_DEBUG
+    class baseCsr_c : public mDoGph_gInf_c::csr_c {
+    public:
+        class navi_c {
+        public:
+            virtual ~navi_c() {}
+            int create();
+            bool draw(f32, f32, u8);
+            u32 getParticleId() { return mParticleId; }
+
+            JKRSolidHeap* m_heap;
+            J3DModel* m_model;
+            mDoExt_bckAnm m_bck;
+            mDoExt_brkAnm m_brk;
+            cXyz field_0x40;
+            csXyz field_0x4c;
+            f32 field_0x54;
+            f32 field_0x58;
+            f32 field_0x5c;
+            u32 mParticleId;
+        };
+
+        virtual ~baseCsr_c() {}
+        baseCsr_c(u8);
+        void draw(f32, f32);
+        void create();
+        static void particleExecute();
+        static navi_c* getNavi() { return m_navi; }
+
+        dDlst_blo_c field_0x8;
+        u8 field_0x13c;
+        u8 field_0x13d;
+        u8 field_0x13e;
+
+        static dPa_hermiteEcallBack_c m_blurCB;
+        static u32 _m_blurID;
+        static navi_c* m_navi;
+    };
+
+    class anmCsr_c : public mDoGph_gInf_c::csr_c {
+    public:
+        virtual ~anmCsr_c() {}
+        void draw(f32, f32);
+
+        dDlst_blo_c field_0x8;
+    };
+#endif
 
     /* 0x00000 */ dSv_info_c info;
     /* 0x00F38 */ dComIfG_play_c play;
@@ -856,6 +908,9 @@ public:
     /* 0x1DE0C */ u8 field_0x1de0c;
 
     static __d_timer_info_c dComIfG_mTimerInfo;
+    #if PLATFORM_WII || VERSION == VERSION_SHIELD_DEBUG
+    static baseCsr_c* m_baseCsr;
+    #endif
 };  // Size: 0x1DE10
 
 STATIC_ASSERT(122384 == sizeof(dComIfG_inf_c));
@@ -1161,8 +1216,8 @@ inline void dComIfGs_setCollectClothes(u8 i_clothesNo) {
     g_dComIfG_gameInfo.info.getPlayer().getCollect().setCollect(COLLECT_CLOTHING, i_clothesNo);
 }
 
-inline void dComIfGs_setCardToMemory(char* card_ptr, int dataNum) {
-    g_dComIfG_gameInfo.info.card_to_memory(card_ptr, dataNum);
+inline void dComIfGs_setCardToMemory(u8* card_ptr, int dataNum) {
+    g_dComIfG_gameInfo.info.card_to_memory((char*)card_ptr, dataNum);
 }
 
 inline void dComIfGs_setRodTypeLevelUp() {
@@ -3990,8 +4045,8 @@ inline u32 dComIfGp_particle_set(u32 param_0, u16 param_1, const cXyz* i_pos,
 
 inline u32 dComIfGp_particle_set(u32 param_0, u16 param_1, const cXyz* i_pos,
                                  const dKy_tevstr_c* param_3) {
-    return dComIfGp_particle_set(param_0, param_1, i_pos, param_3, 0, 0, 0xFF, 0, 0xFFFFFFFF, 0,
-                                 0, 0);
+    return dComIfGp_particle_set(param_0, param_1, i_pos, param_3, NULL, NULL, 0xFF, NULL, -1, NULL,
+                                 NULL, NULL);
 }
 
 inline JPABaseEmitter* dComIfGp_particle_set(u16 i_resID, const cXyz* i_pos,
@@ -4428,16 +4483,11 @@ inline void dComIfGd_set3DlineMatDark(mDoExt_3DlineMat_c* param_0) {
     g_dComIfG_gameInfo.drawlist.set3DlineMatDark(param_0);
 }
 
-inline daPy_py_c* daPy_getLinkPlayerActorClass() {
-    return dComIfGp_getLinkPlayer();
+#if PLATFORM_WII || VERSION == VERSION_SHIELD_DEBUG
+inline void dComIfGd_setListCursor() {
+    g_dComIfG_gameInfo.drawlist.setOpaListCursor();
+    g_dComIfG_gameInfo.drawlist.setXluListCursor();
 }
-
-inline daPy_py_c* daPy_getPlayerActorClass() {
-    return (daPy_py_c*)dComIfGp_getPlayer(0);
-}
-
-inline daAlink_c* daAlink_getAlinkActorClass() {
-    return (daAlink_c*)g_dComIfG_gameInfo.play.getPlayerPtr(LINK_PTR);
-}
+#endif
 
 #endif /* D_COM_D_COM_INF_GAME_H */

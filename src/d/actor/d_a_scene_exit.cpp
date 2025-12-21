@@ -22,12 +22,12 @@ int daScex_c::checkWork() {
     }
 
     u16 eventBit = getOffEventBit();
-    if (eventBit != 0x0FFF && dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[eventBit])) {
+    if (eventBit != 0x0FFF && dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[eventBit])) {
         return 0;
     }
 
     eventBit = getOnEventBit();
-    if (eventBit != 0x0FFF && !dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[eventBit])) {
+    if (eventBit != 0x0FFF && !dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[eventBit])) {
         return 0;
     }
 
@@ -56,7 +56,6 @@ static int daScex_Execute(daScex_c* i_this) {
     return i_this->execute();
 }
 
-// NONMATCHING - regalloc, this matches debug but not retail :/
 int daScex_c::execute() {
     daPy_py_c* player = daPy_getPlayerActorClass();
     cXyz spC;

@@ -16,6 +16,46 @@
 #include "d/d_debug_viewer.h"
 #endif
 
+dCcD_SrcCyl daNpc_Kn_c::mCcDCyl = {
+    mCcDObjData,
+    {{0.0f, 0.0f, 0.0f}, 0.0f, 0.0f},
+};
+
+dCcD_SrcSph daNpc_Kn_c::mCcDSph = {
+    mCcDObjData,
+    {
+        {{0.0f, 0.0f, 0.0f}, 0.0f}  // mSphCc
+    },
+};
+
+s16 daNpc_Kn_c::mSrchName;
+
+fopAc_ac_c* daNpc_Kn_c::mFindActorPtrs[50];
+
+int daNpc_Kn_c::mFindCount;
+
+void* dummy_srchActor(void* i_actor1, void* i_actor2) {
+    // Fake function (though a similar one likely existed and got stripped out).
+    // daNpc_Kn_c::setSwordChargePtcl has issues where the ...rodata and ...bss pools are loaded in
+    // reverse order, which in turn also causes regalloc in that function.
+    // Fixing this requires a function early on in this TU to also use ...bss pooling, which for
+    // some reason fixes later pool loads.
+    // The unused member bss variables mSrchName/mFindActorPtrs/mFindCount existing in the maps
+    // indicates that a function using them originally existed, but was stripped out.
+    // Additionally, the bss members must be defined above this function for bss pooling to be used.
+    fopAc_ac_c* actor2 = (fopAc_ac_c*)i_actor2;
+    void* foundActor = NULL;
+    if (daNpc_Kn_c::mFindCount < 50 && fopAcM_IsActor(i_actor1) && i_actor1 != i_actor2) {
+        if (daNpc_Kn_c::mSrchName == fopAcM_GetName((fopAc_ac_c*)i_actor1)) {
+            foundActor = (fopAc_ac_c*)i_actor1;
+            daNpc_Kn_c::mFindActorPtrs[daNpc_Kn_c::mFindCount] = (fopAc_ac_c*)foundActor;
+            daNpc_Kn_c::mFindCount++;
+        }
+    }
+
+    return NULL;
+}
+
 const dCcD_SrcGObjInf daNpc_Kn_c::mCcDObjData = {
     {0, {{0, 0, 0}, {0, 0}, {0x79}}},
     {dCcD_SE_NONE, 0, 0, 0, 0},
@@ -156,18 +196,6 @@ void daNpc_Kn_HIO_c::genMessage(JORMContext* ctext) {
     ctext->genButton("ファイル書き出し", 0x40000002, 0, NULL, 0xFFFF, 0xFFFF, 0x200, 0x18);
 }
 #endif
-
-dCcD_SrcCyl daNpc_Kn_c::mCcDCyl = {
-    mCcDObjData,
-    {{0.0f, 0.0f, 0.0f}, 0.0f, 0.0f},
-};
-
-dCcD_SrcSph daNpc_Kn_c::mCcDSph = {
-    mCcDObjData,
-    {
-        {{0.0f, 0.0f, 0.0f}, 0.0f}  // mSphCc
-    },
-};
 
 static int l_bmdData[3][2] = {
     {47, 1},
@@ -484,12 +512,6 @@ daNpc_Kn_c::cutFunc daNpc_Kn_c::mCutList[21] = {
     &daNpc_Kn_c::ECut_seventhSkillExplain,
     &daNpc_Kn_c::ECut_seventhSkillGet,
 };
-
-s16 daNpc_Kn_c::mSrchName;
-
-fopAc_ac_c* daNpc_Kn_c::mFindActorPtrs[50];
-
-u8 daNpc_Kn_c::mFindCount[4];
 
 static NPC_KN_HIO_CLASS l_HIO;
 
@@ -1023,11 +1045,11 @@ u32 daNpc_Kn_c::setParamTeach05() {
 }
 
 u32 daNpc_Kn_c::setParamTeach06() {
-    setParamTeach05();
+    return setParamTeach05();
 }
 
 u32 daNpc_Kn_c::setParamTeach07() {
-    setParamTeach05();
+    return setParamTeach05();
 }
 
 void daNpc_Kn_c::setAfterTalkMotion() {
@@ -2537,7 +2559,6 @@ int daNpc_Kn_c::teach06_divideMove(void* param_0) {
         if (!dComIfGp_event_runCheck()) {
             mActionMode = 15;
         }
-        break;
     }
     case 3:
     default:
@@ -2609,15 +2630,10 @@ int daNpc_Kn_c::teach06_superJumpWaitDivide(void* param_0) {
                     parent_p->setTalkFlag(2);
                 }
 
-                int spC;
-                s16 temp_r0_2 = fopAcM_searchPlayerAngleY(this) - current.angle.y;
-                if (temp_r0_2 < 0) {
-                    spC = -temp_r0_2;
-                } else {
-                    spC = temp_r0_2;
-                }
+                s16 srch_ply_angle = fopAcM_searchPlayerAngleY(this);
+                s16 angle = srch_ply_angle - current.angle.y;
 
-                if (spC < 0x4000) {
+                if ((angle < 0 ? -angle : angle) < 0x4000) {
                     mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
                     mMotionSeqMngr.setNo(0x12, -1.0f, 0, 0);
                     setAngle(fopAcM_searchPlayerAngleY(this));
@@ -2673,10 +2689,13 @@ int daNpc_Kn_c::teach06_superJumpWaitDivide(void* param_0) {
                 if (parent_p != NULL) {
                     parent_p->setTalkFlag(1);
                     parent_p->mFlowNodeNo = mFlowNodeNo;
+                } else {
+                    break;
                 }
             } else if (!daPy_getPlayerActorClass()->checkDamageImpact()) {
                 BOOL is_lockon = FALSE;
-                if (dComIfGp_getAttention()->LockonTruth()) {
+                dAttention_c* attention_p = dComIfGp_getAttention();
+                if (attention_p->LockonTruth()) {
                     is_lockon = TRUE;
                 }
 
@@ -2810,15 +2829,10 @@ int daNpc_Kn_c::teach07_superTurnAttackWait(void* param_0) {
                     mEvtNo = 0x18;
                 }
 
-                int spC;
-                s16 temp_r0_2 = fopAcM_searchPlayerAngleY(this) - current.angle.y;
-                if (temp_r0_2 < 0) {
-                    spC = -temp_r0_2;
-                } else {
-                    spC = temp_r0_2;
-                }
+                s16 srch_ply_angle = fopAcM_searchPlayerAngleY(this);
+                s16 angle = srch_ply_angle - current.angle.y;
 
-                if (spC < 0x4000) {
+                if ((angle < 0 ? -angle : angle) < 0x4000) {
                     mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
                     mMotionSeqMngr.setNo(0x12, -1.0f, 0, 0);
                     setAngle(fopAcM_searchPlayerAngleY(this));
@@ -2862,7 +2876,8 @@ int daNpc_Kn_c::teach07_superTurnAttackWait(void* param_0) {
             field_0x15bc = 0;
 
             BOOL is_lockon = FALSE;
-            if (dComIfGp_getAttention()->LockonTruth()) {
+            dAttention_c* attention_p = dComIfGp_getAttention();
+            if (attention_p->LockonTruth()) {
                 is_lockon = TRUE;
             }
 
@@ -2923,7 +2938,6 @@ int daNpc_Kn_c::teach07_divideMove(void* param_0) {
         if (!dComIfGp_event_runCheck()) {
             mActionMode = 21;
         }
-        break;
     }
     case 3:
     default:
@@ -2995,15 +3009,10 @@ int daNpc_Kn_c::teach07_superTurnAttackWaitDivide(void* param_0) {
                     parent_p->setTalkFlag(2);
                 }
 
-                int spC;
-                s16 temp_r0_2 = fopAcM_searchPlayerAngleY(this) - current.angle.y;
-                if (temp_r0_2 < 0) {
-                    spC = -temp_r0_2;
-                } else {
-                    spC = temp_r0_2;
-                }
+                s16 srch_ply_angle = fopAcM_searchPlayerAngleY(this);
+                s16 angle = srch_ply_angle - current.angle.y;
 
-                if (spC < 0x4000) {
+                if ((angle < 0 ? -angle : angle) < 0x4000) {
                     mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
                     mMotionSeqMngr.setNo(0x12, -1.0f, 0, 0);
                     setAngle(fopAcM_searchPlayerAngleY(this));
@@ -3046,8 +3055,8 @@ int daNpc_Kn_c::teach07_superTurnAttackWaitDivide(void* param_0) {
             if (parent_p != NULL) {
                 parent_p->setTalkFlag(1);
             }
+            break;
         }
-        break;
     }
     case 3:
     default:
@@ -3117,10 +3126,12 @@ int daNpc_Kn_c::teach07_warpDelete(void* param_0) {
 
 int daNpc_Kn_c::ECut_secondEncount(int i_idx) {
     dEvent_manager_c* event_manager = &dComIfGp_getEventManager();
+    daNpc_GWolf_c* gwolf_p = NULL;
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -3132,14 +3143,14 @@ int daNpc_Kn_c::ECut_secondEncount(int i_idx) {
             mMotionSeqMngr.setNo(0, -1.0f, 0, 0);
             break;
         case 2: {
-            daNpc_GWolf_c* gwolf_p = (daNpc_GWolf_c*)fpcM_SearchByID(parentActorID);
+            gwolf_p = (daNpc_GWolf_c*)fpcM_SearchByID(parentActorID);
             if (fopAcM_GetName(gwolf_p) == PROC_NPC_GWOLF) {
                 gwolf_p->setMotion(4, -1.0f, FALSE);
             }
             break;
         }
         case 5: {
-            daNpc_GWolf_c* gwolf_p = (daNpc_GWolf_c*)fpcM_SearchByID(parentActorID);
+            gwolf_p = (daNpc_GWolf_c*)fpcM_SearchByID(parentActorID);
             if (gwolf_p != NULL) {
                 fopAcM_delete(gwolf_p);
             }
@@ -3273,10 +3284,12 @@ int daNpc_Kn_c::ECut_secondEncount(int i_idx) {
 int daNpc_Kn_c::ECut_thirdSkillExplain(int i_idx) {
     dEvent_manager_c* event_manager = &dComIfGp_getEventManager();
 
+    void* _ = NULL;
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -3359,9 +3372,7 @@ int daNpc_Kn_c::ECut_thirdSkillExplain(int i_idx) {
         }
         break;
     case 6:
-        if (mCurAngle.y == fopAcM_searchPlayerAngleY(this)) {
-            rt = 1;
-        } else {
+        if (mCurAngle.y != fopAcM_searchPlayerAngleY(this)) {
             if (step(fopAcM_searchPlayerAngleY(this), 1, 0x20, 20, 0)) {
                 rt = 1;
                 mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
@@ -3459,9 +3470,10 @@ int daNpc_Kn_c::ECut_thirdSkillGet(int i_idx) {
     int sp8 = 0;
 
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -3594,9 +3606,10 @@ int daNpc_Kn_c::ECut_fourthSkillExplain(int i_idx) {
     int sp8 = 0;
 
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -3647,6 +3660,7 @@ int daNpc_Kn_c::ECut_fourthSkillExplain(int i_idx) {
                 mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
                 mMotionSeqMngr.setNo(0, -1.0f, 1, 0);
             }
+            void(0);
             break;
         }
         case 30:
@@ -3792,9 +3806,10 @@ int daNpc_Kn_c::ECut_fourthSkillGet(int i_idx) {
     int sp8 = 0;
 
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -3928,9 +3943,10 @@ int daNpc_Kn_c::ECut_fifthSkillExplain(int i_idx) {
     int sp8 = 0;
 
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -4090,7 +4106,7 @@ int daNpc_Kn_c::ECut_fifthSkillExplain(int i_idx) {
                 sp34 += home.pos;
 
                 setPos(sp34);
-                setAngle(home.angle.y);
+                setAngle((s16) home.angle.y);
                 mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
                 mMotionSeqMngr.setNo(7, -1.0f, 1, 0);
             } else if (mpModelMorf[0]->getFrame() >= 8.0f && mpModelMorf[0]->getFrame() < 9.0f) {
@@ -4124,9 +4140,10 @@ int daNpc_Kn_c::ECut_fifthSkillGet(int i_idx) {
     int sp8 = 0;
 
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -4260,9 +4277,10 @@ int daNpc_Kn_c::ECut_sixthSkillExplain(int i_idx) {
     int sp8 = 0;
 
     int rt = 0;
+    int* prm_p = NULL;
     int prm = -1;
 
-    int* prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
+    prm_p = dComIfGp_evmng_getMyIntegerP(i_idx, "prm");
     if (prm_p != NULL) {
         prm = *prm_p;
     }
@@ -4416,7 +4434,7 @@ int daNpc_Kn_c::ECut_sixthSkillExplain(int i_idx) {
                 sp34 += home.pos;
 
                 setPos(sp34);
-                setAngle(home.angle.y);
+                setAngle((s16) home.angle.y);
                 mFaceMotionSeqMngr.setNo(1, -1.0f, 0, 0);
                 mMotionSeqMngr.setNo(0, 0.0f, 1, 0);
             }
@@ -4984,14 +5002,22 @@ int daNpc_Kn_c::setSlipPrtcl() {
     mDoMtx_stack_c::multVecZero(&mParticleMngr[0].mPos);
     mParticleMngr[0].mPos.y -= 20.0f;
     mParticleMngr[0].mAngle = current.angle;
+    #if DEBUG
+    mParticleMngr[0].mAngle.y -= (s16) 0x8000;
+    #else
     mParticleMngr[0].mAngle.y -= 0x8000;
+    #endif
     mParticleMngr[0].mpModel = true;
 
     mDoMtx_stack_c::copy(mpModelMorf[0]->getModel()->getAnmMtx(0x1b));
     mDoMtx_stack_c::multVecZero(&mParticleMngr[1].mPos);
     mParticleMngr[1].mPos.y -= 20.0f;
     mParticleMngr[1].mAngle = current.angle;
+    #if DEBUG
+    mParticleMngr[1].mAngle.y -= (s16) 0x8000;
+    #else
     mParticleMngr[1].mAngle.y -= 0x8000;
+    #endif
     mParticleMngr[1].mpModel = true;
     return 1;
 }
@@ -5016,7 +5042,6 @@ void daNpc_Kn_c::calcMagicBallPos() {
     }
 }
 
-// NONMATCHING - reg alloc
 void daNpc_Kn_c::setSwordChargePtcl() {
     JPABaseEmitter* emitter;
 

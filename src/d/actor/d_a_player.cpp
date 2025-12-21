@@ -496,15 +496,11 @@ u32 daPy_py_c::checkCarryStartLightBallB() {
 }
 
 f32 daPy_py_c::getSpinnerRideSpeed() const {
-    f32 rideSpeed;
-
     if (checkSpinnerRide()) {
-        rideSpeed = speedF;
+        return speedF;
     } else {
-        rideSpeed = 0.0f;
+        return 0.0f;
     }
-
-    return rideSpeed;
 }
 
 bool daPy_py_c::checkSpinnerReflectEffect() {
@@ -521,7 +517,7 @@ bool daPy_py_c::checkBoomerangCharge() {
     return daAlink_getAlinkActorClass()->checkBoomerangChargeEnd();
 }
 
-u8 daPy_py_c::checkBoomerangChargeTime() {
+bool daPy_py_c::checkBoomerangChargeTime() {
     return 0;
 }
 

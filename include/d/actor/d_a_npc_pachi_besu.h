@@ -17,6 +17,7 @@ struct daNpc_Pachi_Besu_HIOParam {
 };
 
 class daNpc_Pachi_Besu_HIO_c : public mDoHIO_entry_c {
+public:
     /* 0x8 */ daNpc_Pachi_Besu_HIOParam param;
 };
 
@@ -61,9 +62,7 @@ public:
     BOOL setAction(actionFunc);
     BOOL wait(void*);
     BOOL talk(void*);
-    #ifdef DEBUG
     BOOL test(void*);
-    #endif
     BOOL _turn_to_link(s16);
     BOOL _turn_pos(cXyz const&);
     BOOL _turn_pos(cXyz const&, s16);

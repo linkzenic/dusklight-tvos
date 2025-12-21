@@ -39,7 +39,7 @@ static int daVrbox2_Draw(vrbox2_class* i_this) {
     s16 temp_r19;
     s16 temp_r18;
 
-    camera_p = dComIfGp_getCamera(0);
+    camera_p = (camera_class*)dComIfGp_getCamera(0);
     lenz_p = g_env_light.mpSunLenzPacket;
     kumo_model_p = i_this->mpKumoModel;
     sun_model_p = i_this->model2;
@@ -107,7 +107,7 @@ static int daVrbox2_Draw(vrbox2_class* i_this) {
         var_f31 = dStage_FileList_dt_SeaLevel(filelist_p);
     }
 
-#ifdef DEBUG
+#if DEBUG
     if (g_kankyoHIO.vrbox.field_0x14 != 0) {
         var_f31 = g_kankyoHIO.vrbox.m_horizonHeight;
     } else {
@@ -139,7 +139,7 @@ static int daVrbox2_Draw(vrbox2_class* i_this) {
         cXyz sp14;
         sp14 = sun_p->mPos[0];
 
-#ifndef DEBUG
+#if !DEBUG
         cXyz sp8;
         if (strcmp(dComIfGp_getStartStageName(), "F_SP102") == 0) {
             dKyr_get_vectle_calc(&camera_p->lookat.eye, &g_env_light.sun_pos, &sp8);

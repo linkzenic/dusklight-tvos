@@ -313,11 +313,14 @@ int daNpc_Zelda_c::Draw() {
         modelData->getMaterialNodePointer(getEyeballRMaterialNo())->setMaterialAnm(mpMatAnm[1]);
     }
 
+    return draw(
 #if DEBUG
-    return draw(chkAction(NULL), TRUE, mRealShadowSize, NULL, 100.0f, FALSE, FALSE, FALSE);
+        chkAction(NULL),
 #else
-    return draw(NULL, TRUE, mRealShadowSize, NULL, 100.0f, FALSE, FALSE, FALSE);
+        FALSE,
 #endif
+        TRUE, mRealShadowSize, NULL, 100.0f, FALSE, FALSE, FALSE
+    );
 }
 
 int daNpc_Zelda_c::createHeapCallBack(fopAc_ac_c* i_this) {
@@ -366,12 +369,15 @@ void daNpc_Zelda_c::reset() {
 
     acStack_20.setall(0);
     acStack_20.y = home.angle.y;
+
     switch (field_0xf80) {
     case 0:
+        break;
     default:
-        setAngle(acStack_20);
         break;
     }
+
+    setAngle(acStack_20);
 }
 
 void daNpc_Zelda_c::afterJntAnm(int param_0) {
@@ -467,6 +473,7 @@ void daNpc_Zelda_c::srchActors() {
     switch (field_0xf80) {
     case 0:
     default:
+        break;
     }
 #endif
 }
@@ -619,7 +626,7 @@ int daNpc_Zelda_c::drawDbgInfo() {
             attention_info.distances[fopAc_attn_JUEL_e]).mDistMax;
         f32 distMax2 = dComIfGp_getAttention()->getDistTable(
             attention_info.distances[fopAc_attn_TALK_e]).mDistMax;
-        GXColor circle1Color = { 0xc8, 0x00, 0xff };
+        GXColor circle1Color = { 0xc8, 0x00, 0xff, 0x00 };
         dDbVw_drawCircleOpa(attention_info.position, distMax1, circle1Color, 1, 0xc);
         GXColor circle2Color = { 0xc8, 0x00, 0x00, 0xff };
         dDbVw_drawCircleOpa(attention_info.position, distMax2, circle2Color, 1, 0xc);

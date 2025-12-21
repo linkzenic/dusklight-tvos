@@ -46,11 +46,10 @@ f32 JASDriver::sDacRate = 32028.5f;
 
 u32 JASDriver::sSubFrames = 0x00000007;
 
-// NONMATCHING missing instructions
 void JASDriver::initAI(void (*param_0)(void)) {
     setOutputRate(OUTPUT_RATE_0);
     u32 dacSize = getDacSize();
-    u32 size = dacSize * 2;
+    const u32 size = dacSize * 2;
     for (int i = 0; i < 3; i++) {
         sDmaDacBuffer[i] = new(JASDram, 0x20) s16[dacSize];
         JUT_ASSERT(102, sDmaDacBuffer[i])
@@ -145,7 +144,7 @@ void JASDriver::updateDSP() {
     JASProbe::start(3, "SFR-UPDATE");
     JASDsp::invalChannelAll();
 
-    #ifdef DEBUG
+    #if DEBUG
     JASDsp::dspMutex = 1;
     #endif
 
@@ -160,7 +159,7 @@ void JASDriver::updateDSP() {
     JUT_ASSERT(254, subFrame <= 10);
     history[subFrame - r26] = r27;
     if (subFrame != r26 && f32(history[0]) / r27 < 1.1f) {
-        #ifdef DEBUG
+        #if DEBUG
         static int killCounter;
         JASReport("kill DSP channel", killCounter);
         JASDSPChannel::killActiveChannel();
@@ -173,7 +172,7 @@ void JASDriver::updateDSP() {
     JASChannel::receiveBankDisposeMsg();
     JASDSPChannel::updateAll();
 
-    #ifdef DEBUG
+    #if DEBUG
     JASDsp::dspMutex = 0;
     #endif
 
@@ -198,7 +197,7 @@ void JASDriver::readDspBuffer(s16* param_0, u32 param_1) {
         for (int i = param_1; i < param_1 * 2; i++) {
             sDspDacBuffer[sDspDacReadBuffer][i] = (s16)r24;
         }
-#ifdef DEBUG
+#if DEBUG
         JASReport("readDspBuffer nbuf:%d sWBuf:%d BCount:%d stat:%d", nbuf, sDspDacWriteBuffer,
                   data_804507A8, sDspStatus);
 #endif

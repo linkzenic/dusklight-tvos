@@ -22,12 +22,12 @@ struct daObj_KBacket_HIOParam
 };
 
 class daObj_KBacket_HIO_c
-#ifdef DEBUG
+#if DEBUG
     : public mDoHIO_entry_c
 #endif
 {
 public:
-#ifdef DEBUG
+#if DEBUG
     void genMessage(JORMContext*);
 
     daObj_KBacket_HIOParam param;
@@ -96,7 +96,7 @@ public:
 
     virtual ~daObj_KBacket_c();
     int create();
-    int setLaunchParam(float param_0, float param_1, short param_2) {
+    void setLaunchParam(float param_0, float param_1, short param_2) {
         float fVar2;
 
         s16 iVar1 = cM_deg2s(param_1);

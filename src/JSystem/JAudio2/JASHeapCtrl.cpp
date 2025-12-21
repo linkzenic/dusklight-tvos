@@ -27,9 +27,7 @@ bool JASHeap::alloc(JASHeap* mother, u32 param_1) {
     JUT_ASSERT(120, mother != NULL);
     JASMutexLock lock(&mMutex);
     if (isAllocated()) {
-#ifdef DEBUG
-        OSReport("[JASHeap::alloc] すでにヒープは確保されています。初期化してからにしてください。\n");
-#endif
+        OS_REPORT("[JASHeap::alloc] すでにヒープは確保されています。初期化してからにしてください。\n");
         return 0;
     }
     if (!mother->isAllocated()) {
@@ -71,9 +69,7 @@ bool JASHeap::alloc(JASHeap* mother, u32 param_1) {
         }
     }
     if (!local_43) {
-#ifdef DEBUG
-        OSReport("[JASHeap::alloc] マザーメモリが足りないので確保できません。\n");
-#endif
+        OS_REPORT("[JASHeap::alloc] マザーメモリが足りないので確保できません。\n");
         return 0;
     }
     mother->insertChild(this, local_30, local_34, param_1, false);
@@ -199,11 +195,19 @@ JASGenericMemPool::~JASGenericMemPool() {
 
 JKRSolidHeap* JASDram;
 
-void JASGenericMemPool::newMemPool(u32 size, int param_1) {
+// TODO: What is this and Where does it go?
+struct TNextOnFreeList {
+    u8 pad[4];
+};  // Size: 0x4
+
+void JASGenericMemPool::newMemPool(u32 n, int param_1) {
+    JUT_ASSERT(734, n >= sizeof(TNextOnFreeList));
+    void* runner;
     for (int i = 0; i < param_1; i++) {
-        void* chunk = new (JASDram, 0) u8[size];
-        *(void**)chunk = field_0x0;
-        field_0x0 = chunk;
+        runner = new (JASDram, 0) u8[n];
+        JUT_ASSERT(739, runner);
+        *(void**)runner = field_0x0;
+        field_0x0 = runner;
     }
     freeMemCount += param_1;
     totalMemCount += param_1;

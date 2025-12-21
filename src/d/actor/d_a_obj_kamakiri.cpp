@@ -524,7 +524,7 @@ void daObjKAM_c::Z_BufferChk() {
     } else {
         cameraHeight = 0.0f;
     }
-#ifdef DEBUG
+#if DEBUG
 #define Z_BUFFERCHK_X_MAX FB_WIDTH
 #define Z_BUFFERCHK_Y_MAX FB_HEIGHT
 #else
@@ -734,9 +734,9 @@ u8 daObjKAM_c::CreateChk() {
     if (field_0x9c0 != 2) {
         if (unkInt1 != 0) {
             if (!dComIfGs_isEventBit(
-                    (u16)dSv_event_flag_c::saveBitLabels[l_musiya_num[SEX_MALE]]) ||
+                    dSv_event_flag_c::saveBitLabels[l_musiya_num[SEX_MALE]]) ||
                 !dComIfGs_isEventBit(
-                    (u16)dSv_event_flag_c::saveBitLabels[l_musiya_num[SEX_FEMALE]]))
+                    dSv_event_flag_c::saveBitLabels[l_musiya_num[SEX_FEMALE]]))
             {
                 return 0;
             }
@@ -750,10 +750,10 @@ u8 daObjKAM_c::CreateChk() {
 
                 if (mSex == SEX_MALE &&
                         !dComIfGs_isEventBit(
-                            (u16)dSv_event_flag_c::saveBitLabels[l_musiya_num[mSex]]) ||
+                            dSv_event_flag_c::saveBitLabels[l_musiya_num[mSex]]) ||
                     mSex == SEX_FEMALE &&
                         !dComIfGs_isEventBit(
-                            (u16)dSv_event_flag_c::saveBitLabels[l_musiya_num[mSex]]))
+                            dSv_event_flag_c::saveBitLabels[l_musiya_num[mSex]]))
                 {
                     return 0;
                 }
@@ -779,7 +779,7 @@ int daObjKAM_c::create() {
             mDraw = true;
         }
 
-#ifdef DEBUG
+#if DEBUG
 #define DAOBJKAM_C_CREATE_DIST_INDEX fopAc_attn_ETC_e
 #else
 #define DAOBJKAM_C_CREATE_DIST_INDEX fopAc_attn_CARRY_e

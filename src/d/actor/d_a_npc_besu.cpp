@@ -279,7 +279,7 @@ enum Event {
     /* 0xC */ EVENT_CONVERSATION_ABOUT_ZORA,
 };
 
-#ifndef DEBUG
+#if !DEBUG
 #endif
 
 
@@ -538,7 +538,7 @@ daNpc_Besu_c::~daNpc_Besu_c() {
         mpCupModelMorf->stopZelAnime();
     }
 
-// #ifdef DEBUG
+// #if DEBUG
 //     if (field_0xe40 != NULL) {
 //         field_0xe40->removeHIO();
 //     }
@@ -631,7 +631,7 @@ int daNpc_Besu_c::create() {
         fopAcM_setCullSizeBox(this, -200.0f, -100.0f, -200.0f, 200.0f, 300.0f, 200.0f);
         mSound.init(&current.pos, &eyePos, 3, 1);
 
-// #ifdef DEBUG
+// #if DEBUG
 //         field_0xe40 = &l_HIO;
 //         // "Beth":
 //         field_0xe40->entryHIO("ベス");
@@ -1248,14 +1248,14 @@ void daNpc_Besu_c::action() {
     }
 
     if (actor_p != NULL && mType != 5
-#ifndef DEBUG
+#if !DEBUG
         && !chkNurse()
 #endif
     ) {
         mStagger.setParam(this, actor_p, mCurAngle.y);
         setDamage(0, 0xC, 0x12);
         // FIXME: Fakematch
-#ifdef DEBUG
+#if DEBUG
         mStagger.setPower(0.0f);
 #else
         for (int i = 0; i < 2; i++) {
@@ -1268,7 +1268,7 @@ void daNpc_Besu_c::action() {
 
     if (mStagger.checkRebirth()) {
         // FIXME: Fakematch
-#ifdef DEBUG
+#if DEBUG
         mStagger.initialize();
 #else
         for (int i = 0; i < 2; i++) {
@@ -1488,7 +1488,7 @@ void daNpc_Besu_c::drawOtherMdl() {
     }
 }
 
-int daNpc_Besu_c::setCupAnm(int arg0, int i_attr, f32 i_morf) {
+bool daNpc_Besu_c::setCupAnm(int arg0, int i_attr, f32 i_morf) {
     static int cupAnmData[33][2] = {
         {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
         {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
@@ -1508,12 +1508,12 @@ int daNpc_Besu_c::setCupAnm(int arg0, int i_attr, f32 i_morf) {
         }
     }
 
-    return 1;
+    return true;
 }
 
 bool daNpc_Besu_c::afterSetMotionAnm(int arg0, int arg1, f32 arg2, int param_3) {
     f32 var_f30 = (mCreating == 1) ? 0.0f : arg2;
-    setCupAnm(arg0, arg1, var_f30);
+    return setCupAnm(arg0, arg1, var_f30);
 }
 
 daNpcT_faceMotionAnmData_c daNpc_Besu_c::getFaceMotionAnm(daNpcT_faceMotionAnmData_c arg0) {

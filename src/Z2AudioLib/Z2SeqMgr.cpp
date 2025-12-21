@@ -106,7 +106,7 @@ Z2SeqMgr::Z2SeqMgr() : JASGlobalInstance<Z2SeqMgr>(true) {
     mAllBgmMaster.forceIn();
     field_0xa4.forceIn();
 
-    #ifdef DEBUG
+    #if DEBUG
     field_0x00_debug = 1.0f;
     field_0x04_debug = 0;
     #endif
@@ -131,7 +131,7 @@ Z2SeqMgr::Z2SeqMgr() : JASGlobalInstance<Z2SeqMgr>(true) {
 
 void Z2SeqMgr::bgmStart(u32 bgmID, u32 fadeTime, s32 param_2) {
     switch (bgmID) {
-    case -1:
+    case 0xFFFFFFFF:
         return;
     case 0x200005D:
         bgmAllUnMute(33);

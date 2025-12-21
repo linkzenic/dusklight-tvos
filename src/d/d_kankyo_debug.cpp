@@ -650,7 +650,7 @@ void dKydb_timedisp() {
         dDbVw_Report(0x1E, 0x54, "S_TM %02d:%02d:%02d", (int)hour, (int)min, (int)sec);
     }
 
-    static const char* weekString[] = {
+    static const char* const weekString[] = {
         "Sun",
         "Mon",
         "Tue",
@@ -689,9 +689,11 @@ void dKydb_timedisp() {
         }
     }
 
+#if __MWERKS__ || DEBUG
     if (g_presetHIO.field_0x2716 != 0) {
         dDbVw_Report(0x1E, 0x55, "JYOKYO FILE YOMIKOMI SIPPAI!");
     }
+#endif
 
     int var_r31 = 0x55;
     if ((g_kankyoHIO.navy.field_0x22a & 1)) {

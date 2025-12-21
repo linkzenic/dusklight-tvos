@@ -1,13 +1,14 @@
 #include <revolution.h>
 #include <revolution/os.h>
 #include <revolution/esp.h>
+#include <revolution/ipc.h>
+#include <string.h>
 
 #include "__os.h"
 #include "__dvd.h"
 
 // extern
 extern size_t wcslen(const wchar_t *);
-extern int __DVDLayoutFormat;
 
 extern volatile u32 BOOT_REGION_START AT_ADDRESS(0x812FDFF0);
 extern volatile u32 BOOT_REGION_END AT_ADDRESS(0x812FDFEC);
@@ -145,7 +146,7 @@ BOOL PackInstallerArgs(void* addr, s32 argc, char* argv[]) {
 }
 
 #ifdef __GEKKO__
-static asm void Run(register void* entryPoint) {
+static asm void Run(__REGISTER void* entryPoint) {
     fralloc
 
     bl ICFlashInvalidate

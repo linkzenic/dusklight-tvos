@@ -123,14 +123,14 @@ public:
     void setPauseStatus(u8 i_status) { mPauseStatus = i_status; }
     void resetPauseStatus() { mPauseStatus = 0; }
     u8 getPauseStatus() { return mPauseStatus; }
-    bool isGameStatus(int i_status) { return mGameStatus & i_status; }
+    bool isGameStatus(int i_status) { return (mGameStatus & (u16)i_status) != 0 ? true : false; }
     bool isTouchKeyCheck(int i_status) { return mTouchKeyCheck & (1 << i_status); }
 
     // fake function, should be isTouchKeyCheck
     bool isTouchKeyCheck_alt(int i_status) { return (mTouchKeyCheck >> i_status) & 1; }
 
     void setMapKeyDirection(u16 i_direction) { mMapKeyDirection = i_direction; }
-    bool isSub2DStatus(int i_flag) { return mSub2DStatus & (1 << i_flag); }
+    bool isSub2DStatus(int i_flag) { return (mSub2DStatus & (u16)(1 << i_flag)) != 0 ? true : false; }
     void offMenuInForce(int i_flag) { unk_0x98 &= ~(1 << i_flag); }
     bool isMenuInForce(int i_flag) { return unk_0x98 & (1 << i_flag); }
     u16 getMapKeyDirection() { return mMapKeyDirection; }
@@ -173,7 +173,7 @@ public:
     u16 getFloatingFlowID() { return mFloatingFlowID; }
     bool isFloatingMessageWakuVisible() { return mFloatingMessageWakuVisible; }
     void onBlinkButton(int i_flag) { mBlinkButton |= i_flag; }
-    bool isBlinkButton(int i_flag) { return mBlinkButton & i_flag; }
+    bool isBlinkButton(int i_flag) { return (mBlinkButton & (u16)i_flag) != 0 ? true : false; }
     void resetBlinkButton() { mBlinkButton = 0; }
     s16 getFloatingMessageTimer() { return mFloatingMessageTimer; }
     u16 getFloatingMessageID() { return mFloatingMessageID; }
@@ -302,7 +302,7 @@ void dMeter2Info_set2DVibrationM();
 void dMeter2Info_offUseButton(int pButton);
 bool dMeter2Info_is2DActiveTouchArea();
 u8 dMeter2Info_getRecieveLetterNum();
-bool dMeter2Info_getPixel(f32 i_posX, f32 i_posY, f32 param_2, f32 param_3, f32 i_sizeX,
+u8 dMeter2Info_getPixel(f32 i_posX, f32 i_posY, f32 param_2, f32 param_3, f32 i_sizeX,
                           f32 i_sizeY, struct ResTIMG const* i_resTimg);
 const char* dMeter2Info_getPlusTextureName();
 const char* dMeter2Info_getNumberTextureName(int i_num);
@@ -739,7 +739,7 @@ inline s16 dMeter2Info_getFloatingMessageTimer() {
     return g_meter2_info.getFloatingMessageTimer();
 }
 
-inline u32 dMeter2Info_getFloatingMessageID() {
+inline u16 dMeter2Info_getFloatingMessageID() {
     return g_meter2_info.getFloatingMessageID();
 }
 

@@ -23,7 +23,7 @@ public:
 
 STATIC_ASSERT(sizeof(daE_DF_HIO_c) == 0xC);
 
-#ifdef DEBUG
+#if DEBUG
 inline void daE_DF_HIO_c::genMessage(JORMContext* i_ctx) {
     i_ctx->genLabel("デクレシア", 0x80000001, 0, NULL, 0xffff, 0xffff, 0x200, 0x18);
     i_ctx->genSlider("速度", &field_0x8, 0.0f, 100.0f, 0, NULL, 0xffff, 0xffff, 0x200, 0x18);
@@ -51,7 +51,7 @@ int daE_DF_c::CreateHeap() {
 
 static int useHeapInit(fopAc_ac_c* i_this) {
     daE_DF_c* actor = static_cast<daE_DF_c*>(i_this);
-    actor->CreateHeap();
+    return actor->CreateHeap();
 }
 
 void daE_DF_c::initCcCylinder() {

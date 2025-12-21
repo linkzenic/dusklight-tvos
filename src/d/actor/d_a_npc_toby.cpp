@@ -418,9 +418,10 @@ int daNpc_Toby_c::Draw() {
 #if DEBUG
         chkAction(&daNpc_Toby_c::test),
 #else
-        0,
+        FALSE,
 #endif
-        0, mRealShadowSize, NULL, 100.0f, 0, 0, 0);
+        FALSE, mRealShadowSize, NULL, 100.0f, 0, 0, 0
+    );
 }
 
 int daNpc_Toby_c::createHeapCallBack(fopAc_ac_c* i_this) {
@@ -643,7 +644,7 @@ int daNpc_Toby_c::checkChangeEvt() {
                 break;
             }
 
-#if VERSION == VERSION_SHIELD_DEBUG
+#if VERSION >= VERSION_WII_USA_R0
             if (chkAttnZra() && !dComIfGs_isSaveSwitch(0x51))
 #else
             // 0x31E - F_0798 - Heard about Zora from Fyer
@@ -2182,11 +2183,25 @@ int daNpc_Toby_c::talk(void*) {
     return 0;
 }
 
-#if DEBUG
 int daNpc_Toby_c::test(void* param_0) {
-    // TODO
+    switch(mMode) {
+    case 0:
+    case 1:
+        speedF = 0.0f;
+        speed.setall(0.0f);
+        mMode = 2;
+        // fallthrough
+    case 2:
+        mFaceMotionSeqMngr.setNo(mpHIO->m.common.face_expression, -1.0f, 0, 0);
+        mMotionSeqMngr.setNo(mpHIO->m.common.motion, -1.0f, 0, 0);
+        mJntAnm.lookNone(0);
+        attention_info.flags = 0;
+        break;
+    case 3:
+        break;
+    }
+    return 1;
 }
-#endif
 
 static int daNpc_Toby_Create(void* i_this) {
     return static_cast<daNpc_Toby_c*>(i_this)->create();

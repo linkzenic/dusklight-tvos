@@ -17,7 +17,7 @@ static int daObjKWheel00_MoveBGDelete(daObjKWheel00_c*);
 static int daObjKWheel00_MoveBGExecute(daObjKWheel00_c*);
 static int daObjKWheel00_MoveBGDraw(daObjKWheel00_c*);
 
-#ifdef DEBUG
+#if DEBUG
 static daObjKWheel00_HIO_c l_HIO;
 
 daObjKWheel00_HIO_c::daObjKWheel00_HIO_c() {
@@ -54,7 +54,7 @@ int daObjKWheel00_c::create1st() {
         if(phase == cPhs_ERROR_e)
             return phase;
 
-        #ifdef DEBUG
+        #if DEBUG
         // "Water wheel(Lv3)"
         l_HIO.entryHIO("水車(Lv3)");
         #endif
@@ -82,7 +82,7 @@ static void* searchLv3Water(void* param_0, void* i_this) {
 
 static const int l_bmdidx[2] = {4, 4};
 
-const Vec l_cull_box[4] = {
+const Vec l_cull_box[4] = { // cull_box struct not used due to mult later
     {-830.0f, -830.0f, -2500.0f}, {830.0f, 830.0f, 200.0f}, // Type 0
     {-560.0f, -560.0f, -350.0f}, {560.0f, 560.0f, 350.0f}   // Type 1
 };
@@ -135,7 +135,7 @@ int daObjKWheel00_c::Create() {
 
     mZAngularVelocity = 0;
     if(getSwNo() != 0xFF && fopAcM_isSwitch(this, getSwNo())) {
-        #ifdef DEBUG
+        #if DEBUG
         if(getArg0())
             mZAngularVelocity = l_HIO.mTargetZAngularSpeed;
         else
@@ -192,7 +192,7 @@ int daObjKWheel00_c::Execute(Mtx** i_mtx) {
     // Only draw particles and play SFX if gear is moving
     if(mZAngularVelocity != 0) {
         // Increase angular velocity via an arithmetic sequence with a ratio of 2
-        #ifdef DEBUG
+        #if DEBUG
         if(mZAngularVelocity > 0) {
             if(mZAngularVelocity < l_HIO.mTargetZAngularSpeed)
                 mZAngularVelocity += l_HIO.mZAngularAcceleration;
@@ -324,7 +324,7 @@ int daObjKWheel00_c::Draw() {
 int daObjKWheel00_c::Delete() {
     dComIfG_resDelete(this, l_arcName[m_type]);
 
-    #ifdef DEBUG
+    #if DEBUG
     l_HIO.removeHIO();
     #endif
 

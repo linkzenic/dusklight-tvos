@@ -46,6 +46,7 @@ typedef u32 OSTick;
 #include <revolution/os/OSStateFlags.h>
 #include <revolution/os/OSIpc.h>
 #include <revolution/os/OSNandbootInfo.h>
+#include <revolution/os/OSNet.h>
 
 // private macro, maybe shouldn't be defined here?
 #define OFFSET(addr, align) (((u32)(addr) & ((align)-1)))
@@ -68,16 +69,29 @@ OSThread* __OSCurrentThread AT_ADDRESS(OS_BASE_CACHED | 0x00E4);
 u32 __OSSimulatedMemSize AT_ADDRESS(OS_BASE_CACHED | 0x00F0);
 u32 __OSBusClock AT_ADDRESS(OS_BASE_CACHED | 0x00F8);
 u32 __OSCoreClock AT_ADDRESS(OS_BASE_CACHED | 0x00FC);
-volatile u16 __OSDeviceCode AT_ADDRESS(OS_BASE_CACHED | 0x30E6);
+vu16 __OSDeviceCode AT_ADDRESS(OS_BASE_CACHED | 0x30E6);
+vu8 __OSLockedFlag AT_ADDRESS(OS_BASE_CACHED | 0x3187);
 u16 __OSWirelessPadFixMode AT_ADDRESS(OS_BASE_CACHED | 0x30E0);
+vu32 __OSLaunchPartitionType AT_ADDRESS(OS_BASE_CACHED | 0x3194);
+vu8 __OSDeviceCheckCode AT_ADDRESS(OS_BASE_CACHED | 0x319C);
 
 // unknowns
 OSThread* __gUnkThread1 AT_ADDRESS(OS_BASE_CACHED | 0x00D8);
 int __gUnknown800030C0[2] AT_ADDRESS(OS_BASE_CACHED | 0x30C0);
 u8 __gUnknown800030E3 AT_ADDRESS(OS_BASE_CACHED | 0x30E3);
 #else
-#define __OSBusClock  (*(u32 *)(OS_BASE_CACHED | 0x00F8))
-#define __OSCoreClock (*(u32 *)(OS_BASE_CACHED | 0x00FC))
+#define __OSPhysicalMemSize     (*(u32*)(OS_BASE_CACHED | 0x0028))
+#define __OSTVMode              (*(volatile int*)(OS_BASE_CACHED | 0x00CC))
+#define __OSActiveThreadQueue   (*(OSThreadQueue*)(OS_BASE_CACHED | 0x00DC))
+#define __OSCurrentThread       ((OSThread*)(OS_BASE_CACHED | 0x00E4))
+#define __OSSimulatedMemSize    (*(u32*)(OS_BASE_CACHED | 0x00F0))
+#define __OSBusClock            (*(u32*)(OS_BASE_CACHED | 0x00F8))
+#define __OSCoreClock           (*(u32*)(OS_BASE_CACHED | 0x00FC))
+#define __OSDeviceCode          (*(vu16*)(OS_BASE_CACHED | 0x30E6))
+#define __OSLockedFlag          (*(vu8*)(OS_BASE_CACHED | 0x3187))
+#define __OSWirelessPadFixMode  (*(u16*)(OS_BASE_CACHED | 0x30E0))
+#define __OSLaunchPartitionType (*(vu32*)(OS_BASE_CACHED | 0x3194))
+#define __OSDeviceCheckCode     (*(vu8*)(OS_BASE_CACHED | 0x319C))
 #endif
 
 #define OS_BUS_CLOCK   __OSBusClock
@@ -231,7 +245,7 @@ DECL_WEAK void OSVReport(const char* format, va_list list);
 
 DECL_WEAK void OSSwitchFiberEx(u32, u32, u32, u32, u32, u32);
 
-#ifdef DEBUG
+#if DEBUG
 #define OS_REPORT(...) OSReport(__VA_ARGS__)
 #define OS_WARNING(...) OSReport_Warning(__VA_ARGS__)
 #define OS_REPORT_ERROR(...) OSReport_Error(__VA_ARGS__)
@@ -279,7 +293,7 @@ extern OSTime __OSStartTime;
 extern int __OSInIPL;
 extern BOOL __OSInReboot;
 
-#ifdef DEBUG
+#if DEBUG
 #define ASSERTLINE(line, cond) \
     ((cond) || (OSPanic(__FILE__, line, "Failed assertion " #cond), 0))
 
@@ -306,46 +320,98 @@ extern BOOL __OSInReboot;
     
 #define ASSERT(cond) ASSERTLINE(__LINE__, cond)
 
-inline s16 __OSf32tos16(register f32 inF) {
-#ifdef __MWERKS__
-    register s16 out;
-    u32 tmp;
-    register u32* tmpPtr = &tmp;
-    // clang-format off
+static inline u8 __OSf32tou8(register f32 in) {
+	f32 a;
+	register f32* ptr = &a;
+	u8 r;
 
-    asm {
-        psq_st inF, 0(tmpPtr), 0x1, 5
-        lha out, 0(tmpPtr)
-    }
-
-    // clang-format on
-    return out;
+#if defined(__MWERKS__)
+	asm { psq_st in, 0(ptr), 1, 2 };
+#else
+# pragma unused(in)
 #endif
+
+	r = *(u8 *)ptr;
+
+	return r;
 }
 
-inline void OSf32tos16(f32* f, s16* out) {
-    *out = __OSf32tos16(*f);
-}
+static inline u16 __OSf32tou16(register f32 in) {
+	f32 a;
+	register f32* ptr = &a;
+	u16 r;
 
-inline u8 __OSf32tou8(register f32 inF) {
-#ifdef __MWERKS__
-    register u8 out;
-    u32 tmp;
-    register u32* tmpPtr = &tmp;
-    // clang-format off
-
-    asm {
-        psq_st inF, 0(tmpPtr), 0x1, 2
-        lbz out, 0(tmpPtr)
-    }
-
-    // clang-format on
-    return out;
+#if defined(__MWERKS__)
+	asm { psq_st in, 0(ptr), 1, 3 };
+#else
+# pragma unused(in)
 #endif
+
+	r = *(u16 *)ptr;
+
+	return r;
 }
 
-inline void OSf32tou8(f32* f, u8* out) {
-    *out = __OSf32tou8(*f);
+static inline s16 __OSf32tos16(register f32 in) {
+	f32 a;
+	register f32* ptr = &a;
+	s16 r;
+
+#if defined(__MWERKS__)
+	asm { psq_st in, 0(ptr), 1, 5 };
+#else
+# pragma unused(in)
+#endif
+
+	r = *(s16*)ptr;
+
+	return r;
+}
+
+static inline f32 __OSu16tof32(register u16 const* arg) {
+	register f32 ret;
+
+#if defined(__MWERKS__)
+	asm { psq_l ret, 0(arg), 1, 3 };
+#else
+# pragma unused(arg)
+	ret = 0;
+#endif
+
+	return ret;
+}
+
+static inline f32 __OSs16tof32(register s16 const* arg) {
+	register f32 ret;
+
+#if defined(__MWERKS__)
+	asm { psq_l ret, 0(arg), 1, 5 };
+#else
+# pragma unused(arg)
+	ret = 0;
+#endif
+
+	return ret;
+}
+
+static inline void OSf32tou8(f32 const* in, u8* out) {
+	*out = __OSf32tou8(*in);
+}
+
+static inline void OSf32tou16(f32 const* in, u16* out) {
+	*out = __OSf32tou16(*in);
+}
+
+static inline void OSf32tos16(f32 const* in, s16* out) {
+	*out = __OSf32tos16(*in);
+}
+
+static inline void OSs16tof32(s16 const* in, f32* out) {
+	*out = __OSs16tof32(in);
+}
+
+static inline void OSu16tof32(u16 const* in, f32* out) {
+	*out = __OSu16tof32(in);
 }
 
 static inline void OSInitFastCast(void) {

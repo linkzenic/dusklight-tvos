@@ -690,7 +690,7 @@ cPhs__Step daNpcWrestler_c::Create() {
             return cPhs_ERROR_e;
         }
 
-        field_0xbd8 = &l_HIO.m;
+        field_0xbd8 = const_cast<daNpcWrestler_HIOParam*>(&l_HIO.m);
         field_0xbdc = &field_0xbd8->mTypeParams[mType];
 #if DEBUG
         // Sumo wrestler:
@@ -930,7 +930,7 @@ void daNpcWrestler_c::setAttnPos() {
     if (chkAction(&daNpcWrestler_c::wait)
         || chkAction(&daNpcWrestler_c::talk)) {
         field_0xc90.SetC(sp68);
-#ifdef DEBUG
+#if DEBUG
         field_0xc90.SetH(field_0xbdc->field_0x0);
         field_0xc90.SetR(field_0xbdc->mWallR);
 #endif
@@ -1909,7 +1909,7 @@ bool daNpcWrestler_c::talk(void* param_1) {
                         setAction(&daNpcWrestler_c::gotoArena);
                     } else {
                         int choiceNo = mFlow.getChoiceNo();
-#ifdef DEBUG
+#if DEBUG
                         // "Choice %s\n", (choiceNo == 0) ? "Yes" : "No"
                         OS_REPORT("二択分岐 %s\n", (choiceNo == 0) ? "はい" : "いいえ");
 #endif
@@ -2668,7 +2668,6 @@ bool daNpcWrestler_c::checkOutOfArenaW() {
 }
 
 bool daNpcWrestler_c::sumouPunchMiss(void* param_1) {
-    // NONMATCHING - regalloc
     daPy_py_c* player = daPy_getPlayerActorClass();
     int jointNo = mType == 0 ? 0x12 : 0x11;
     cXyz sp2c;
@@ -3114,7 +3113,7 @@ void daNpcWrestler_c::setStepAngle() {
         }
 
         s16 tgt_ang = cLib_targetAngleY(player->getViewerCurrentPosP(), &current.pos);
-        tgt_ang += mStepAngle * field_0xbdc->lateral_movement_time;
+        tgt_ang = tgt_ang + mStepAngle * field_0xbdc->lateral_movement_time;
         cXyz sp30(0.0f, 0.0f, field_0xbdc->grapple_distance);
         mDoMtx_stack_c::push();
         mDoMtx_stack_c::YrotM(tgt_ang);
@@ -3135,7 +3134,6 @@ void daNpcWrestler_c::setStepAngle() {
 }
 
 bool daNpcWrestler_c::sumouSideStep(void* param_1) {
-    // NONMATCHING - g_dComIfG_gameInfo weirdness
     switch (field_0xe96) {
         case 0:
             field_0xe80 = field_0xbdc->lateral_movement_time;
@@ -3285,7 +3283,6 @@ bool daNpcWrestler_c::sumouPunchShock(void* param_1) {
 }
 
 bool daNpcWrestler_c::sumouPunchChaseShock(void* param_1) {
-    // NONMATCHING - regalloc
     daPy_py_c* player = daPy_getPlayerActorClass();
 
     switch (field_0xe96) {
@@ -3765,7 +3762,7 @@ bool daNpcWrestler_c::demoSumouReady(void* param_1) {
                         fopAcM_effSmokeSet1(&field_0xde8, &field_0xdec, &sp3c, NULL, 0.8f, &tevStr, 1);
                     }
 
-#ifdef DEBUG
+#if DEBUG
                     mDemoCam.field_0x18.set(0.0f, 0.0f, -100.0f);
                     mDoMtx_stack_c::transS(current.pos);
                     mDoMtx_stack_c::YrotM(mCurAngle.y);
@@ -3791,7 +3788,7 @@ bool daNpcWrestler_c::demoSumouReady(void* param_1) {
                     break;
 
                 case 5:
-#ifdef DEBUG
+#if DEBUG
                     mDemoCam.field_0x18.set(0.0f, 0.0f, -100.0f);
                     mDoMtx_stack_c::transS(current.pos);
                     mDoMtx_stack_c::YrotM(mCurAngle.y);
@@ -3852,7 +3849,7 @@ bool daNpcWrestler_c::demoSumouReady(void* param_1) {
                         dComIfGp_getVibration().StartShock(3, 15, cXyz(0.0f, 1.0f, 0.0f));
                     }
 
-#ifdef DEBUG
+#if DEBUG
                     mDoMtx_stack_c::transS(fopAcM_GetPosition(daPy_getPlayerActorClass()));
                     mDoMtx_stack_c::YrotM(fopAcM_GetShapeAngle_p(daPy_getPlayerActorClass())->y);
                     mDoMtx_stack_c::transM(field_0xbd8->field_0xd0);
@@ -3878,7 +3875,7 @@ bool daNpcWrestler_c::demoSumouReady(void* param_1) {
                     break;
 
                 case 9:
-#ifdef DEBUG
+#if DEBUG
                     mDoMtx_stack_c::transS(fopAcM_GetPosition(daPy_getPlayerActorClass()));
                     mDoMtx_stack_c::YrotM(fopAcM_GetShapeAngle_p(daPy_getPlayerActorClass())->y);
                     mDoMtx_stack_c::transM(field_0xbd8->field_0xdc);
@@ -4700,7 +4697,7 @@ BOOL daNpcWrestler_c::EvCut_grDSEntry(int i_cutIndex) {
         case '0009':
             if (setTalkAngle() && talkProc(NULL, TRUE, NULL)) {
                 int choice_no = mFlow.getChoiceNo();
-#ifdef DEBUG
+#if DEBUG
                 // "Two-way split %s\n", (mFlow.getChoiceNo() == 0) ? "Yes" : "No"
                 OS_REPORT("二択分岐 %s\n", (choice_no == 0) ? "はい" : "いいえ");
 #endif
@@ -4829,7 +4826,7 @@ BOOL daNpcWrestler_c::EvCut_grDSEntry3_4(int i_cutIndex) {
         case '0001':
             if (setTalkAngle() && talkProc(NULL, TRUE, NULL)) {
                 s16 choice_no = mFlow.getChoiceNo();
-#ifdef DEBUG
+#if DEBUG
                 char* choice;
                 if (choice_no == 0) {
                     choice = "はい"; 

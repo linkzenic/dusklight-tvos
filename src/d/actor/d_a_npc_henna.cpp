@@ -379,7 +379,7 @@ static void henna_shop(npc_henna_class* i_this) {
     }
     cLib_addCalcAngleS2(&i_this->actor.current.angle.y, i_this->field_0x618, 2, unkInt1);
     /* dSv_event_flag_c::F_0461 - Fishing Pond - First time entered fishing house */
-    if ((!dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[461]) || data_80450C9C != 0) &&
+    if ((!dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[461]) || data_80450C9C != 0) &&
         i_this->field_0x7d7 == 0 && i_this->field_0x6a0 == 56 + TREG_S(7))
     {
         dComIfGp_event_reset();
@@ -388,7 +388,7 @@ static void henna_shop(npc_henna_class* i_this) {
             i_this->cam_mode = 60;
         } else {
             /* dSv_event_flag_c::F_0461 - Fishing Pond - First time entered fishing house */
-            dComIfGs_onEventBit((u16)dSv_event_flag_c::saveBitLabels[461]);
+            dComIfGs_onEventBit(dSv_event_flag_c::saveBitLabels[461]);
             i_this->cam_mode = 1;
         }
         i_this->field_0x7d7 = 1;
@@ -764,8 +764,13 @@ static void action(npc_henna_class* i_this) {
 
     s16 unkTarget1 = 0;
     s16 unkTarget2 = 0;
+#if VERSION == VERSION_WII_USA_R0
+    s16 unkTarget2Limit = 9000 + BREG_S(0);
+    s16 unkTarget1Limit = 10000 + BREG_S(1);
+#else
     s16 unkTarget2Limit = 9000 + BREG_F(0);
     s16 unkTarget1Limit = 10000 + BREG_F(1);
+#endif
     if (i_this->field_0x70d == 10 || (i_this->field_0x70d == 1 && i_this->field_0x61c < 700.0f)) {
         if (i_this->field_0x70c != 0) {
             mae = sub_actor->eyePos - actor->eyePos;
@@ -890,9 +895,9 @@ static void demo_camera(npc_henna_class* i_this) {
                 i_this->cam_mode = 0;
             }
             /* dSv_event_flag_c::F_0463 - Fishing Pond - Reserved for fishing */
-            dComIfGs_offEventBit((u16)dSv_event_flag_c::saveBitLabels[0x1cf]);
+            dComIfGs_offEventBit(dSv_event_flag_c::saveBitLabels[0x1cf]);
             /* dSv_event_flag_c::F_0464 - Fishing Pond - Reserved for fishing */
-            dComIfGs_offEventBit((u16)dSv_event_flag_c::saveBitLabels[0x1d0]);
+            dComIfGs_offEventBit(dSv_event_flag_c::saveBitLabels[0x1d0]);
         }
     }
 
@@ -994,7 +999,7 @@ static void demo_camera_shop(npc_henna_class* i_this) {
 
     if (!dComIfGp_event_runCheck()
             /* dSv_event_flag_c::F_0465 - Fishing Pond - Reserved for fishing */
-        && !dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[0x1d1]))
+        && !dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[0x1d1]))
     {
         i_this->field_0x756++;
         if (i_this->field_0x756 < 200) {
@@ -2728,9 +2733,9 @@ static int daNpc_Henna_Create(fopAc_ac_c* i_this) {
                 }
             }
             /* dSv_event_flag_c::F_0463 - Fishing Pond - Reserved for fishing */
-            dComIfGs_offEventBit((u16)dSv_event_flag_c::saveBitLabels[0x1cf]);
+            dComIfGs_offEventBit(dSv_event_flag_c::saveBitLabels[0x1cf]);
             /* dSv_event_flag_c::F_0464 - Fishing Pond - Reserved for fishing */
-            dComIfGs_offEventBit((u16)dSv_event_flag_c::saveBitLabels[0x1d0]);
+            dComIfGs_offEventBit(dSv_event_flag_c::saveBitLabels[0x1d0]);
             a_this->field_0x618 = i_this->shape_angle.y = i_this->current.angle.y = newAngle;
             lbl_82_bss_91 = dComIfGs_getEventReg(0xf63f);
             daNpc_Henna_Execute(a_this);
@@ -2775,7 +2780,7 @@ static int daNpc_Henna_Create(fopAc_ac_c* i_this) {
                               NULL, -1);
                 data_80450C99 = 0;
                 /* dSv_event_flag_c::F_0463 - Fishing Pond - Reserved for fishing */
-                if (!dComIfGs_isEventBit((u16)dSv_event_flag_c::saveBitLabels[0x1cf])) {
+                if (!dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[0x1cf])) {
                     a_this->field_0x70a = 4;
                     a_this->field_0x734 = 1;
                 } else {

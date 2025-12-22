@@ -33,7 +33,7 @@ public:
     virtual TFunctionValueAttributeSet getAttributeSet() = 0;
     virtual void initialize() = 0;
     virtual void prepare() = 0;
-    virtual f64 getValue(f64 arg1) = 0;
+    virtual TValue getValue(f64 arg1) = 0;
 
     static ExtrapolateParameter toFunction_outside(int);
 
@@ -180,6 +180,7 @@ public:
 
         inline void operator=(const TData& rhs) { f32data = rhs.f32data; }
         u32 get_unsignedInteger() const { return u32data; }
+        u32 get_outside() const { return u32data; }
         f64 get_value() const { return f32data; }
 
         union {
@@ -369,10 +370,8 @@ public:
 
 #if DEBUG
         /* 0x00 */ const TFunctionValue_list_parameter* pOwn_;
-        /* 0x04 */ const f32* pf_;
-#else
-        /* 0x00 */ const f32* pf_;
 #endif
+        /* 0x00 */ const f32* pf_;
     };
     typedef f64 (*update_INTERPOLATE)(const TFunctionValue_list_parameter&, f64);
 

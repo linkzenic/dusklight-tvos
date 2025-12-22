@@ -13,10 +13,25 @@
  */
 struct J3DGXColorS10 : public GXColorS10 {
     J3DGXColorS10() {}
-    J3DGXColorS10(J3DGXColorS10 const& other) { __memcpy(this, &other, sizeof(J3DGXColorS10)); }
-    J3DGXColorS10(GXColorS10 const& color) : GXColorS10(color) {}
+    
+#if PLATFORM_GCN && __MWERKS__
+    J3DGXColorS10(J3DGXColorS10& other) { __memcpy(this, &other, sizeof(J3DGXColorS10)); }
+#elif DEBUG
+    J3DGXColorS10(const J3DGXColorS10& other) {
+        GXColorS10 sp08 = other;
+        J3DGXColorS10* r31 = this;
+        __memcpy(r31, &sp08, sizeof(GXColorS10));
+        J3DGXColorS10* r30 = r31;
+    }
+#else
+    J3DGXColorS10(const J3DGXColorS10& other) { __memcpy(this, &other, sizeof(J3DGXColorS10)); }
+#endif
+
+    J3DGXColorS10(const GXColorS10& color) : GXColorS10(color) {}
+
     J3DGXColorS10& operator=(const GXColorS10& color) {
-        // FAKE match. __memcpy created issues in J3DTevBlockPatched::initialize
+        // Fakematch? Instruction order is wrong with __memcpy or GXColorS10::operator=
+        // Might be real as this matches on debug as well.
         ((u32*)this)[0] = ((u32*)&color)[0];
         ((u32*)this)[1] = ((u32*)&color)[1];
         return *this;
@@ -29,66 +44,24 @@ struct J3DGXColorS10 : public GXColorS10 {
  */
 struct J3DGXColor : public GXColor {
     J3DGXColor() {}
-    J3DGXColor(J3DGXColor const& other) { __memcpy(this, &other, sizeof(J3DGXColor)); }
-    J3DGXColor(GXColor const& color) : GXColor(color) {}
-    // making color a reference breaks J3DColorBlockLightOff::initialize et al
-    J3DGXColor& operator=(GXColor color) {
+
+#if PLATFORM_GCN && __MWERKS__
+    J3DGXColor(J3DGXColor& other) { __memcpy(this, &other, sizeof(J3DGXColor)); }
+#else
+    J3DGXColor(const J3DGXColor& other) { __memcpy(this, &other, sizeof(J3DGXColor)); }
+#endif
+
+    J3DGXColor(const GXColor color) : GXColor(color) {}
+
+    J3DGXColor& operator=(const GXColor color) {
         *(GXColor*)this = color;
         return *this;
     }
     J3DGXColor& operator=(const J3DGXColor& other) {
-        r = other.r;
-        g = other.g;
-        b = other.b;
-        a = other.a;
+        GXColor::operator=(other);
         return *this;
     }
 };
-
-extern const J3DNBTScaleInfo j3dDefaultNBTScaleInfo;
-
-/**
- * @ingroup jsystem-j3d
- *
- */
-struct J3DNBTScale : public J3DNBTScaleInfo {
-    J3DNBTScale() {
-        mbHasScale = j3dDefaultNBTScaleInfo.mbHasScale;
-        mScale.x = j3dDefaultNBTScaleInfo.mScale.x;
-        mScale.y = j3dDefaultNBTScaleInfo.mScale.y;
-        mScale.z = j3dDefaultNBTScaleInfo.mScale.z;
-    }
-
-    J3DNBTScale(J3DNBTScaleInfo const& info) {
-        mbHasScale = info.mbHasScale;
-        mScale = info.mScale;
-    }
-
-    Vec* getScale() { return &mScale; }
-};
-
-/**
- * @ingroup jsystem-j3d
- *
- */
-struct J3DColorChanInfo {
-    /* 0x0 */ u8 mEnable;
-    /* 0x1 */ u8 mMatSrc;
-    /* 0x2 */ u8 mLightMask;
-    /* 0x3 */ u8 mDiffuseFn;
-    /* 0x4 */ u8 mAttnFn;
-    /* 0x5 */ u8 mAmbSrc;
-    /* 0x6 */ u8 pad[2];
-};
-
-extern const J3DColorChanInfo j3dDefaultColorChanInfo;
-
-static inline u32 setChanCtrlMacro(u8 enable, GXColorSrc ambSrc, GXColorSrc matSrc, u32 lightMask,
-                                   GXDiffuseFn diffuseFn, GXAttnFn attnFn) {
-    return matSrc << 0 | enable << 1 | (lightMask & 0x0F) << 2 | ambSrc << 6 |
-           ((attnFn == GX_AF_SPEC) ? GX_DF_NONE : diffuseFn) << 7 | (attnFn != GX_AF_NONE) << 9 |
-           (attnFn != GX_AF_SPEC) << 10 | (lightMask >> 4 & 0x0F) << 11;
-}
 
 inline u16 calcColorChanID(u16 enable, u8 matSrc, u8 lightMask, u8 diffuseFn, u8 attnFn, u8 ambSrc) {
     u32 reg = 0;
@@ -109,6 +82,13 @@ inline u16 calcColorChanID(u16 enable, u8 matSrc, u8 lightMask, u8 diffuseFn, u8
     return reg;
 }
 
+static inline u32 setChanCtrlMacro(u8 enable, GXColorSrc ambSrc, GXColorSrc matSrc, u32 lightMask,
+                                   GXDiffuseFn diffuseFn, GXAttnFn attnFn) {
+    return matSrc << 0 | enable << 1 | (lightMask & 0x0F) << 2 | ambSrc << 6 |
+           ((attnFn == GX_AF_SPEC) ? GX_DF_NONE : diffuseFn) << 7 | (attnFn != GX_AF_NONE) << 9 |
+           (attnFn != GX_AF_SPEC) << 10 | (lightMask >> 4 & 0x0F) << 11;
+}
+
 #ifdef DECOMPCTX
 // Hack to mitigate fake mismatches when building from decompctx output -
 // see comment in sqrtf in math.h
@@ -119,7 +99,8 @@ static u8 AttnArr[] = {2, 0, 2, 1};
  * @ingroup jsystem-j3d
  *
  */
-struct J3DColorChan {
+class J3DColorChan {
+public:
     J3DColorChan() {
         setColorChanInfo(j3dDefaultColorChanInfo);
     }
@@ -129,7 +110,7 @@ struct J3DColorChan {
             info.mDiffuseFn, info.mAttnFn, ambSrc);
     }
     void setColorChanInfo(J3DColorChanInfo const& info) {
-        // Bug: It compares info.mAmbSrc (an 8 bit integer) with 0xFFFF instead of 0xFF.
+        // !@bug: It compares info.mAmbSrc (an 8 bit integer) with 0xFFFF instead of 0xFF.
         // This inline is only called by the default constructor J3DColorChan().
         // The J3DColorChan(const J3DColorChanInfo&) constructor does not call this inline, and instead duplicates the
         // same logic but without the bug.
@@ -154,6 +135,10 @@ struct J3DColorChan {
         u8 AttnArr[] = {2,0,2,1};
 #endif
         return AttnArr[(u32)(mColorChanID & (3 << 9)) >> 9];
+    }
+    J3DColorChan& operator=(const J3DColorChan& other) {
+        mColorChanID = other.mColorChanID;
+        return *this;
     }
 
     void load() const {
@@ -418,6 +403,16 @@ public:
  * @ingroup jsystem-j3d
  *
  */
+class J3DColorBlockNull : public J3DColorBlock {
+public:
+    virtual u32 getType() { return 'CLNL'; }
+    virtual ~J3DColorBlockNull() {}
+};
+
+/**
+ * @ingroup jsystem-j3d
+ *
+ */
 class J3DTexGenBlock {
 public:
     virtual void reset(J3DTexGenBlock*) {}
@@ -445,20 +440,6 @@ public:
     virtual u32 getTexMtxOffset() const { return 0; }
     virtual void setTexMtxOffset(u32) {}
     virtual ~J3DTexGenBlock() {}
-};
-
-struct J3DTexGenBlockNull : public J3DTexGenBlock {
-    virtual void calc(f32 const (*)[4]) {}
-    virtual void calcWithoutViewMtx(f32 const (*)[4]) {}
-    virtual void calcPostTexMtx(f32 const (*)[4]) {}
-    virtual void calcPostTexMtxWithoutViewMtx(f32 const (*)[4]) {}
-    virtual void load() {}
-    virtual void patch() {}
-    virtual void diff(u32) {}
-    virtual void diffTexMtx() {}
-    virtual void diffTexGen() {}
-    virtual u32 getType() { return 'TGNL'; }
-    virtual ~J3DTexGenBlockNull() {}
 };
 
 /**
@@ -571,6 +552,21 @@ public:
     /* 0x5C */ J3DNBTScale mNBTScale;
 };  // Size: 0x6C
 
+class J3DTexGenBlockNull : public J3DTexGenBlock {
+public:
+    virtual void calc(f32 const (*)[4]) {}
+    virtual void calcWithoutViewMtx(f32 const (*)[4]) {}
+    virtual void calcPostTexMtx(f32 const (*)[4]) {}
+    virtual void calcPostTexMtxWithoutViewMtx(f32 const (*)[4]) {}
+    virtual void load() {}
+    virtual void patch() {}
+    virtual void diff(u32) {}
+    virtual void diffTexMtx() {}
+    virtual void diffTexGen() {}
+    virtual u32 getType() { return 'TGNL'; }
+    virtual ~J3DTexGenBlockNull() {}
+};
+
 /**
  * @ingroup jsystem-j3d
  *
@@ -580,11 +576,11 @@ public:
     virtual void reset(J3DTevBlock*) {}
     virtual void load() {}
     virtual void diff(u32);
-    virtual void diffTexNo();
-    virtual void diffTevReg();
-    virtual void diffTexCoordScale();
-    virtual void diffTevStage();
-    virtual void diffTevStageIndirect();
+    virtual void diffTexNo() {}
+    virtual void diffTevReg() {}
+    virtual void diffTexCoordScale() {}
+    virtual void diffTevStage() {}
+    virtual void diffTevStageIndirect() {}
     virtual void patch() {}
     virtual void patchTexNo() {}
     virtual void patchTevReg() {}
@@ -1412,22 +1408,9 @@ public:
     /* 0x170 */ u32 mTevRegOffset;
 };  // Size: 0x174
 
-extern const u16 j3dDefaultZModeID;
-
 inline u16 calcZModeID(u8 param_0, u8 param_1, u8 param_2) {
     return param_1 * 2 + param_0 * 0x10 + param_2;
 }
-
-/**
- * @ingroup jsystem-j3d
- *
- */
-struct J3DZModeInfo {
-    /* 0x0 */ u8 field_0x0;
-    /* 0x1 */ u8 field_0x1;
-    /* 0x2 */ u8 field_0x2;
-    /* 0x3 */ u8 pad;
-};
 
 extern u8 j3dZModeTable[96];
 
@@ -1441,6 +1424,10 @@ struct J3DZMode {
 
     J3DZMode& operator=(u16 zModeID) {
         mZModeID = zModeID;
+        return *this;
+    }
+    J3DZMode& operator=(const J3DZMode& other) {
+        mZModeID = other.mZModeID;
         return *this;
     }
 
@@ -1475,25 +1462,13 @@ struct J3DZMode {
  * @ingroup jsystem-j3d
  *
  */
-struct J3DBlendInfo {
-    void operator=(J3DBlendInfo const& other) {
-        *(int*)&mType = *(int*)&other.mType;
-    }
-    /* 0x0 */ u8 mType;
-    /* 0x1 */ u8 mSrcFactor;
-    /* 0x2 */ u8 mDstFactor;
-    /* 0x3 */ u8 mOp;
-};
-
-extern const J3DBlendInfo j3dDefaultBlendInfo;
-
-/**
- * @ingroup jsystem-j3d
- *
- */
 struct J3DBlend : public J3DBlendInfo {
-    J3DBlend() : J3DBlendInfo(j3dDefaultBlendInfo) {}
-    J3DBlend(J3DBlendInfo const& info) : J3DBlendInfo(info) {}
+    J3DBlend() {
+        J3DBlendInfo::operator=(j3dDefaultBlendInfo);
+    }
+    J3DBlend(J3DBlendInfo const& info) {
+        J3DBlendInfo::operator=(info);
+    }
 
     void setType(u8 i_type) { mType = i_type; }
     void setSrcFactor(u8 i_factor) { mSrcFactor = i_factor; }
@@ -1511,8 +1486,6 @@ struct J3DBlend : public J3DBlendInfo {
     void setBlendInfo(const J3DBlendInfo& i_blendInfo) { *static_cast<J3DBlendInfo*>(this) = i_blendInfo; }
 };
 
-extern const J3DFogInfo j3dDefaultFogInfo;
-
 /**
  * @ingroup jsystem-j3d
  *
@@ -1520,7 +1493,7 @@ extern const J3DFogInfo j3dDefaultFogInfo;
 struct J3DFog : public J3DFogInfo {
     J3DFog() { *(J3DFogInfo*)this = j3dDefaultFogInfo; }
     ~J3DFog() {}
-    J3DFogInfo* getFogInfo() { return this; }
+    J3DFog* getFogInfo() { return this; }
     void setFogInfo(J3DFogInfo info) { *(J3DFogInfo*)this = info; }
     void setFogInfo(const J3DFogInfo* info) { *(J3DFogInfo*)this = *info; }
 
@@ -1529,32 +1502,6 @@ struct J3DFog : public J3DFogInfo {
         J3DGDSetFogRangeAdj(mAdjEnable, mCenter, (GXFogAdjTable*)&mFogAdjTable);
     }
 };
-
-/**
- * @ingroup jsystem-j3d
- *
- */
-struct J3DAlphaCompInfo {
-    /* 0x0 */ u8 mComp0;
-    /* 0x1 */ u8 mRef0;
-    /* 0x2 */ u8 mOp;
-    /* 0x3 */ u8 mComp1;
-    /* 0x4 */ u8 mRef1;
-    /* 0x5 */ u8 field_0x5;
-    /* 0x6 */ u8 field_0x6;
-    /* 0x7 */ u8 field_0x7;
-
-    J3DAlphaCompInfo& operator=(const J3DAlphaCompInfo& other) {
-        mComp0 = other.mComp0;
-        mRef0 = other.mRef0;
-        mOp = other.mOp;
-        mComp1 = other.mComp1;
-        mRef1 = other.mRef1;
-        return *this;
-    }
-};
-
-extern const u16 j3dDefaultAlphaCmpID;
 
 inline u16 calcAlphaCmpID(u8 comp0, u8 op, u8 comp1) {
     return (comp0 << 5) + (op << 3) + (comp1);
@@ -1615,31 +1562,25 @@ struct J3DAlphaComp {
  * @ingroup jsystem-j3d
  *
  */
-struct J3DIndTexOrderInfo {
-    /* 0x0 */ u8 mCoord;
-    /* 0x1 */ u8 mMap;
-    /* 0x2 */ u8 field_0x2;
-    /* 0x3 */ u8 field_0x3;
-};  // Size: 0x04
-
-extern const J3DIndTexOrderInfo j3dDefaultIndTexOrderNull;
-
-/**
- * @ingroup jsystem-j3d
- *
- */
 struct J3DIndTexOrder : public J3DIndTexOrderInfo {
-    J3DIndTexOrder() : J3DIndTexOrderInfo(j3dDefaultIndTexOrderNull) {}
+    J3DIndTexOrder() {
+        J3DIndTexOrderInfo::operator=(j3dDefaultIndTexOrderNull);
+    }
     J3DIndTexOrder& operator=(J3DIndTexOrder const& other) {
+#if DEBUG
+        J3DIndTexOrderInfo::operator=(other);
+#else
+        // Fakematch: Instruction order is wrong with __memcpy or J3DIndTexCoordScaleInfo::operator=
         *(u32*)this = *(u32*)&other;
+#endif
         return *this;
     }
-    J3DIndTexOrder(J3DIndTexOrderInfo const& info) : J3DIndTexOrderInfo(info) {}
+    J3DIndTexOrder(J3DIndTexOrderInfo const& info) {
+        J3DIndTexOrderInfo::operator=(info);
+    }
     u8 getMap() const { return (GXTexMapID)mMap; }
     u8 getCoord() const { return (GXTexCoordID)mCoord; }
 };  // Size: 0x04
-
-extern J3DIndTexMtxInfo const j3dDefaultIndTexMtxInfo;
 
 /**
  * @ingroup jsystem-j3d
@@ -1647,7 +1588,10 @@ extern J3DIndTexMtxInfo const j3dDefaultIndTexMtxInfo;
  */
 struct J3DIndTexMtx : public J3DIndTexMtxInfo {
     J3DIndTexMtx() { *(J3DIndTexMtxInfo*)this = j3dDefaultIndTexMtxInfo; }
-    J3DIndTexMtx(J3DIndTexMtxInfo const& info) { *(J3DIndTexMtxInfo*)this = info; }
+    J3DIndTexMtx(const J3DIndTexMtxInfo& info) { *(J3DIndTexMtxInfo*)this = info; }
+    J3DIndTexMtx(const J3DIndTexMtx& other) {
+        __memcpy(this, &other, sizeof(J3DIndTexMtx));
+    }
     ~J3DIndTexMtx() {}
     void load(u32 param_1) const {
         J3DGDSetIndTexMtx((GXIndTexMtxID)(param_1 + GX_ITM_0), (Mtx3P)field_0x0, field_0x18);
@@ -1658,29 +1602,27 @@ struct J3DIndTexMtx : public J3DIndTexMtxInfo {
  * @ingroup jsystem-j3d
  *
  */
-struct J3DIndTexCoordScaleInfo {
-    /* 0x0 */ u8 mScaleS;
-    /* 0x1 */ u8 mScaleT;
-    /* 0x2 */ u8 field_0x2;
-    /* 0x3 */ u8 field_0x3;
-};  // Size: 0x4
-
-extern const J3DIndTexCoordScaleInfo j3dDefaultIndTexCoordScaleInfo;
-
-/**
- * @ingroup jsystem-j3d
- *
- */
 struct J3DIndTexCoordScale : public J3DIndTexCoordScaleInfo {
-    J3DIndTexCoordScale() : J3DIndTexCoordScaleInfo(j3dDefaultIndTexCoordScaleInfo) {}
-    J3DIndTexCoordScale(J3DIndTexCoordScaleInfo const& info) : J3DIndTexCoordScaleInfo(info) {}
+    J3DIndTexCoordScale() {
+        J3DIndTexCoordScaleInfo::operator=(j3dDefaultIndTexCoordScaleInfo);
+    }
+    J3DIndTexCoordScale(const J3DIndTexCoordScaleInfo& info) {
+        J3DIndTexCoordScaleInfo::operator=(info);
+    }
+    J3DIndTexCoordScale(const J3DIndTexCoordScale& other) {
+        __memcpy(this, &other, sizeof(J3DIndTexCoordScale));
+    }
     ~J3DIndTexCoordScale() {}
     u8 getScaleS() { return mScaleS; }
     u8 getScaleT() { return mScaleT; }
 
     J3DIndTexCoordScale& operator=(const J3DIndTexCoordScale& other) {
-        //__memcpy(this, &other, sizeof(J3DIndTexCoordScaleInfo));
+#if DEBUG
+        J3DIndTexCoordScaleInfo::operator=(other);
+#else
+        // Fakematch: Instruction order is wrong with __memcpy or J3DIndTexCoordScaleInfo::operator=
         *(u32*)this = *(u32*)&other;
+#endif
         return *this;
     }
 };  // Size: 0x4
@@ -1708,19 +1650,6 @@ public:
     virtual void setIndTexCoordScale(u32, J3DIndTexCoordScale) {}
     virtual J3DIndTexCoordScale* getIndTexCoordScale(u32) { return NULL; }
     virtual ~J3DIndBlock() {}
-};
-
-/**
- * @ingroup jsystem-j3d
- *
- */
-class J3DIndBlockNull : public J3DIndBlock {
-public:
-    virtual void diff(u32) {}
-    virtual void load() {}
-    virtual void reset(J3DIndBlock*) {}
-    virtual u32 getType() { return 'IBLN'; }
-    virtual ~J3DIndBlockNull() {}
 };
 
 /**
@@ -1787,6 +1716,19 @@ public:
     /* 0x18 */ J3DIndTexMtx mIndTexMtx[3];
     /* 0x6C */ J3DIndTexCoordScale mIndTexCoordScale[4];
 };  // Size: 0x7C
+
+/**
+ * @ingroup jsystem-j3d
+ *
+ */
+class J3DIndBlockNull : public J3DIndBlock {
+public:
+    virtual void diff(u32) {}
+    virtual void load() {}
+    virtual void reset(J3DIndBlock*) {}
+    virtual u32 getType() { return 'IBLN'; }
+    virtual ~J3DIndBlockNull() {}
+};
 
 /**
  * @ingroup jsystem-j3d
@@ -1991,14 +1933,5 @@ public:
     /* 0x3B */ u8 mDither;
     /* 0x3C */ u32 mFogOffset;
 };  // Size: 0x40
-
-/**
- * @ingroup jsystem-j3d
- *
- */
-struct J3DColorBlockNull : public J3DColorBlock {
-    virtual u32 getType() { return 'CLNL'; }
-    virtual ~J3DColorBlockNull() {}
-};
 
 #endif /* J3DMATBLOCK_H */

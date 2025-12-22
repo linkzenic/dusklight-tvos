@@ -71,25 +71,6 @@ private:
     /* 0x64 */ Mtx mMtx;
 };  // Size: 0x94
 
-/**
- * @ingroup jsystem-j3d
- * 
- */
-struct J3DTexCoordInfo {
-    /* 0x0 */ u8 mTexGenType;
-    /* 0x1 */ u8 mTexGenSrc;
-    /* 0x2 */ u8 mTexGenMtx;
-    /* 0x3 */ u8 pad;
-
-    J3DTexCoordInfo& operator=(const J3DTexCoordInfo& other) {
-        mTexGenType = other.mTexGenType;
-        mTexGenSrc = other.mTexGenSrc;
-        mTexGenMtx = other.mTexGenMtx;
-        pad = other.pad;
-        return *this;
-    }
-};
-
 extern J3DTexCoordInfo const j3dDefaultTexCoordInfo[8];
 
 /**
@@ -98,14 +79,14 @@ extern J3DTexCoordInfo const j3dDefaultTexCoordInfo[8];
  */
 struct J3DTexCoord : public J3DTexCoordInfo {
     J3DTexCoord() {
-        setTexCoordInfo(j3dDefaultTexCoordInfo[0]);
-        resetTexMtxReg();
+        J3DTexCoordInfo::operator=(j3dDefaultTexCoordInfo[0]);
+        mTexMtxReg = mTexGenMtx;
     }
-    J3DTexCoord(J3DTexCoordInfo const& info) {
-        setTexCoordInfo(info);
-        resetTexMtxReg();
+    J3DTexCoord(const J3DTexCoordInfo& info) {
+        J3DTexCoordInfo::operator=(info);
+        mTexMtxReg = mTexGenMtx;
     }
-    void setTexCoordInfo(J3DTexCoordInfo const& info) {
+    void setTexCoordInfo(const J3DTexCoordInfo& info) {
         __memcpy(this, &info, sizeof(J3DTexCoordInfo));
     }
 
@@ -116,8 +97,12 @@ struct J3DTexCoord : public J3DTexCoordInfo {
     void setTexGenMtx(u8 param_1) { mTexGenMtx = param_1; }
     void setTexMtxReg(u16 reg) { mTexMtxReg = reg; }
     J3DTexCoord& operator=(const J3DTexCoord& other) {
-        // Fake match (__memcpy or = doesn't match)
+#if DEBUG
+        J3DTexCoordInfo::operator=(other);
+#else
+        // Fakematch: Instruction order is wrong with __memcpy or J3DTexCoordInfo::operator=
         *(u32*)this = *(u32*)&other;
+#endif
         return *this;
     }
 

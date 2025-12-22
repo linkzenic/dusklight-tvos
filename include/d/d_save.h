@@ -469,6 +469,7 @@ class dSv_player_info_c {
 public:
     void init();
     char* getLinkName() { return mPlayerName; }
+    const char* getPlayerName() const { return mPlayerName; }
     char* getHorseName() { return mHorseName; }
     void setPlayerName(const char* i_name) { strcpy((char*)mPlayerName, i_name); }
     void setHorseName(const char* i_name) { strcpy((char*)mHorseName, i_name); }
@@ -994,7 +995,7 @@ public:
 
     static const int ZONE_MAX = 0x20;
 
-#if VERSION == VERSION_SHIELD_DEBUG
+#if DEBUG
     /* 0x000 */ u8 unk_0x0;
     /* 0x001 */ u8 unk_0x1;
     /* 0x000 */ u8 unk_0x2[0x48 - 0x2];
@@ -1013,7 +1014,7 @@ public:
     /* 0xF1B */ u8 field_0xf1b[13];
     /* 0xF28 */ s64 mStartTime;
     /* 0xF30 */ s64 mSaveTotalTime;
-#if VERSION == VERSION_SHIELD_DEBUG
+#if DEBUG
     /* 0xF80 */ flagFile_c mFlagFile;
 #endif
 };  // Size: 0xF38

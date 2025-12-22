@@ -126,7 +126,6 @@ set(DOLZEL_FILES
     src/d/d_event_data.cpp
     src/d/d_event_manager.cpp
     src/d/d_event_lib.cpp
-    src/d/d_event_debug.cpp
     src/d/d_simple_model.cpp
     src/d/d_particle.cpp
     src/d/d_particle_name.cpp
@@ -272,6 +271,9 @@ set(DOLZEL_FILES
     src/DynamicLink.cpp
     src/CaptureScreen.cpp
     )
+if(DEBUG)
+list(APPEND DOLZEL_FILES src/d/d_event_debug.cpp)
+endif(DEBUG)
 
 set(Z2AUDIOLIB_FILES
     src/Z2AudioLib/Z2Calc.cpp
@@ -1343,9 +1345,10 @@ source_group("dolzel" FILES ${DOLZEL_FILES} ${Z2AUDIOLIB_FILES} ${SSYSTEM_FILES}
 source_group("dusk" FILES ${DUSK_FILES})
 
 add_library(game SHARED ${DOLZEL_FILES} ${Z2AUDIOLIB_FILES} ${SSYSTEM_FILES} ${JSYSTEM_FILES} ${REL_FILES} ${DUSK_FILES})
-target_compile_definitions(game PRIVATE TARGET_PC VERSION=0)
+target_compile_definitions(game PRIVATE TARGET_PC VERSION=0 NDEBUG=1 NDEBUG_DEFINED=1 DEBUG_DEFINED=0)
 # TODO: version handling for res includes
-target_include_directories(game PRIVATE include assets/GZ2E01 src/PowerPC_EABI_Support/MSL/MSL_C++/MSL_Common/Include src/PowerPC_EABI_Support/MSL/MSL_C/MSL_Common/Include src/PowerPC_EABI_Support/MSL/MSL_C/MSL_Common_Embedded/Math/Include)
+set(DUSK_TP_VERSION GZ2E01)
+target_include_directories(game PRIVATE include src assets/${DUSK_TP_VERSION} ${CMAKE_BINARY_DIR}/../${DUSK_TP_VERSION}/include src/PowerPC_EABI_Support/MSL/MSL_C++/MSL_Common/Include src/PowerPC_EABI_Support/MSL/MSL_C/MSL_Common/Include src/PowerPC_EABI_Support/MSL/MSL_C/MSL_Common_Embedded/Math/Include)
 target_link_libraries(game PRIVATE aurora::core aurora::gx aurora::si aurora::vi aurora::pad)
 
 add_executable(dusk src/dusk/main.cpp)

@@ -3701,7 +3701,15 @@ static ResFONT* mDoExt_resfont0;
 
 static void mDoExt_initFont0() {
     static char const fontdata[] = "rodan_b_24_22.bfn";
-#if REGION_JPN
+#if TARGET_PC
+    if (getGameVersion() == GameVersion::GcnJpn) {
+        mDoExt_initFontCommon(&mDoExt_font0, &mDoExt_resfont0, mDoExt_getZeldaHeap(),
+                              fontdata, dComIfGp_getFontArchive(), 0, 200, 512);
+    } else {
+        mDoExt_initFontCommon(&mDoExt_font0, &mDoExt_resfont0, mDoExt_getZeldaHeap(),
+                              fontdata, dComIfGp_getFontArchive(), 1, 0, 0);
+    }
+#elif REGION_JPN
     mDoExt_initFontCommon(&mDoExt_font0, &mDoExt_resfont0, mDoExt_getZeldaHeap(),
                           fontdata, dComIfGp_getFontArchive(), 0, 200, 512);
 #else
@@ -3728,7 +3736,13 @@ void mDoExt_removeMesgFont() {
             JKR_DELETE(mDoExt_font0);
             mDoExt_font0 = NULL;
             if (mDoExt_resfont0 != NULL) {
-#if REGION_JPN
+#if TARGET_PC
+                if (getGameVersion() == GameVersion::GcnJpn) {
+                    JKRFileLoader::removeResource(mDoExt_resfont0, NULL);
+                } else {
+                    JKRFree(mDoExt_resfont0);
+                }
+#elif REGION_JPN
                 JKRFileLoader::removeResource(mDoExt_resfont0, NULL);
 #else
                 JKRFree(mDoExt_resfont0);

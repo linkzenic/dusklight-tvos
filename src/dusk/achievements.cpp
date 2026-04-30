@@ -11,6 +11,7 @@
 #include "d/actor/d_a_alink.h"
 #include "d/actor/d_a_ni.h"
 #include "d/actor/d_a_npc4.h"
+#include "d/actor/d_a_b_ob.h"
 #include "d/actor/d_a_player.h"
 #include "f_pc/f_pc_name.h"
 #include "f_op/f_op_actor_mng.h"
@@ -841,8 +842,14 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
                 static bool prevMorpheelAlive = false;
                 static bool inArena = false;
                 static bool zoraWorn = false;
-                const bool morpheelAlive = fopAcM_SearchByName(fpcNm_B_OH_e) != nullptr;
+                const auto* morpheel = static_cast<const b_ob_class*>(fopAcM_SearchByName(fpcNm_B_OB_e));
+                const bool morpheelAlive = morpheel != nullptr && morpheel->mAnmID != 0x14;
+                const bool morpheelDead = morpheel != nullptr && morpheel->mAnmID == 0x14;
                 const bool lakebedCleared = dComIfGs_isEventBit(dSv_event_flag_c::M_045);
+
+                if (inArena && morpheel == nullptr) {
+                    zoraWorn = false;
+                }
 
                 if (morpheelAlive && !lakebedCleared) {
                     inArena = true;
@@ -851,7 +858,7 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
                     }
                 }
 
-                if (prevMorpheelAlive && !morpheelAlive && inArena && !zoraWorn) {
+                if (prevMorpheelAlive && morpheelDead && inArena && !zoraWorn) {
                     a.progress = 1;
                 }
 

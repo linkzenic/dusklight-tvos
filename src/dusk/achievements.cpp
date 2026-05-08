@@ -48,13 +48,13 @@ static constexpr auto ACHIEVEMENTS_FILENAME = "achievements.json";
 
 std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
     return {
-        // Story
+        // Challenge
         {
             {
                 "hero_of_twilight",
                 "Hero of Twilight",
                 "Deliver the finishing blow to Ganondorf.",
-                AchievementCategory::Story,
+                AchievementCategory::Challenge,
                 false, 0, 0, false
             },
             [](Achievement& a, json&) {
@@ -69,8 +69,8 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
             {
                 "completionist",
                 "Completionist",
-                "100% the game.",
-                AchievementCategory::Story,
+                "Complete the game after collecting all equipment, heart containers, portals, bugs, poes, and hidden skills.",
+                AchievementCategory::Challenge,
                 false, 0, 0, false
             },
             [](Achievement& a, json&) {
@@ -352,7 +352,19 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
             },
             {}
         },
-        // Challenge
+        {
+            {
+                "all_letters",
+                "We Deliver!",
+                "Collect all 16 postman letters.",
+                AchievementCategory::Collection,
+                true, 16, 0, false
+            },
+            [](Achievement& a, json&) {
+                a.progress = dMeter2Info_getRecieveLetterNum();
+            },
+            {}
+        },
         {
             {
                 "cave_of_ordeals",
@@ -428,7 +440,7 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
                 "dark_hammer_one_hit",
                 "Mortal Edge",
                 "Defeat Dark Hammer in a single hit.",
-                AchievementCategory::Challenge,
+                AchievementCategory::Misc,
                 false, 0, 0, false
             },
             [](Achievement& a, json&) {
@@ -481,7 +493,7 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
                 "bow_100m_hit",
                 "Long Shot",
                 "Hit an enemy from over 100 meters away with the bow.",
-                AchievementCategory::Challenge,
+                AchievementCategory::Misc,
                 false, 0, 0, false
             },
             [](Achievement& a, json&) {
@@ -613,6 +625,36 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
                     a.progress = 1;
                 }
                 wasInCanoe = inCanoe;
+            },
+            {}
+        },
+        {
+            {
+                "star_2_under_40s",
+                "Rising Star",
+                "Complete the STAR Prize 2 minigame in under 40 seconds.",
+                AchievementCategory::Minigame,
+                false, 0, 0, false
+            },
+            [](Achievement& a, json&) {
+                if(dComIfGs_getHookGameTime() > 0 && dComIfGs_getHookGameTime() <= 40000) {
+                    a.progress = 1;
+                }
+            },
+            {}
+        },
+        {
+            {
+                "star_2_under_30s",
+                "Shooting Star",
+                "Complete the STAR Prize 2 minigame in under 30 seconds.",
+                AchievementCategory::Minigame,
+                false, 0, 0, false
+            },
+            [](Achievement& a, json&) {
+                if(dComIfGs_getHookGameTime() > 0 && dComIfGs_getHookGameTime() <= 30000) {
+                    a.progress = 1;
+                }
             },
             {}
         },
@@ -802,19 +844,6 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
         },
         {
             {
-                "ultimate_delivery",
-                "The Ultimate Delivery",
-                "Have all 16 postman letters at the same time.",
-                AchievementCategory::Glitched,
-                true, 16, 0, false
-            },
-            [](Achievement& a, json&) {
-                a.progress = dMeter2Info_getRecieveLetterNum();
-            },
-            {}
-        },
-        {
-            {
                 "speedrun_4h",
                 "Hero of Time",
                 "Defeat Ganondorf with a total save file play time under 4 hours.",
@@ -916,6 +945,62 @@ std::vector<AchievementSystem::Entry> AchievementSystem::makeEntries() {
                     strcmp(dComIfGp_getNextStageName(), "F_SP125") == 0) {
                     a.progress = 1;
                 }
+            },
+            {}
+        },
+        {
+            {
+                "lakebed_before_lanayru",
+                "White Midna Glitch",
+                "Clear the Lakebed Temple before clearing Lanayru's Twilight.",
+                AchievementCategory::Glitched,
+                false, 0, 0, false
+            },
+            [](Achievement& a, json&) {
+                if (dComIfGs_isEventBit(dSv_event_flag_c::M_045) &&
+                    !dComIfGs_isDarkClearLV(2)) {
+                    a.progress = 1;
+                }
+            },
+            {}
+        },
+        {
+            {
+                "early_hidden_village",
+                "Quick Detour",
+                "Rescue the Hidden Village before clearing Goron Mines.",
+                AchievementCategory::Glitched,
+                false, 0, 0, false
+            },
+            [](Achievement& a, json&) {
+                if (dComIfGs_isEventBit(dSv_event_flag_c::F_0278) &&
+                    !dComIfGs_isEventBit(dSv_event_flag_c::M_031)) {
+                    a.progress = 1;
+                }
+            },
+            {}
+        },
+        {
+            {
+                "forest_temple_no_boomerang",
+                "Must Have Been The Wind",
+                "Complete the Forest Temple without obtaining the Gale Boomerang.",
+                AchievementCategory::Glitched,
+                false, 0, 0, false
+            },
+            [](Achievement& a, json&) {
+                if (!dComIfGs_isEventBit(dSv_event_flag_c::M_022)) {
+                    return;
+                }
+                if (daPy_getPlayerActorClass() == nullptr) {
+                    return;
+                }
+                for (int i = 0; i < 24; ++i) {
+                    if (dComIfGs_getItem(i, false) == dItemNo_BOOMERANG_e) {
+                        return;
+                    }
+                }
+                a.progress = 1;
             },
             {}
         }

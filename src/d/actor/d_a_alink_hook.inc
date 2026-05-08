@@ -168,11 +168,8 @@ void daAlink_c::hsChainShape_c::draw() {
 #if TARGET_PC
             int chainLinks = 0;
 #endif
-            while (maxDistanceF > var_f30
-#if TARGET_PC
-                   && chainLinks < HS_CHAIN_MAX_LINKS
-#endif
-            ) {
+
+            while (maxDistanceF > var_f30 IF_DUSK(&&chainLinks < HS_CHAIN_MAX_LINKS)) {
                 temp_f27 = var_f28 * cM_fsin(sp34 * var_f30);
                 s16 spC = cM_atan2s(temp_f27 - var_f26, 5.0f);
                 sp64.x = sp6C.x + spC;
@@ -194,6 +191,7 @@ void daAlink_c::hsChainShape_c::draw() {
 
                 var_f26 = temp_f27;
                 var_f30 += fabsf(cM_scos(spC)) * 5.0f;
+
 #if TARGET_PC
                 chainLinks++;
 #endif
@@ -215,11 +213,8 @@ void daAlink_c::hsChainShape_c::draw() {
 #if TARGET_PC
             int subChainLinks = 0;
 #endif
-            while (maxDistanceF > var_f30
-#if TARGET_PC
-                   && subChainLinks < HS_CHAIN_MAX_LINKS
-#endif
-            ) {
+
+            while (maxDistanceF > var_f30 IF_DUSK(&&subChainLinks < HS_CHAIN_MAX_LINKS)) {
                 mDoMtx_stack_c::copy(j3dSys.getViewMtx());
                 mDoMtx_stack_c::transM(sp98);
                 mDoMtx_stack_c::ZXYrotM(sp6C);

@@ -273,6 +273,7 @@ namespace dusk {
                 m_isHidden = true;
             }
         }
+        
         bool showMenu = !m_isHidden;
 
         // The menu bar renders with ImGuiCol_WindowBg behind it. We just want ImGuiCol_MenuBarBg,

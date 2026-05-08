@@ -99,7 +99,7 @@ struct UserSettings {
 
         // Preferences
         ConfigVar<bool> enableMirrorMode;
-        ConfigVar<bool> disableMainHUD;
+        ConfigVar<bool> minimalHUD;
         ConfigVar<bool> pauseOnFocusLost;
         ConfigVar<bool> enableLinkDollRotation;
         ConfigVar<bool> enableAchievementNotifications;
@@ -161,6 +161,7 @@ struct UserSettings {
         // Tools
         ConfigVar<bool> speedrunMode;
         ConfigVar<bool> liveSplitEnabled;
+        ConfigVar<bool> recordingMode;
     } game;
 
     struct {

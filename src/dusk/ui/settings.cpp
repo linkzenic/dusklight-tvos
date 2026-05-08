@@ -175,6 +175,8 @@ void reset_for_speedrun_mode() {
     getSettings().game.freeMagicArmor.setValue(false);
 
     getSettings().game.enableTurboKeybind.setValue(false);
+    getSettings().game.debugFlyCam.setValue(false);
+    getSettings().game.autoSave.setValue(false);
 }
 
 const Rml::String kInternalResolutionHelpText =

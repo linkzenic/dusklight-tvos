@@ -1485,11 +1485,6 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .helpText = "When starting Dusklight, skip the main menu and boot straight into the "
                             "game if a disc image is available.",
             });
-        config_bool_select(leftPane, rightPane, getSettings().backend.showPipelineCompilation,
-            {
-                .key = "Show Pipeline Compilation",
-                .helpText = "Show an overlay when shaders are being compiled for your hardware.",
-            });
         config_bool_select(leftPane, rightPane, getSettings().backend.checkForUpdates,
             {
                 .key = "Check for Updates",

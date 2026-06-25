@@ -275,7 +275,6 @@ struct UserSettings {
         ConfigVar<DiscVerificationState> isoVerification;
         ConfigVar<std::string> graphicsBackend;
         ConfigVar<bool> skipPreLaunchUI;
-        ConfigVar<bool> showPipelineCompilation;
         ConfigVar<bool> wasPresetChosen;
         ConfigVar<bool> checkForUpdates;
         ConfigVar<int> cardFileType;

@@ -20,7 +20,7 @@ It aims to be as accurate as possible to the original while also providing new o
 > Dusklight does *not* provide any copyrighted assets. You must provide your own copy of the original game.
 
 > [!IMPORTANT]
-> At a minimum, Dusklight requires a GPU with support for D3D12, Vulkan 1.1+, or Metal. For older devices, best-effort support is provided for D3D11 and OpenGL ES (Android), but will not acheive full accuracy or performance. Your experience with specific hardware, operating systems, and drivers may vary.
+> At a minimum, Dusklight requires a GPU with support for D3D12, Vulkan 1.1+, or Metal. For older devices, best-effort support is provided for D3D11 and OpenGL ES (Android), but will not achieve full accuracy or performance. Your experience with specific hardware, operating systems, and drivers may vary.
 
 ### 1. Dump your game
 

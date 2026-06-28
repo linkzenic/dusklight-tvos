@@ -378,6 +378,7 @@ nlohmann::json ConfigImpl<ui::ControlLayout>::dumpToJson(const ConfigVar<ui::Con
 }
 
 template class ConfigImpl<dusk::FrameInterpMode>;
+template class ConfigImpl<dusk::TouchTargeting>;
 template class ConfigImpl<dusk::MenuScaling>;
 template class ConfigImpl<dusk::Resampler>;
 template class ConfigImpl<dusk::MagicArmorMode>;

@@ -426,7 +426,15 @@ void dMenu_Fmap2DBack_c::draw() {
         }
 
         mpPointParent->setAlphaRate(mArrowAlpha * mSpotTextureFadeAlpha);
-        mpPointParent->translate(mArrowPos2DX + mTransX, mArrowPos2DY + mTransZ);
+
+        f32 drawX = mArrowPos2DX + mTransX;
+#ifdef TARGET_PC
+        if (dusk::getSettings().game.enableMirrorMode) {
+            drawX = getMirrorPosX(drawX, 0.0f);
+        }
+#endif
+
+        mpPointParent->translate(drawX, mArrowPos2DY + mTransZ);
         mpPointScreen->draw(0.0f, 0.0f, grafPort);
     }
 
@@ -745,7 +753,7 @@ void dMenu_Fmap2DBack_c::zoomMapCalc(f32 i_zoom) {
 
         f32 tmp2 = (dVar12 + (i_zoom * (centerX - dVar12)));
         f32 tmp2_ = (dVar11 + (i_zoom * (centerY - dVar11)));
-        
+
         field_0xf0c[mRegionCursor] =
             ((tmp2 + (tmp3 * mZoom)) - mRegionMapSizeX[mRegionCursor] * mZoom * 0.5f) -
             mRegionMinMapX[mRegionCursor];
@@ -1005,6 +1013,11 @@ void dMenu_Fmap2DBack_c::allmap_move2(STControl* param_0) {
         f32 stickValue = param_0->getValueStick();
         if (stickValue >= spC) {
             s16 angle = param_0->getAngleStick();
+#ifdef TARGET_PC
+            if (dusk::getSettings().game.enableMirrorMode) {
+                angle = -angle;
+            }
+#endif
             f32 local_68 = (mTexMaxX - mTexMinX);
             f32 zoomRate = local_68 / getAllMapZoomRate();
             f32 sp24;
@@ -1046,11 +1059,6 @@ void dMenu_Fmap2DBack_c::allmap_move2(STControl* param_0) {
     calcAllMapPos2D((mArrowPos3DX + control_xpos) - mStageTransX,
                     (mArrowPos3DZ + control_ypos) - mStageTransZ, &sp14, &sp10);
 
-#if TARGET_PC
-    if (dusk::getSettings().game.enableMirrorMode) {
-        sp14 = getMirrorPosX(sp14, 0.0f);
-    }
-#endif
 
     mSelectRegion = 0xff;
     for (int i = 7; i >= 0; i--) {
@@ -1907,6 +1915,11 @@ void dMenu_Fmap2DBack_c::regionMapMove(STControl* i_stick) {
         f32 stick_value = i_stick->getValueStick();
         if (stick_value >= slow_bound) {
             s16 angle = i_stick->getAngleStick();
+            #ifdef TARGET_PC
+            if (dusk::getSettings().game.enableMirrorMode) {
+                angle = -angle;
+            }
+            #endif
             f32 local_68 = mTexMaxX - mTexMinX;
             f32 spot_zoom = getSpotMapZoomRate();
             f32 region_zoom = getRegionMapZoomRate(mRegionCursor);
@@ -1946,11 +1959,6 @@ void dMenu_Fmap2DBack_c::regionMapMove(STControl* i_stick) {
     calcAllMapPos2D(mArrowPos3DX + control_xpos - mStageTransX,
                     mArrowPos3DZ + control_ypos - mStageTransZ, &pos_x, &pos_y);
 
-#if TARGET_PC
-    if (dusk::getSettings().game.enableMirrorMode) {
-        pos_x = getMirrorPosX(pos_x, 0.0f);
-    }
-#endif
 
     mSelectRegion = 0xff;
     int region = mRegionCursor;

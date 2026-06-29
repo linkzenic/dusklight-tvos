@@ -7602,6 +7602,10 @@ bool dCamera_c::executeDebugFlyCam() {
         sFlyCamLastMousePos = mouseValid ? io.MousePos : ImVec2{-1.0f, -1.0f};
     }
 
+    if (dusk::getSettings().game.enableMirrorMode) {
+        stickX *= -1.0f;
+    }
+
     f32 verticalDisp = 0.0f;
     if (trigR >= FLYCAM_TRIGGER_DEADZONE) {
         verticalDisp += trigR;

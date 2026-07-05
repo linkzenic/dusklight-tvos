@@ -960,6 +960,15 @@ void dMenu_DmapBg_c::draw() {
         mpBackTexture->setAlpha(dVar17 * (field_0xdbc * field_0xd9c));
 
         f32 local_28c = mpBackTexture->getBounds().i.x;
+
+        #if TARGET_PC
+            if(dusk::getSettings().game.enableMirrorMode) {
+                CPaneMgr mgr;
+                Vec local_94 = mgr.getGlobalVtxCenter(mMapPane, true, 0);
+                local_28c = (local_94.x * 2.0f) - (local_28c + 0.5f * mpBackTexture->getWidth()) - 0.5f * mpBackTexture->getWidth();
+            }
+        #endif
+
         mpBackTexture->setBlackWhite(color_black, color_white);
         mpBackTexture->draw(local_28c, field_0xd94 + mpBackTexture->getBounds().i.y, mpBackTexture->getWidth(),
                             mpBackTexture->getHeight(),
@@ -1242,6 +1251,12 @@ void dMenu_Dmap_c::screenInit() {
             } else {
                 mpDrawBg->mFloorScreen->search('wolf')->hide();
                 mpDrawBg->mFloorScreen->search('rink')->show();
+
+                #if TARGET_PC
+                    if(dusk::getSettings().game.enableMirrorMode) {
+                        ((J2DPicture*)mpDrawBg->mFloorScreen->search('rink'))->setMirror(J2DMirror_X);
+                    }
+                #endif
             }
         }
     }
@@ -1285,7 +1300,14 @@ void dMenu_Dmap_c::screenInit() {
     field_0x7c[1] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('con_n'), 3, NULL);
     field_0x7c[2] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('key_n'), 3, NULL);
     field_0x88[0] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('map000'), 3, NULL);
+    #if TARGET_PC
+        if(dusk::getSettings().game.enableMirrorMode) {
+            ((J2DPicture*)field_0x88[0]->getPanePtr())->setMirror(J2DMirror_X);
+        }
+    #endif
     field_0x88[1] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('con000'), 3, NULL);
+
+    ((J2DPicture*)field_0x88[0]->getPanePtr())->setMirror(J2DMirror_X);
     
     if (dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo()) == dStage_SaveTbl_LV2) {
         field_0x88[2] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('i_key_n'), 3, NULL);
@@ -1981,7 +2003,7 @@ void dMenu_Dmap_c::mapControl() {
         f32 temp_f28 = (var_f29 / 100.0f) * var_f31;
         f32 sp18 = temp_f28 * cM_ssin(stick_angle);
         f32 sp14 = temp_f28 * cM_scos(stick_angle);
-        mMapCtrl->setPlusZoomCenterX(sp18);
+        mMapCtrl->setPlusZoomCenterX(IF_DUSK(dusk::getSettings().game.enableMirrorMode ? -sp18 :) sp18);
         mMapCtrl->setPlusZoomCenterZ(sp14);
     }
 

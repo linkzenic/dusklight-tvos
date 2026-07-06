@@ -1306,8 +1306,6 @@ void dMenu_Dmap_c::screenInit() {
         }
     #endif
     field_0x88[1] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('con000'), 3, NULL);
-
-    ((J2DPicture*)field_0x88[0]->getPanePtr())->setMirror(J2DMirror_X);
     
     if (dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo()) == dStage_SaveTbl_LV2) {
         field_0x88[2] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('i_key_n'), 3, NULL);

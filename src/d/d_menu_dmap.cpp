@@ -914,6 +914,20 @@ void dMenu_DmapBg_c::dMapBgWide() {
 void dMenu_DmapBg_c::draw() {
     #if TARGET_PC
     dMapBgWide();
+
+    static bool prevMirror = false; // default state of panes is not mirrored
+    if(prevMirror != dusk::getSettings().game.enableMirrorMode) {
+        if(dusk::getSettings().game.enableMirrorMode) {
+            static_cast<J2DPicture*>(mFloorScreen->search(MULTI_CHAR('rink')))->setMirror(J2DMirror_X);
+            static_cast<J2DPicture*>(mBaseScreen->search(MULTI_CHAR('map000')))->setMirror(J2DMirror_X);
+        }
+        else {
+            static_cast<J2DPicture*>(mFloorScreen->search(MULTI_CHAR('rink')))->setMirror(MIRROR0);
+            static_cast<J2DPicture*>(mBaseScreen->search(MULTI_CHAR('map000')))->setMirror(MIRROR0);
+        }
+
+        prevMirror = dusk::getSettings().game.enableMirrorMode;
+    }
     #endif
 
     u32 scissor_left;
@@ -1251,12 +1265,6 @@ void dMenu_Dmap_c::screenInit() {
             } else {
                 mpDrawBg->mFloorScreen->search('wolf')->hide();
                 mpDrawBg->mFloorScreen->search('rink')->show();
-
-                #if TARGET_PC
-                    if(dusk::getSettings().game.enableMirrorMode) {
-                        ((J2DPicture*)mpDrawBg->mFloorScreen->search('rink'))->setMirror(J2DMirror_X);
-                    }
-                #endif
             }
         }
     }
@@ -1300,11 +1308,6 @@ void dMenu_Dmap_c::screenInit() {
     field_0x7c[1] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('con_n'), 3, NULL);
     field_0x7c[2] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('key_n'), 3, NULL);
     field_0x88[0] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('map000'), 3, NULL);
-    #if TARGET_PC
-        if(dusk::getSettings().game.enableMirrorMode) {
-            ((J2DPicture*)field_0x88[0]->getPanePtr())->setMirror(J2DMirror_X);
-        }
-    #endif
     field_0x88[1] = JKR_NEW CPaneMgr(mpDrawBg->mBaseScreen, MULTI_CHAR('con000'), 3, NULL);
     
     if (dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo()) == dStage_SaveTbl_LV2) {

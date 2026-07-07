@@ -1,10 +1,12 @@
 #include "registry.hpp"
 
 #include "dusk/mods/loader/loader.hpp"
+#include "dusk/mods/loader/manifest.hpp"
 #include "fmt/format.h"
 
 #include <algorithm>
 #include <vector>
+#include <version.h>
 
 namespace dusk::mods::svc {
 namespace {
@@ -117,8 +119,11 @@ void host_mod_detached(LoadedMod& mod) {
     }
 }
 
-constexpr HostService s_hostService{
+constinit HostService s_hostService{
     .header = SERVICE_HEADER(HostService, HOST_SERVICE_MAJOR, HOST_SERVICE_MINOR),
+    .version = DUSK_VERSION_STRING,
+    .build_id = nullptr,
+    .build_id_len = 0,
     .get_service = host_get_service,
     .publish_service = host_publish_service,
     .fail = host_fail,
@@ -137,6 +142,12 @@ constinit const ServiceModule g_hostModule{
     .majorVersion = HOST_SERVICE_MAJOR,
     .minorVersion = HOST_SERVICE_MINOR,
     .service = &s_hostService,
+    .initialize =
+        [] {
+            const auto& buildId = manifest::image_build_id();
+            s_hostService.build_id = buildId.empty() ? nullptr : buildId.data();
+            s_hostService.build_id_len = static_cast<uint32_t>(buildId.size());
+        },
     .modDetached = host_mod_detached,
 };
 

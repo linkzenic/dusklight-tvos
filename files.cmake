@@ -1550,8 +1550,12 @@ set(DUSK_FILES
         src/dusk/mods/loader/loader.hpp
         src/dusk/mods/loader/native_module.cpp
         src/dusk/mods/loader/native_module.hpp
+        src/dusk/mods/loader/manifest.cpp
+        src/dusk/mods/loader/manifest.hpp
         src/dusk/mods/svc/config.cpp
         src/dusk/mods/svc/config.hpp
+        src/dusk/mods/svc/game.cpp
+        src/dusk/mods/svc/hook.cpp
         src/dusk/mods/svc/host.cpp
         src/dusk/mods/svc/log.cpp
         src/dusk/mods/svc/overlay.cpp

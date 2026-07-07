@@ -200,9 +200,11 @@ void ModLoader::init_services() {
             &svc::g_hostModule,
             &svc::g_logModule,
             &svc::g_resourceModule,
+            &svc::g_hookModule,
             &svc::g_overlayModule,
             &svc::g_textureModule,
             &svc::g_configModule,
+            &svc::g_gameModule,
         })
     {
         svc::register_module(*module);

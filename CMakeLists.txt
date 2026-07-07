@@ -217,7 +217,41 @@ FetchContent_Declare(miniz
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     EXCLUDE_FROM_ALL
 )
-FetchContent_MakeAvailable(cxxopts json miniz)
+
+set(_fetch_content_deps cxxopts json miniz)
+if (DUSK_ENABLE_CODE_MODS)
+    message(STATUS "dusklight: Fetching funchook")
+    # cmake/PatchFunchook.cmake patches funchook's cmake/capstone.cmake.in to inject a
+    # PATCH_COMMAND into capstone's inner ExternalProject. That PATCH_COMMAND runs
+    # cmake/PatchCapstone.cmake after capstone is cloned, which removes the
+    # cmake_policy(SET CMP0048 OLD) line that CMake >= 3.27 rejects.
+    # This is incredibly scuffed and we should probably think of a better way to do this
+    set(CAPSTONE_FIX_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchCapstone.cmake")
+    FetchContent_Declare(funchook
+        GIT_REPOSITORY https://github.com/kubo/funchook.git
+        GIT_TAG v1.1.3
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+        PATCH_COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=<SOURCE_DIR> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchFunchook.cmake
+        EXCLUDE_FROM_ALL
+    )
+    set(FUNCHOOK_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(FUNCHOOK_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(FUNCHOOK_INSTALL OFF CACHE BOOL "" FORCE)
+    if (APPLE AND CMAKE_OSX_ARCHITECTURES)
+        list(LENGTH CMAKE_OSX_ARCHITECTURES _osx_arch_count)
+        if (_osx_arch_count EQUAL 1)
+            list(GET CMAKE_OSX_ARCHITECTURES 0 _osx_arch)
+            if (_osx_arch MATCHES "^(arm64|aarch64|ARM64)$")
+                set(FUNCHOOK_CPU arm64 CACHE STRING "" FORCE)
+            elseif (_osx_arch MATCHES "^(x86_64|AMD64|amd64|i[3-6]86|x86)$")
+                set(FUNCHOOK_CPU x86 CACHE STRING "" FORCE)
+            endif ()
+        endif ()
+    endif ()
+    list(APPEND _fetch_content_deps funchook)
+endif ()
+FetchContent_MakeAvailable(${_fetch_content_deps})
 
 if (DUSK_ENABLE_SENTRY_NATIVE)
     message(STATUS "dusklight: Fetching sentry-native")
@@ -273,6 +307,9 @@ find_package(Threads REQUIRED)
 set(GAME_LIBS aurora::core aurora::gx aurora::gd aurora::si aurora::vi aurora::pad aurora::mtx aurora::os aurora::dvd
     aurora::card freeverb cxxopts::cxxopts absl::flat_hash_map nlohmann_json::nlohmann_json TracyClient fmt::fmt
     Threads::Threads zstd::libzstd dusklight_game_headers)
+if (DUSK_ENABLE_CODE_MODS)
+    list(APPEND GAME_LIBS funchook-static)
+endif ()
 
 if (DUSK_ENABLE_SENTRY_NATIVE)
     list(APPEND GAME_LIBS sentry)
@@ -413,6 +450,52 @@ target_compile_definitions(dusklight PRIVATE ${GAME_COMPILE_DEFS})
 target_include_directories(dusklight PRIVATE ${miniz_SOURCE_DIR})
 target_link_libraries(dusklight PRIVATE aurora::main ${GAME_LIBS} ${JSYSTEM_LINK_LIBRARIES})
 target_precompile_headers(dusklight PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SOURCE_DIR}/include/dusk_pch.hpp>")
+
+if (DUSK_ENABLE_CODE_MODS)
+    include(cmake/SymbolManifest.cmake)
+    if (WIN32)
+        # Game ABI exports & import library for mod linking
+        include(cmake/WindowsExports.cmake)
+        setup_windows_exports(dusklight)
+    endif ()
+    # Post-link symbol manifest: hookable-surface name->address map keyed to the build.
+    setup_symbol_manifest(dusklight)
+endif ()
+
+# Hook reliability: guaranteed patchable entries on the game ABI surface, and no identical-code folding.
+if (MSVC)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(DUSK_PATCHABLE_ENTRY_FLAG $<$<COMPILE_LANGUAGE:C,CXX>:/hotpatch>)
+    endif ()
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+        target_link_options(dusklight PRIVATE /FUNCTIONPADMIN:16 /OPT:NOICF)
+    else ()
+        target_link_options(dusklight PRIVATE /FUNCTIONPADMIN /OPT:NOICF)
+    endif ()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+        set(DUSK_PATCHABLE_ENTRY_FLAG $<$<COMPILE_LANGUAGE:C,CXX>:-fpatchable-function-entry=2,1>)
+    else ()
+        set(DUSK_PATCHABLE_ENTRY_FLAG $<$<COMPILE_LANGUAGE:C,CXX>:-fpatchable-function-entry=10,5>)
+    endif ()
+endif ()
+if (DEFINED DUSK_PATCHABLE_ENTRY_FLAG)
+    target_compile_options(dusklight PRIVATE ${DUSK_PATCHABLE_ENTRY_FLAG})
+    foreach(jsystem_lib IN LISTS JSYSTEM_LIBRARIES)
+        target_compile_options(${jsystem_lib} PRIVATE ${DUSK_PATCHABLE_ENTRY_FLAG})
+    endforeach()
+endif ()
+
+if (WIN32)
+    target_link_libraries(dusklight PRIVATE Psapi)
+endif ()
+if (APPLE)
+    # Mods resolve game symbols from the executable at dlopen time.
+    target_link_options(dusklight PRIVATE -Wl,-export_dynamic)
+elseif (UNIX AND NOT ANDROID)
+    target_link_options(dusklight PRIVATE -rdynamic)
+endif ()
+
 if (TARGET crashpad_handler)
     add_dependencies(dusklight crashpad_handler)
     add_custom_command(TARGET dusklight POST_BUILD

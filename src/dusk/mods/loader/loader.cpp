@@ -11,9 +11,10 @@
 
 #include "depgraph.hpp"
 #include "dusk/config.hpp"
-#include "dusk/mods/svc/config.hpp"
 #include "dusk/io.hpp"
+#include "dusk/mods/svc/config.hpp"
 #include "dusk/mods/svc/registry.hpp"
+#include "manifest.hpp"
 #include "miniz.h"
 #include "native_module.hpp"
 #include "nlohmann/json.hpp"
@@ -638,6 +639,8 @@ void ModLoader::init() {
         return;
     }
     m_initialized = true;
+
+    manifest::initialize();
 
     if (m_searchDirs.empty()) {
         Log.warn("no mod search directories configured; mod loading skipped");

@@ -3,8 +3,9 @@
 Mods are distributed as `.dusk` files: zip archives containing a `mod.json` manifest and, optionally, compiled code
 libraries and resources.
 
-Everything a mod does goes through **services**: small, versioned C APIs. Dusklight provides built-in services, and mods
-can define their own to talk to each other.
+Most things a mod does goes through **services**: small, versioned C APIs. Dusklight provides built-in services, and
+mods can define their own to talk to each other. Mods also link against the game itself: include game headers and call
+game functions directly.
 
 ## Table of Contents
 
@@ -13,10 +14,11 @@ can define their own to talk to each other.
 3. [Anatomy of a Code Mod](#anatomy-of-a-code-mod)
 4. [Services](#services)
 5. [Built-in Services](#built-in-services)
-6. [Asset Overlays](#asset-overlays)
-7. [Runtime Lifecycle](#runtime-lifecycle)
-8. [Error Handling](#error-handling)
-9. [Advanced: Exporting Services](#advanced-exporting-services)
+6. [Hooking Game Functions](#hooking-game-functions)
+7. [Asset Overlays](#asset-overlays)
+8. [Runtime Lifecycle](#runtime-lifecycle)
+9. [Error Handling](#error-handling)
+10. [Advanced: Exporting Services](#advanced-exporting-services)
 
 ---
 
@@ -211,6 +213,11 @@ svc_host->watch_mod_lifecycle(mod_ctx, on_mod_lifecycle, nullptr, &watch);
 `MOD_LIFECYCLE_DETACHED` fires on the game thread at a lifecycle safe point, after the subject's `mod_shutdown` ran and
 every service dropped its state. For your own mod's teardown, use `mod_shutdown` instead.
 
+### HookService (`mods/svc/hook.h`)
+
+Install hooks on game functions. You'll rarely call it directly; use the typed helpers in `mods/hook.hpp` described
+below.
+
 ### OverlayService (`mods/svc/overlay.h`)
 
 Registers DVD file overlays at runtime. The dynamic counterpart to the static `overlay/` directory (
@@ -302,6 +309,153 @@ Writes that store the same value are silent. Values applied from `config.json` o
 
 ---
 
+## Hooking Game Functions
+
+`mods/hook.hpp` provides typed helpers over the hook service:
+
+```cpp
+#include "mods/hook.hpp"
+#include "mods/svc/hook.h"
+
+IMPORT_SERVICE(HookService, svc_hook);
+```
+
+### Pre-hooks
+
+Run before the original. Return `HOOK_SKIP_ORIGINAL` to cancel it (post-hooks still run).
+
+```cpp
+HookAction on_pos_move_pre(ModContext*, void* args, void* retval, void* userdata) {
+    daAlink_c* link = dusk::mods::arg<daAlink_c*>(args, 0);  // arg 0 is `this`
+    if (link->shape_angle.y > 10000) {
+        return HOOK_SKIP_ORIGINAL;
+    }
+    return HOOK_CONTINUE;
+}
+
+dusk::mods::hook_add_pre<&daAlink_c::posMove>(svc_hook, on_pos_move_pre);
+```
+
+### Post-hooks
+
+Run after the original (or after a replace-hook, or after a cancelled original). `retval` points to the return value, if
+any.
+
+```cpp
+void on_pos_move_post(ModContext*, void* args, void* retval, void* userdata) { ... }
+
+dusk::mods::hook_add_post<&daAlink_c::posMove>(svc_hook, on_pos_move_post);
+```
+
+### Replace-hooks
+
+Substitute the original entirely. Call through to it via `Hook<...>::g_orig` if needed:
+
+```cpp
+using ExecuteEntry = dusk::mods::Hook<&daAlink_c::execute>;
+
+void on_execute_replace(ModContext*, void* args, void* retval, void*) {
+    int result = ExecuteEntry::g_orig(dusk::mods::arg<daAlink_c*>(args, 0));
+    if (retval != nullptr) {
+        *static_cast<int*>(retval) = result;
+    }
+}
+
+dusk::mods::hook_replace<&daAlink_c::execute>(svc_hook, on_execute_replace);
+```
+
+By default a second replace-hook on the same function is a conflict; `HookOptions` (`replace_policy`, `priority`,
+`userdata`) controls this and callback ordering. Multiple mods can attach pre/post hooks to the same function
+independently.
+
+### Hooking by name
+
+Functions you can't name in C++ (file-local statics, private class members, anything not in a header) can be hooked by
+symbol name instead. You must supply the signature along with the name.
+
+```cpp
+// static callback used by Link's hookshot collider in d_a_alink_hook.inc
+using HookshotHit = dusk::mods::NamedHook<
+    "daAlink_hookshotAtHitCallBack",
+    void(fopAc_ac_c*, dCcD_GObjInf*, fopAc_ac_c*, dCcD_GObjInf*)>;
+
+dusk::mods::hook_add_pre<HookshotHit>(svc_hook, on_hookshot_hit_pre);
+...
+HookshotHit::g_orig(link, atObjInf, target, tgObjInf);  // call through to the original
+```
+
+Class member functions must include `Class*` as the first argument.
+
+The install fails with the resolve error when the name is missing (`MOD_UNAVAILABLE`), ambiguous (`MOD_CONFLICT`),
+or the manifest is absent (`MOD_UNSUPPORTED`). Unlike `Hook<&Class::method>`, the signature is **not**
+compiler-checked: a mismatched signature will corrupt the call.
+
+### Reading and writing arguments
+
+`args` is an array of pointers to the arguments. For member functions, index 0 is `this`; parameters follow in
+declaration order.
+
+```cpp
+T  value = dusk::mods::arg<T>(args, n);      // copy
+T& ref   = dusk::mods::arg_ref<T>(args, n);  // read/write reference
+```
+
+```cpp
+// fpc_ProcID fopAcM_createItem(..., int itemNo, ...): turn heart drops into green rupees
+HookAction on_create_item_pre(ModContext*, void* args, void*, void*) {
+    int& itemNo = dusk::mods::arg_ref<int>(args, 1);
+    if (itemNo == dItemNo_HEART_e) {
+        itemNo = dItemNo_GREEN_RUPEE_e;
+    }
+    return HOOK_CONTINUE;
+}
+
+dusk::mods::hook_add_pre<&fopAcM_createItem>(svc_hook, on_create_item_pre);
+```
+
+For reference parameters (e.g. `const cXyz& pos`), `arg_ref<cXyz>` yields a direct reference.
+
+### Resolving symbols by name
+
+`resolve` looks a symbol up in the **symbol manifest**: a name→address map generated alongside every game build and
+keyed to that exact binary. It covers the whole image, including functions that aren't exported (file-local statics),
+which makes them hookable:
+
+```cpp
+IMPORT_SERVICE(HookService, svc_hook);
+
+void* addr = nullptr;
+uint32_t flags = 0;
+if (svc_hook->resolve(mod_ctx, "GXSetProjection", &addr, &flags) == MOD_OK) {
+    // addr is the function's real address in the running game; hook or call it.
+}
+```
+
+Two spellings work on every platform:
+
+- **Display names** (`daAlink_c::posMove`, `fapGm_Before`): the qualified name with no parameter list. They carry no
+  signature, so overload sets (and file-local statics sharing a name) return `MOD_CONFLICT`.
+- **Decorated names** (`_ZN9daAlink_c7posMoveEv` / `?posMove@daAlink_c@@...`): the platform's mangled spelling in
+  dlsym convention (no Mach-O leading underscore). The escape hatch for overloads.
+
+`MOD_UNSUPPORTED` means the manifest is missing or was built for a different game binary.
+
+### Game code ABI contract
+
+If your mod calls or hooks game code directly (anything beyond the service APIs), import `GameService` (
+`mods/svc/game.h`):
+
+```cpp
+IMPORT_SERVICE(GameService, svc_game);
+```
+
+Its major version is the game code ABI epoch: it's bumped when game struct or vtable layouts change incompatibly, and
+the ordinary service version check then rejects your mod with a clear error instead of letting it corrupt memory in a
+version it wasn't built for. Service-only and asset-only mods should *not* import it; they stay compatible across game
+ABI changes.
+
+---
+
 ## Asset Overlays
 
 Files placed under `overlay/` in the `.dusk` archive override game files at the corresponding path. For example,
@@ -331,7 +485,7 @@ and [TextureService](#textureservice-modssvctextureh).
 Mods can be disabled, re-enabled, and reloaded at runtime without restarting the game (the enabled state persists as the
 `mod.<escaped id>.enabled` config var). Write your mod assuming this happens:
 
-- **Disable** calls `mod_shutdown`, removes your services, overlays, and texture replacements (both static and
+- **Disable** calls `mod_shutdown`, removes your hooks, services, overlays, and texture replacements (both static and
   runtime-registered), and unloads your library.
 - **Enable** and **Reload** load a *fresh copy* of your library, imports are re-resolved, and `mod_initialize` runs
   again. You never see a second `mod_initialize` on the same image, so just make `mod_shutdown` release anything the
@@ -343,6 +497,10 @@ Mods can be disabled, re-enabled, and reloaded at runtime without restarting the
 first (in reverse dependency order) and brings them back afterward. A mod whose *required* provider is disabled stays
 suspended and resumes automatically when the provider returns. Mods with an *optional* import of a disabled provider
 restart with that import null.
+
+**One caution for hooks:** lifecycle changes are applied between frames, which is safe for hooks on functions
+that return every frame (effectively everything you'd normally hook). Avoid hooking a function that stays on
+the stack for the whole session (e.g. the outermost main loop); a mod that does cannot be safely unloaded.
 
 ---
 

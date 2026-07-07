@@ -8,8 +8,8 @@
  */
 
 #define HOST_SERVICE_ID "dev.twilitrealm.dusklight.host"
-#define HOST_SERVICE_MAJOR 1u
-#define HOST_SERVICE_MINOR 1u
+#define HOST_SERVICE_MAJOR 2u
+#define HOST_SERVICE_MINOR 0u
 
 /*
  * Ignore unknown values: later service minors may add events.
@@ -34,6 +34,14 @@ typedef void (*ModLifecycleFn)(ModContext* ctx, ModContext* subject, const char*
 
 typedef struct HostService {
     ServiceHeader header;
+
+    /* Version string of the current Dusklight build. (e.g. "1.4.2") */
+    const char* version;
+
+    /* Build id of the running game binary: PDB GUID+age on Windows, LC_UUID on macOS, GNU build-id
+     * on Linux. May be empty (len 0) if the identity could not be determined. */
+    const uint8_t* build_id;
+    uint32_t build_id_len;
 
     /*
      * Look up a service by id at call time. Unlike a manifest import, this sees whatever is

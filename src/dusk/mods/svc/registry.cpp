@@ -199,6 +199,7 @@ void ModLoader::init_services() {
         {
             &svc::g_hostModule,
             &svc::g_logModule,
+            &svc::g_configModule,
         })
     {
         svc::register_module(*module);

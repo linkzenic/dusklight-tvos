@@ -64,5 +64,6 @@ void modules_shutdown();
 
 extern const ServiceModule g_hostModule;
 extern const ServiceModule g_logModule;
+extern const ServiceModule g_configModule;
 
 }  // namespace dusk::mods::svc

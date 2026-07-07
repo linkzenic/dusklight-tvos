@@ -176,6 +176,42 @@ svc_host->watch_mod_lifecycle(mod_ctx, on_mod_lifecycle, nullptr, &watch);
 `MOD_LIFECYCLE_DETACHED` fires on the game thread at a lifecycle safe point, after the subject's `mod_shutdown` ran and
 every service dropped its state. For your own mod's teardown, use `mod_shutdown` instead.
 
+### ConfigService (`mods/svc/config.h`)
+
+Persistent, mod-scoped configuration variables. Each var is stored in the user's `config.json` under
+`mod.<escaped mod id>.<name>` (escaping: `.` → `_`, `_` → `__`, so `com.example.my_mod` becomes `com_example_my__mod`),
+next to the host's own settings:
+
+```cpp
+IMPORT_SERVICE(ConfigService, svc_config);
+
+ConfigVarDesc desc = CONFIG_VAR_DESC_INIT;
+desc.name = "speedMultiplier";  // 1-64 chars from [A-Za-z0-9_-]; "enabled" is reserved
+desc.type = CONFIG_VAR_FLOAT;
+desc.default_float = 1.0;
+ConfigVarHandle var = 0;
+svc_config->register_var(mod_ctx, &desc, &var);
+
+double speed = 1.0;
+svc_config->get_float(mod_ctx, var, &speed);
+svc_config->set_float(mod_ctx, var, 2.0);
+
+// Optional: get notified when the value changes.
+void on_speed_changed(ModContext* ctx, ConfigVarHandle var, const ConfigVarValue* value,
+    const ConfigVarValue* previous, void* user_data) {
+    /* value->float_value is the new value, previous->float_value the old one */
+}
+svc_config->subscribe(mod_ctx, var, on_speed_changed, nullptr, nullptr);
+```
+
+Types: `CONFIG_VAR_BOOL` (`bool`), `CONFIG_VAR_INT` (`int64_t`), `CONFIG_VAR_FLOAT` (`double`), `CONFIG_VAR_STRING`
+(UTF-8; `get_string` copies into a caller buffer, pass a `NULL` buffer with size 0 to query the length). Accessors are
+typed and must match the registration.
+
+Change callbacks fire on the game thread whenever the value changes at runtime (your own `set_*` calls included).
+Writes that store the same value are silent. Values applied from `config.json` or `--cvar` at registration do
+**not** fire callbacks; read the value after `register_var` for the starting state.
+
 ---
 
 ## Runtime Lifecycle

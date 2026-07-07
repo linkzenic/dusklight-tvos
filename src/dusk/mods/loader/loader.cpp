@@ -3,7 +3,6 @@
 #include "dusk/mod_loader.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -12,6 +11,7 @@
 
 #include "depgraph.hpp"
 #include "dusk/config.hpp"
+#include "dusk/mods/svc/config.hpp"
 #include "dusk/io.hpp"
 #include "dusk/mods/svc/registry.hpp"
 #include "miniz.h"
@@ -966,31 +966,8 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
     }
 }
 
-namespace {
-bool s_configDirty = false;
-std::chrono::steady_clock::time_point s_lastConfigSave{};
-constexpr std::chrono::seconds kConfigSaveDebounce{2};
-}  // namespace
-
-void config_mark_dirty() {
-    s_configDirty = true;
-}
-
-void config_flush_if_dirty(const bool force) {
-    if (!s_configDirty) {
-        return;
-    }
-    const auto now = std::chrono::steady_clock::now();
-    if (!force && now - s_lastConfigSave < kConfigSaveDebounce) {
-        return;
-    }
-    s_configDirty = false;
-    s_lastConfigSave = now;
-    config::save();
-}
-
 void ModLoader::on_enabled_changed(LoadedMod& mod) {
-    config_mark_dirty();
+    svc::config_mark_dirty();
     if (mod.loadFailed) {
         return;
     }
@@ -1073,7 +1050,6 @@ void ModLoader::tick() {
     }
 
     svc::modules_frame_end();
-    config_flush_if_dirty(false);
 }
 
 void ModLoader::shutdown() {
@@ -1091,7 +1067,6 @@ void ModLoader::shutdown() {
     drain_retired_natives();
     svc::modules_shutdown();
     clear_services();
-    config_flush_if_dirty(true);
     Log.info("all mods unloaded");
 }
 

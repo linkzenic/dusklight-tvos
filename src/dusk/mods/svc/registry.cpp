@@ -199,6 +199,9 @@ void ModLoader::init_services() {
         {
             &svc::g_hostModule,
             &svc::g_logModule,
+            &svc::g_resourceModule,
+            &svc::g_overlayModule,
+            &svc::g_textureModule,
             &svc::g_configModule,
         })
     {

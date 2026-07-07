@@ -1554,6 +1554,9 @@ set(DUSK_FILES
         src/dusk/mods/svc/config.hpp
         src/dusk/mods/svc/host.cpp
         src/dusk/mods/svc/log.cpp
+        src/dusk/mods/svc/overlay.cpp
+        src/dusk/mods/svc/resource.cpp
+        src/dusk/mods/svc/texture.cpp
         src/dusk/mods/svc/registry.cpp
         src/dusk/mods/svc/registry.hpp
         src/dusk/discord.cpp

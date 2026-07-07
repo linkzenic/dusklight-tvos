@@ -1,4 +1,5 @@
-# add_mod(<target> SOURCES <file>... MOD_JSON <mod.json> [RES_DIR <res>] [OUTPUT_DIR <dir>] [BUNDLE])
+# add_mod(<target> SOURCES <file>... MOD_JSON <mod.json> [RES_DIR <res>] [OVERLAY_DIR <overlay>]
+#         [TEXTURES_DIR <textures>] [OUTPUT_DIR <dir>] [BUNDLE])
 set(DUSK_MODS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/mods" CACHE PATH "Directory to write mod packages into")
 
 function(_mod_lib_name out_var)
@@ -44,7 +45,7 @@ function(_mod_collect_assets out_var dir)
 endfunction()
 
 function(add_mod target_name)
-    cmake_parse_arguments(ARG "BUNDLE" "MOD_JSON;RES_DIR;OUTPUT_DIR" "SOURCES" ${ARGN})
+    cmake_parse_arguments(ARG "BUNDLE" "MOD_JSON;RES_DIR;OVERLAY_DIR;TEXTURES_DIR;OUTPUT_DIR" "SOURCES" ${ARGN})
     if (NOT ARG_MOD_JSON)
         message(FATAL_ERROR "add_mod: MOD_JSON is required")
     endif ()
@@ -103,6 +104,24 @@ function(add_mod target_name)
         list(APPEND _zip_args res)
         list(APPEND _extra_cmds COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${_res_dir}" "${_stage}/res")
+    endif ()
+    if (ARG_OVERLAY_DIR)
+        _mod_resolve_source_path(_overlay_dir "${ARG_OVERLAY_DIR}")
+        _mod_collect_assets(_overlay_deps "${_overlay_dir}")
+        list(APPEND _package_deps ${_overlay_deps})
+        list(APPEND _package_inputs "${_overlay_dir}" ${_overlay_deps})
+        list(APPEND _zip_args overlay)
+        list(APPEND _extra_cmds COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${_overlay_dir}" "${_stage}/overlay")
+    endif ()
+    if (ARG_TEXTURES_DIR)
+        _mod_resolve_source_path(_textures_dir "${ARG_TEXTURES_DIR}")
+        _mod_collect_assets(_textures_deps "${_textures_dir}")
+        list(APPEND _package_deps ${_textures_deps})
+        list(APPEND _package_inputs "${_textures_dir}" ${_textures_deps})
+        list(APPEND _zip_args textures)
+        list(APPEND _extra_cmds COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${_textures_dir}" "${_stage}/textures")
     endif ()
 
     set(_bundle_cmds "")

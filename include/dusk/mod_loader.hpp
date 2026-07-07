@@ -153,7 +153,7 @@ struct LoadedMod {
     std::unique_ptr<NativeMod> native;
     std::unique_ptr<ModContext> context;
 
-    // Shared so in-flight readers keep their bundle alive across disable/reload.
+    // Shared with overlay file registrations so in-flight DVD reads survive disable/reload.
     std::shared_ptr<ModBundle> bundle;
 
     ModManifestInfo manifestInfo;

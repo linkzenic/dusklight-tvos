@@ -309,7 +309,7 @@ void persist_disc_choice(const std::string& path, iso::ValidationError validatio
 
     getSettings().backend.isoPath.setValue(path);
     getSettings().backend.isoVerification.setValue(verification);
-    config::Save();
+    config::save();
 
     if (previousPath != path || previousVerification != verification) {
         iso::log_verification_state(path, verification);

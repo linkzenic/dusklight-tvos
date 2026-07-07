@@ -5,96 +5,8 @@ if (NOT CMAKE_BUILD_TYPE)
             "Build type options: Debug Release RelWithDebInfo MinSizeRel" FORCE)
 endif ()
 
-set(DUSK_VERSION_OVERRIDE "" CACHE STRING "Override version string (skips git detection and format validation)")
-
-if (DUSK_VERSION_OVERRIDE)
-    set(DUSK_WC_DESCRIBE "${DUSK_VERSION_OVERRIDE}")
-    set(DUSK_VERSION_STRING "0.0.0.0")
-    set(DUSK_SHORT_VERSION_STRING "0.0.0")
-    set(DUSK_VERSION_CODE "1")
-    set(DUSK_WC_REVISION "")
-    set(DUSK_WC_BRANCH "")
-    set(DUSK_WC_DATE "")
-    message(STATUS "Dusklight version overridden to ${DUSK_WC_DESCRIBE}")
-else ()
-    # obtain revision info from git
-    find_package(Git)
-if (GIT_FOUND)
-    # make sure version information gets re-run when the current Git HEAD changes
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${GIT_EXECUTABLE} rev-parse --git-path HEAD
-            OUTPUT_VARIABLE dusk_git_head_filename
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${dusk_git_head_filename}")
-
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${GIT_EXECUTABLE} rev-parse --symbolic-full-name HEAD
-            OUTPUT_VARIABLE dusk_git_head_symbolic
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            COMMAND ${GIT_EXECUTABLE} rev-parse --git-path ${dusk_git_head_symbolic}
-            OUTPUT_VARIABLE dusk_git_head_symbolic_filename
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${dusk_git_head_symbolic_filename}")
-
-    # defines DUSK_WC_REVISION
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
-            OUTPUT_VARIABLE DUSK_WC_REVISION
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    # defines DUSK_WC_DESCRIBE
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${GIT_EXECUTABLE} describe --tags --long --dirty --match "v*"
-            OUTPUT_VARIABLE DUSK_WC_DESCRIBE
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    # remove the git hash, then collapse a clean "-0" suffix only
-    string(REGEX REPLACE "-[^-]+(-dirty|)$" "\\1" DUSK_WC_DESCRIBE "${DUSK_WC_DESCRIBE}")
-    string(REGEX REPLACE "-0$" "" DUSK_WC_DESCRIBE "${DUSK_WC_DESCRIBE}")
-
-    # defines DUSK_WC_BRANCH
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-            OUTPUT_VARIABLE DUSK_WC_BRANCH
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-    # defines DUSK_WC_DATE
-    execute_process(WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} COMMAND ${GIT_EXECUTABLE} log -1 --format=%ad
-            OUTPUT_VARIABLE DUSK_WC_DATE
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-else ()
-    message(STATUS "Unable to find git, commit information will not be available")
-endif ()
-
-if (DUSK_WC_DESCRIBE MATCHES "^v([0-9]+)\\.([0-9]+)\\.([0-9]+)([-+].*)?$")
-    set(DUSK_SHORT_VERSION_STRING "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
-    set(_ver_major ${CMAKE_MATCH_1})
-    set(_ver_minor ${CMAKE_MATCH_2})
-    set(_ver_patch ${CMAKE_MATCH_3})
-    set(DUSK_VERSION_TWEAK "0")
-    if (DUSK_WC_DESCRIBE MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+-([0-9]+)(-dirty)?$")
-        set(DUSK_VERSION_TWEAK "${CMAKE_MATCH_1}")
-    elseif (DUSK_WC_DESCRIBE MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+-[0-9A-Za-z.-]+-([0-9]+)(-dirty)?$")
-        set(DUSK_VERSION_TWEAK "${CMAKE_MATCH_1}")
-    endif ()
-    set(DUSK_VERSION_STRING "${DUSK_SHORT_VERSION_STRING}.${DUSK_VERSION_TWEAK}")
-    if(DUSK_VERSION_TWEAK GREATER 999)
-        set(_tweak 999)
-    else()
-        set(_tweak ${DUSK_VERSION_TWEAK})
-    endif()
-    # encoding: major*1e7 + minor*1e5 + patch*1e3 + tweak; collision-free for major<210, minor<100, patch<100, tweak<=999
-    math(EXPR DUSK_VERSION_CODE
-        "${_ver_major} * 10000000 + ${_ver_minor} * 100000 + ${_ver_patch} * 1000 + ${_tweak}")
-else ()
-    set(DUSK_WC_DESCRIBE "UNKNOWN-VERSION")
-    set(DUSK_VERSION_STRING "0.0.0.0")
-    set(DUSK_SHORT_VERSION_STRING "0.0.0")
-    set(DUSK_VERSION_CODE "1")
-endif ()
-
-endif ()
-
-# Add version information to CI environment variables
-if(DEFINED ENV{GITHUB_ENV})
-    file(APPEND "$ENV{GITHUB_ENV}" "DUSK_VERSION=${DUSK_WC_DESCRIBE}\n")
-    file(APPEND "$ENV{GITHUB_ENV}" "DUSK_VERSION_CODE=${DUSK_VERSION_CODE}\n")
-endif()
-message(STATUS "Dusklight version set to ${DUSK_WC_DESCRIBE}")
+include(cmake/DetectVersion.cmake)
+detect_version()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 project(dusklight LANGUAGES C CXX VERSION ${DUSK_VERSION_STRING})
 if (APPLE)
@@ -177,12 +89,12 @@ option(DUSK_ENABLE_UPDATE_CHECKER "Enable update checking support" ON)
 option(DUSK_ENABLE_SENTRY_NATIVE "Enable sentry-native crash reporting support" OFF)
 option(DUSK_PACKAGE_INSTALL "Install Dusklight with a Linux-native file structure" OFF)
 option(DUSK_GFX_DEBUG_GROUPS "Report debug groups to the native graphics API" ${DUSK_GFX_DEBUG_GROUPS_DEFAULT})
-set(DUSK_SENTRY_DSN "" CACHE STRING "Sentry DSN")
-set(DUSK_SENTRY_ENVIRONMENT "development" CACHE STRING "Sentry environment")
+option(DUSK_ENABLE_CODE_MODS "Enable code mods" OFF)
 
 # Edit & Continue
 if (MSVC)
-    if ("${CMAKE_MSVC_DEBUG_INFORMATION_FORMAT}" STREQUAL "" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if ("${CMAKE_MSVC_DEBUG_INFORMATION_FORMAT}" STREQUAL "" AND CMAKE_BUILD_TYPE STREQUAL "Debug"
+            AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "EditAndContinue")
     endif ()
     if (CMAKE_MSVC_DEBUG_INFORMATION_FORMAT STREQUAL "EditAndContinue")
@@ -299,7 +211,13 @@ FetchContent_Declare(json
     URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
 )
-FetchContent_MakeAvailable(cxxopts json)
+message(STATUS "dusklight: Fetching miniz")
+FetchContent_Declare(miniz
+    URL https://github.com/richgel999/miniz/releases/download/3.0.2/miniz-3.0.2.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(cxxopts json miniz)
 
 if (DUSK_ENABLE_SENTRY_NATIVE)
     message(STATUS "dusklight: Fetching sentry-native")
@@ -333,21 +251,7 @@ if(_arch MATCHES "^(arm|aarch64)" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQU
     add_compile_options(-fsigned-char)
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL Windows)
-    set(PLATFORM_NAME win32)
-elseif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    if (IOS)
-        set(PLATFORM_NAME ios)
-    elseif (TVOS)
-        set(PLATFORM_NAME tvos)
-    else ()
-        set(PLATFORM_NAME macos)
-    endif ()
-else ()
-    string(TOLOWER CMAKE_SYSTEM_NAME PLATFORM_NAME)
-endif ()
-
-configure_file(${CMAKE_SOURCE_DIR}/version.h.in ${CMAKE_BINARY_DIR}/version.h)
+configure_version_header()
 
 include(files.cmake)
 
@@ -363,23 +267,12 @@ set(DUSK_COPYRIGHT "Copyright (C) Twilit Realm contributors")
 source_group("dolzel" FILES ${DOLZEL_FILES} ${Z2AUDIOLIB_FILES} ${REL_FILES})
 source_group("dusklight" FILES ${DUSK_FILES} ${DUSK_HTTP_BACKEND_FILES})
 
-# PARTIAL_DEBUG makes debug and release share one struct/vtable ABI so a mod binary loads into either
-set(GAME_COMPILE_DEFS TARGET_PC WIDESCREEN_SUPPORT=1 AVOID_UB=1 VERSION=0 MTX_USE_PS=1 PARTIAL_DEBUG=1)
-
-set(GAME_INCLUDE_DIRS
-    include
-    src
-    assets/GZ2E01 # TODO: make this dynamic if needed?
-    libs/JSystem/include
-    libs
-    extern/aurora/include/dolphin
-    extern
-    ${CMAKE_BINARY_DIR})
+include(cmake/GameABIConfig.cmake)
 
 find_package(Threads REQUIRED)
 set(GAME_LIBS aurora::core aurora::gx aurora::gd aurora::si aurora::vi aurora::pad aurora::mtx aurora::os aurora::dvd
     aurora::card freeverb cxxopts::cxxopts absl::flat_hash_map nlohmann_json::nlohmann_json TracyClient fmt::fmt
-    Threads::Threads zstd::libzstd)
+    Threads::Threads zstd::libzstd dusklight_game_headers)
 
 if (DUSK_ENABLE_SENTRY_NATIVE)
     list(APPEND GAME_LIBS sentry)
@@ -447,8 +340,8 @@ if (DUSK_ENABLE_DISCORD AND NOT ANDROID AND NOT IOS AND NOT TVOS)
     list(APPEND GAME_COMPILE_DEFS DUSK_DISCORD=1)
 endif ()
 
-if(ANDROID)
-    list(APPEND GAME_COMPILE_DEFS TARGET_ANDROID=1)
+if (DUSK_ENABLE_CODE_MODS)
+    list(APPEND GAME_COMPILE_DEFS DUSK_CODE_MODS=1)
 endif ()
 
 if (DUSK_PACKAGE_INSTALL)
@@ -475,7 +368,7 @@ set(GAME_DEBUG_FILES
 set_source_files_properties(
         ${GAME_DEBUG_FILES}
         PROPERTIES
-        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>;PARTIAL_DEBUG=1"
+        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>"
 )
 
 # game_base is for all other game code files
@@ -489,16 +382,11 @@ set(GAME_BASE_FILES
 set_source_files_properties(
         ${GAME_BASE_FILES}
         PROPERTIES
-        COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0;PARTIAL_DEBUG=1"
+        COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0"
 )
 
 foreach(jsystem_lib IN LISTS JSYSTEM_LIBRARIES)
-    target_compile_definitions(${jsystem_lib} PRIVATE
-            ${GAME_COMPILE_DEFS}
-            $<$<CONFIG:Debug>:DEBUG=1>
-            PARTIAL_DEBUG=1
-    )
-    target_include_directories(${jsystem_lib} PRIVATE ${GAME_INCLUDE_DIRS})
+    target_compile_definitions(${jsystem_lib} PRIVATE ${GAME_COMPILE_DEFS} $<$<CONFIG:Debug>:DEBUG=1>)
     target_link_libraries(${jsystem_lib} PRIVATE ${GAME_LIBS})
     set_target_properties(${jsystem_lib} PROPERTIES FOLDER "JSystem")
 endforeach()
@@ -510,7 +398,7 @@ if (CMAKE_CXX_LINK_GROUP_USING_RESCAN_SUPPORTED OR CMAKE_LINK_GROUP_USING_RESCAN
     set(JSYSTEM_LINK_LIBRARIES "$<LINK_GROUP:RESCAN,${JSYSTEM_LIBRARIES}>")
 endif ()
 
-set(DUSK_FILES src/dusk/main.cpp ${GAME_BASE_FILES} ${GAME_DEBUG_FILES})
+set(DUSK_FILES src/dusk/main.cpp ${GAME_BASE_FILES} ${GAME_DEBUG_FILES} ${miniz_SOURCE_DIR}/miniz.c)
 if(ANDROID)
     add_library(dusklight SHARED ${DUSK_FILES})
     set_target_properties(dusklight PROPERTIES OUTPUT_NAME main)
@@ -522,7 +410,7 @@ if (ENABLE_ASAN)
 endif ()
 
 target_compile_definitions(dusklight PRIVATE ${GAME_COMPILE_DEFS})
-target_include_directories(dusklight PRIVATE ${GAME_INCLUDE_DIRS})
+target_include_directories(dusklight PRIVATE ${miniz_SOURCE_DIR})
 target_link_libraries(dusklight PRIVATE aurora::main ${GAME_LIBS} ${JSYSTEM_LINK_LIBRARIES})
 target_precompile_headers(dusklight PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SOURCE_DIR}/include/dusk_pch.hpp>")
 if (TARGET crashpad_handler)
@@ -543,6 +431,7 @@ endif ()
 
 if (CMAKE_SYSTEM_NAME STREQUAL Linux)
     target_link_options(dusklight PRIVATE "-Wl,--build-id=sha1")
+    target_link_libraries(dusklight PRIVATE dl)
 endif ()
 
 if (NOT APPLE)
@@ -583,6 +472,13 @@ if (WIN32)
     endif ()
 endif ()
 
+include(cmake/ModSDK.cmake)
+
+if (DUSK_ENABLE_CODE_MODS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    add_custom_target(dusklight_mods) # Aggregate target for all in-tree mods
+    add_subdirectory(tools/mod_template)
+endif ()
+
 if (APPLE)
     if (IOS)
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios)
@@ -590,6 +486,7 @@ if (APPLE)
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/tvos)
     else ()
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/macos)
+        set(DUSK_ENTITLEMENTS ${DUSK_RESOURCE_DIR}/Dusklight.entitlements)
     endif ()
     set(DUSK_INFO_PLIST ${DUSK_RESOURCE_DIR}/Info.plist.in)
     file(GLOB_RECURSE DUSK_RESOURCE_FILES
@@ -609,8 +506,7 @@ if (APPLE)
         get_filename_component(NEW_FILE_PATH ${NEW_FILE} DIRECTORY)
         set_property(SOURCE ${FILE} PROPERTY MACOSX_PACKAGE_LOCATION "Resources/${NEW_FILE_PATH}")
     endforeach ()
-    set_target_properties(
-        dusklight PROPERTIES
+    set(_apple_bundle_properties
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_BUNDLE_NAME ${DUSK_BUNDLE_NAME}
         MACOSX_BUNDLE_GUI_IDENTIFIER ${DUSK_BUNDLE_IDENTIFIER}
@@ -621,6 +517,31 @@ if (APPLE)
         XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
         XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES"
     )
+    if (DUSK_ENTITLEMENTS)
+        list(APPEND _apple_bundle_properties
+            XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${DUSK_ENTITLEMENTS})
+    endif ()
+    if (NOT IOS AND NOT TVOS)
+        list(APPEND _apple_bundle_properties
+            XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME "YES")
+    endif ()
+    set_target_properties(dusklight PROPERTIES ${_apple_bundle_properties})
+
+    if (NOT IOS AND NOT TVOS AND NOT "${CMAKE_GENERATOR}" STREQUAL "Xcode")
+        set(_sign_nested_commands)
+        if (TARGET crashpad_handler)
+            list(APPEND _sign_nested_commands
+                COMMAND /usr/bin/codesign --force --sign -
+                    "$<TARGET_FILE_DIR:dusklight>/crashpad_handler")
+        endif ()
+        add_custom_command(TARGET dusklight POST_BUILD
+            ${_sign_nested_commands}
+            COMMAND /usr/bin/codesign --force --sign - --entitlements
+                "${DUSK_ENTITLEMENTS}" "$<TARGET_BUNDLE_DIR:dusklight>"
+            COMMENT "Signing Dusklight.app with entitlements"
+            VERBATIM
+        )
+    endif ()
 endif ()
 
 if (APPLE AND NOT IOS AND NOT TVOS)
@@ -744,3 +665,5 @@ foreach (target IN LISTS BINARY_TARGETS)
         endif ()
     endforeach ()
 endforeach ()
+
+install_bundled_mods()

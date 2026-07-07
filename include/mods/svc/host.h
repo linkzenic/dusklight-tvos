@@ -9,7 +9,28 @@
 
 #define HOST_SERVICE_ID "dev.twilitrealm.dusklight.host"
 #define HOST_SERVICE_MAJOR 1u
-#define HOST_SERVICE_MINOR 0u
+#define HOST_SERVICE_MINOR 1u
+
+/*
+ * Ignore unknown values: later service minors may add events.
+ */
+typedef enum ModLifecycleEvent {
+    /*
+     * The subject mod is gone: its mod_shutdown has run (when it initialized at all) and
+     * every service has already dropped the state it held for it. The subject's library is
+     * still mapped, so pointers into it are valid to compare against, but they must not be
+     * called or dereferenced after the callback returns. Drop everything keyed to the
+     * mod: callbacks it registered, its ModContext*, state indexed by it.
+     */
+    MOD_LIFECYCLE_DETACHED = 0,
+} ModLifecycleEvent;
+
+/*
+ * ctx is the watching mod's own context; subject identifies the mod the event is about.
+ * subject_id is valid only for the duration of the call.
+ */
+typedef void (*ModLifecycleFn)(ModContext* ctx, ModContext* subject, const char* subject_id,
+    ModLifecycleEvent event, void* user_data);
 
 typedef struct HostService {
     ServiceHeader header;
@@ -50,6 +71,18 @@ typedef struct HostService {
      * and reload within a session, but the directory is wiped at game startup.
      */
     const char* (*mod_dir)(ModContext* ctx);
+
+    /*
+     * Observe other mods' lifecycle events. Any mod whose service hands out per-caller state
+     * (registrations, callbacks, handles) should watch for MOD_LIFECYCLE_DETACHED and drop what it
+     * holds for the subject.
+     *
+     * Callbacks fire on the game thread at a lifecycle safe point (never mid-frame), for
+     * every mod but the watcher itself (use mod_shutdown for self-cleanup).
+     */
+    ModResult (*watch_mod_lifecycle)(
+        ModContext* ctx, ModLifecycleFn fn, void* user_data, uint64_t* out_handle);
+    ModResult (*unwatch_mod_lifecycle)(ModContext* ctx, uint64_t handle);
 } HostService;
 
 #ifdef __cplusplus

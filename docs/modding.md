@@ -156,6 +156,26 @@ svc_host->fail(mod_ctx, MOD_ERROR, "something unrecoverable happened");  // disa
 
 `get_service`/`publish_service` provide dynamic service lookup; see [Advanced](#advanced-exporting-services).
 
+**Lifecycle watches.** If your mod provides a service that hands out per-caller state (registrations, callbacks, handles),
+watch other mods' lifecycle and drop what you hold for a mod when it detaches.
+
+```cpp
+IMPORT_SERVICE_VERSION(HostService, svc_host, 1);
+
+void on_mod_lifecycle(ModContext* ctx, ModContext* subject, const char* subject_id,
+    ModLifecycleEvent event, void* user_data) {
+    if (event == MOD_LIFECYCLE_DETACHED) {
+        drop_state_for(subject);  // same ModContext* the subject passed into your service
+    }
+}
+
+uint64_t watch = 0;
+svc_host->watch_mod_lifecycle(mod_ctx, on_mod_lifecycle, nullptr, &watch);
+```
+
+`MOD_LIFECYCLE_DETACHED` fires on the game thread at a lifecycle safe point, after the subject's `mod_shutdown` ran and
+every service dropped its state. For your own mod's teardown, use `mod_shutdown` instead.
+
 ---
 
 ## Runtime Lifecycle

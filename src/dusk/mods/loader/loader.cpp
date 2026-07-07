@@ -599,6 +599,8 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
     warn_unpublished_deferred_exports(mod);
 
     if (!mod.active) {
+        // Failed initialization may have left hooks or other service state behind
+        svc::modules_mod_detached(mod);
         return false;
     }
 
@@ -624,6 +626,7 @@ void ModLoader::deactivate_mod(LoadedMod& mod) {
         svc::remove_services_for_provider(mod);
         mod.servicesRegistered = false;
     }
+    svc::modules_mod_detached(mod);
     unload_native(mod);
 
     mod.active = false;
@@ -738,6 +741,8 @@ void ModLoader::init() {
             activate_mod(mod);
         }
     }
+
+    svc::modules_lifecycle_applied();
 
     auto active = std::ranges::count_if(mods(), [](const LoadedMod& m) { return m.active; });
     Log.info("{}/{} mod(s) active", active, m_mods.size());
@@ -1040,11 +1045,14 @@ void ModLoader::apply_pending_requests() {
         apply_lifecycle_change(*mod, request.kind == RequestKind::Reload);
     }
 
+    svc::modules_lifecycle_applied();
+
     auto active = std::ranges::count_if(mods(), [](const LoadedMod& m) { return m.active; });
     Log.info("{}/{} mod(s) active", active, m_mods.size());
 }
 
 void ModLoader::tick() {
+    svc::modules_frame_begin();
     apply_pending_requests();
 
     for (auto& mod : mods()) {
@@ -1064,6 +1072,7 @@ void ModLoader::tick() {
         }
     }
 
+    svc::modules_frame_end();
     config_flush_if_dirty(false);
 }
 
@@ -1080,6 +1089,7 @@ void ModLoader::shutdown() {
 
     m_mods.clear();
     drain_retired_natives();
+    svc::modules_shutdown();
     clear_services();
     config_flush_if_dirty(true);
     Log.info("all mods unloaded");

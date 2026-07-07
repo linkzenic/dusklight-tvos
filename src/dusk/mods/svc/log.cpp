@@ -57,8 +57,11 @@ constexpr LogService s_logService{
 
 }  // namespace
 
-const LogService& log_service() {
-    return s_logService;
-}
+constinit const ServiceModule g_logModule{
+    .id = LOG_SERVICE_ID,
+    .majorVersion = LOG_SERVICE_MAJOR,
+    .minorVersion = LOG_SERVICE_MINOR,
+    .service = &s_logService,
+};
 
 }  // namespace dusk::mods::svc

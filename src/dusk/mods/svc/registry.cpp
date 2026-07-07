@@ -3,13 +3,16 @@
 #include "dusk/logging.h"
 #include "dusk/mods/loader/loader.hpp"
 
+#include <ranges>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace dusk::mods::svc {
 namespace {
 
 std::unordered_map<std::string, ServiceRecord> s_services;
+std::vector<const ServiceModule*> s_modules;
 
 std::string service_key(std::string_view id, const uint16_t majorVersion) {
     std::string key{id};
@@ -130,6 +133,60 @@ const ServiceRecord* find_service_record(const char* serviceId, const uint16_t m
 
 void clear_services() {
     s_services.clear();
+    s_modules.clear();
+}
+
+ModResult register_module(const ServiceModule& module) {
+    const auto result = register_service(
+        module.id, module.majorVersion, module.minorVersion, module.service, nullptr, false);
+    if (result != MOD_OK) {
+        return result;
+    }
+    s_modules.push_back(&module);
+    if (module.initialize != nullptr) {
+        module.initialize();
+    }
+    return MOD_OK;
+}
+
+void modules_mod_detached(LoadedMod& mod) {
+    for (const auto* module : s_modules | std::views::reverse) {
+        if (module->modDetached != nullptr) {
+            module->modDetached(mod);
+        }
+    }
+}
+
+void modules_lifecycle_applied() {
+    for (const auto* module : s_modules) {
+        if (module->lifecycleApplied != nullptr) {
+            module->lifecycleApplied();
+        }
+    }
+}
+
+void modules_frame_begin() {
+    for (const auto* module : s_modules) {
+        if (module->frameBegin != nullptr) {
+            module->frameBegin();
+        }
+    }
+}
+
+void modules_frame_end() {
+    for (const auto* module : s_modules) {
+        if (module->frameEnd != nullptr) {
+            module->frameEnd();
+        }
+    }
+}
+
+void modules_shutdown() {
+    for (const auto* module : s_modules | std::views::reverse) {
+        if (module->shutdown != nullptr) {
+            module->shutdown();
+        }
+    }
 }
 
 }  // namespace dusk::mods::svc
@@ -138,10 +195,14 @@ namespace dusk::mods {
 
 void ModLoader::init_services() {
     svc::clear_services();
-    svc::register_service(HOST_SERVICE_ID, HOST_SERVICE_MAJOR, HOST_SERVICE_MINOR,
-        &svc::host_service(), nullptr, false);
-    svc::register_service(
-        LOG_SERVICE_ID, LOG_SERVICE_MAJOR, LOG_SERVICE_MINOR, &svc::log_service(), nullptr, false);
+    for (const auto* module :
+        {
+            &svc::g_hostModule,
+            &svc::g_logModule,
+        })
+    {
+        svc::register_module(*module);
+    }
 }
 
 bool ModLoader::register_static_service_exports(LoadedMod& mod) {

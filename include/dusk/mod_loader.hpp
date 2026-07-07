@@ -216,8 +216,8 @@ private:
     // Registers exports (if needed), resolves imports and runs mod_initialize.
     // Returns whether the mod ended up active; failures go through fail_mod.
     bool activate_mod(LoadedMod& mod);
-    // Runs mod_shutdown (if needed), removes the mod's services, and unloads the native lib.
-    // Must only run with no mod code on the stack (startup, shutdown, or top of tick).
+    // Runs mod_shutdown (if needed), detaches the mod from every service, and unloads the
+    // native lib. Must only run with no mod code on the stack (startup, shutdown, or top of tick).
     void deactivate_mod(LoadedMod& mod);
     void init_services();
     bool register_static_service_exports(LoadedMod& mod);

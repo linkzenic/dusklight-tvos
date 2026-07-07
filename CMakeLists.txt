@@ -363,7 +363,8 @@ set(DUSK_COPYRIGHT "Copyright (C) Twilit Realm contributors")
 source_group("dolzel" FILES ${DOLZEL_FILES} ${Z2AUDIOLIB_FILES} ${REL_FILES})
 source_group("dusklight" FILES ${DUSK_FILES} ${DUSK_HTTP_BACKEND_FILES})
 
-set(GAME_COMPILE_DEFS TARGET_PC WIDESCREEN_SUPPORT=1 AVOID_UB=1 VERSION=0 MTX_USE_PS=1)
+# PARTIAL_DEBUG makes debug and release share one struct/vtable ABI so a mod binary loads into either
+set(GAME_COMPILE_DEFS TARGET_PC WIDESCREEN_SUPPORT=1 AVOID_UB=1 VERSION=0 MTX_USE_PS=1 PARTIAL_DEBUG=1)
 
 set(GAME_INCLUDE_DIRS
     include
@@ -474,7 +475,7 @@ set(GAME_DEBUG_FILES
 set_source_files_properties(
         ${GAME_DEBUG_FILES}
         PROPERTIES
-        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>;$<$<CONFIG:Debug>:PARTIAL_DEBUG=1>"
+        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>;PARTIAL_DEBUG=1"
 )
 
 # game_base is for all other game code files
@@ -488,14 +489,14 @@ set(GAME_BASE_FILES
 set_source_files_properties(
         ${GAME_BASE_FILES}
         PROPERTIES
-        COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0;$<$<CONFIG:Debug>:PARTIAL_DEBUG=1>"
+        COMPILE_DEFINITIONS "NDEBUG=1;NDEBUG_DEFINED=1;DEBUG_DEFINED=0;PARTIAL_DEBUG=1"
 )
 
 foreach(jsystem_lib IN LISTS JSYSTEM_LIBRARIES)
     target_compile_definitions(${jsystem_lib} PRIVATE
             ${GAME_COMPILE_DEFS}
             $<$<CONFIG:Debug>:DEBUG=1>
-            $<$<CONFIG:Debug>:PARTIAL_DEBUG=1>
+            PARTIAL_DEBUG=1
     )
     target_include_directories(${jsystem_lib} PRIVATE ${GAME_INCLUDE_DIRS})
     target_link_libraries(${jsystem_lib} PRIVATE ${GAME_LIBS})

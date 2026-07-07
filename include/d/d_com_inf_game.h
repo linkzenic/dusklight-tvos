@@ -1037,7 +1037,7 @@ public:
     /* 0x1DE09 */ u8 field_0x1de09;
     /* 0x1DE0A */ u8 field_0x1de0a;
     /* 0x1DE0B */ u8 mIsDebugMode;
-    #if DEBUG
+    #if PARTIAL_DEBUG || DEBUG
     /* 0x1DE0C */ OSStopwatch mStopwatch;
     #endif
 

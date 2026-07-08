@@ -1,11 +1,15 @@
 # Dusklight Mod API
 
-Mods are distributed as `.dusk` files: zip archives containing a `mod.json` manifest and, optionally, compiled code
-libraries and resources.
+Mods are `.dusk` bundles: zip archives that can contain code (in the form of native libraries), resources, DVD overlay
+files, and texture replacements. Mods may be enabled, disabled and reloaded at runtime.
 
-Most things a mod does goes through **services**: small, versioned C APIs. Dusklight provides built-in services, and
-mods can define their own to talk to each other. Mods also link against the game itself: include game headers and call
-game functions directly.
+When code mods are loaded, they get dynamically linked by the operating system to the running game process. The mod
+exports lifecycle functions that Dusklight calls into (`mod_initialize`, `mod_update`, `mod_shutdown`), and the mod
+communicates with the host via **services**: plain C APIs, individually versioned. Dusklight exports several built-in
+services, and mods may export services of their own, permitting framework mods and cross-mod integration.
+
+Beyond services, mods have full access to the original game's code: include game headers, call directly into any public
+function, read and write data fields, and hook the vast majority of game functions.
 
 ## Table of Contents
 
@@ -55,14 +59,16 @@ add_mod(my_mod
 ```
 
 Building produces `my_mod.dusk` in `build/<preset>/mods/` (configurable via the `DUSK_MODS_OUTPUT_DIR` cache variable).
-Copy it into the game's mods folder and launch:
+Dusklight searches a `mods/` directory next to the app in addition to the user directory, so a dev build launched from
+`build/<preset>/` picks these up automatically: rebuild, relaunch (or click Reload), done.
+
+For a regular game install, copy the `.dusk` into the user mods folder:
 
 - Windows: `%APPDATA%\TwilitRealm\Dusklight\mods`
 - Linux: `~/.local/share/TwilitRealm/Dusklight/mods`
 - macOS: `~/Library/Application Support/TwilitRealm/Dusklight/mods`
 
-You can also pass `--mods <dir>` on the command line, which is handy during development. Mods will load from there
-instead of the user directory above.
+Passing `--mods <dir>` on the command line replaces the user directory with one of your choosing.
 
 ---
 
@@ -83,9 +89,8 @@ instead of the user directory above.
 `id` is required: a unique, stable identifier (reverse-DNS style; periods, underscores, and alphanumerics). Everything
 else is optional but recommended.
 
-`icon` and `banner` are bundle-relative paths to PNG images for the in-game mod manager: the square icon (e.g. 512x512),
-the banner (roughly 3.5:1).
-Both keys are optional; if omitted, `res/icon.png` and `res/banner.png` are used automatically when present.
+`icon` and `banner` are bundle-relative paths to PNG images for the in-game mod manager: the square icon (e.g.
+512x512), the banner (~3.5:1). If omitted, `res/icon.png` and `res/banner.png` are used automatically when present.
 
 ---
 
@@ -131,7 +136,14 @@ IMPORT_SERVICE_VERSION(LogService, svc_log, 2);         // required, minor versi
 IMPORT_OPTIONAL_SERVICE(SomeService, svc_maybe);        // may be null
 ```
 
-The rules (see `include/mods/api.h` for the full contract):
+Each service is individually versioned, and there may be multiple major versions of a service provided at once,
+allowing backwards compatibility with older mods while still changing services fundamentally if necessary. A **major**
+bump is a breaking change, treated as a different service entirely. For **additive** changes, a service appends new
+functions to the end of the struct without breaking existing callers and simply bumps the minor version. Mods that
+want the newer functions may use `IMPORT_SERVICE_VERSION` to require that minor at **load time**, or `SERVICE_HAS` to
+check at **runtime** whether a specific function is available.
+
+The contract (see `include/mods/api.h` for the full version):
 
 - **A required import is guaranteed valid.** If the service is missing or too old, the mod fails to load with a clear
   error. No need to null check at call sites.
@@ -139,9 +151,6 @@ The rules (see `include/mods/api.h` for the full contract):
 - Optional imports may be null; check once in `mod_initialize`.
 - Fields newer than your imported minor must be gated behind `SERVICE_HAS(service, ServiceType, field)` plus a null
   check.
-
-Service versions follow one rule: a **major** bump is a breaking change (treated as a different service entirely), a *
-*minor** bump only appends functions.
 
 ---
 
@@ -158,8 +167,8 @@ svc_log->error(mod_ctx, "very bad");
 svc_log->write(mod_ctx, LOG_LEVEL_DEBUG, "verbose details");
 ```
 
-Messages appear in the console prefixed with your mod ID. Messages are plain strings: use `snprintf` or `fmt::format`
-for formatting.
+Messages appear in the console prefixed with your mod ID. Messages are plain UTF-8 strings and are copied before the
+call returns; use `snprintf` or `fmt::format` for formatting.
 
 ### ResourceService (`mods/svc/resource.h`)
 
@@ -176,8 +185,8 @@ if (svc_resource->load(mod_ctx, "config.txt", &buf) == MOD_OK) {
 }
 ```
 
-Missing files return `MOD_UNAVAILABLE`. Always `free` what you `load`. For writable storage, use the directory from
-`svc_host->mod_dir(mod_ctx)`.
+Missing files return `MOD_UNAVAILABLE`. Always `free` what you `load`. Note that the bundle is read-only; for writable
+storage, use the directory from `svc_host->mod_dir(mod_ctx)`.
 
 ### HostService (`mods/svc/host.h`)
 
@@ -215,14 +224,14 @@ every service dropped its state. For your own mod's teardown, use `mod_shutdown`
 
 ### HookService (`mods/svc/hook.h`)
 
-Install hooks on game functions. You'll rarely call it directly; use the typed helpers in `mods/hook.hpp` described
-below.
+Installs hooks on game functions and resolves symbols by name. You'll rarely call it directly; use the typed helpers in
+`mods/hook.hpp` described in [Hooking Game Functions](#hooking-game-functions).
 
 ### OverlayService (`mods/svc/overlay.h`)
 
-Registers DVD file overlays at runtime. The dynamic counterpart to the static `overlay/` directory (
-see [Asset Overlays](#asset-overlays)). Overlay a disc path with a file from your bundle, or with a caller-owned
-buffer (copied on registration):
+Registers DVD file overlays at runtime: the dynamic counterpart to the static `overlay/` directory (see
+[Asset Overlays](#asset-overlays)). Overlay a disc path with a file from your bundle, or with a caller-owned buffer
+(copied on registration):
 
 ```cpp
 IMPORT_SERVICE(OverlayService, svc_overlay);
@@ -233,16 +242,16 @@ svc_overlay->add_buffer(mod_ctx, "/generated.txt", data, size, nullptr);
 svc_overlay->remove(mod_ctx, handle);
 ```
 
-`disc_path` must be absolute (leading `/`) and is matched against the disc case-insensitively. Paths that don't exist on
-the disc are added as new files. Changes are applied at the next frame boundary, and data the game already read stays in
-memory until the file is re-read (sometimes a scene reload, sometimes never; a restart may be required).
+`disc_path` must be absolute (leading `/`) and is matched against the disc case-insensitively. Paths that don't exist
+on the disc are added as new files. Changes are applied at the next frame boundary, and data the game already read
+stays in memory until the file is re-read: sometimes a scene reload, and in the worst case, a full restart.
 
 See [Asset Overlays](#asset-overlays) for priority and conflict handling.
 
 ### TextureService (`mods/svc/texture.h`)
 
-Registers texture replacements at runtime. The dynamic counterpart to the static `textures/` directory (
-see [Asset Overlays](#asset-overlays)). Two forms: raw texel data with an explicit key, or an encoded `.dds`/`.png` from
+Registers texture replacements at runtime: the dynamic counterpart to the static `textures/` directory (see
+[Asset Overlays](#asset-overlays)). Two forms: raw texel data with an explicit key, or an encoded `.dds`/`.png` from
 your bundle whose filename encodes the key:
 
 ```cpp
@@ -264,7 +273,7 @@ svc_texture->register_data(mod_ctx, &key, &data, nullptr);
 svc_texture->unregister(mod_ctx, handle);
 ```
 
-Filenames use the same convention as the user's `texture_replacements` directory:
+Filenames use the same Dolphin-style convention as the user's `texture_replacements` directory:
 `tex1_{w}x{h}_{texhash}[_{tluthash}]_{fmt}.dds|.png`, where hashes may be `$` (wildcard). `_mipN` sidecar files next to
 a registered file are picked up automatically. Files are decoded lazily on first use by the renderer; raw data is copied
 at registration. Registrations follow your mod's lifecycle.
@@ -311,6 +320,7 @@ Writes that store the same value are silent. Values applied from `config.json` o
 
 ## Hooking Game Functions
 
+Mods may hook the vast majority of game functions, including file-local static, private and virtual functions.
 `mods/hook.hpp` provides typed helpers over the hook service:
 
 ```cpp
@@ -338,8 +348,8 @@ dusk::mods::hook_add_pre<&daAlink_c::posMove>(svc_hook, on_pos_move_pre);
 
 ### Post-hooks
 
-Run after the original (or after a replace-hook, or after a cancelled original). `retval` points to the return value, if
-any.
+Run after the original (or after a replace-hook, or after a cancelled original). `retval` points to the return value,
+if any.
 
 ```cpp
 void on_pos_move_post(ModContext*, void* args, void* retval, void* userdata) { ... }
@@ -442,8 +452,9 @@ Two spellings work on every platform:
 
 ### Game code ABI contract
 
-If your mod calls or hooks game code directly (anything beyond the service APIs), import `GameService` (
-`mods/svc/game.h`):
+A primary consideration when letting mods link against the game is maintaining ABI stability across Dusklight
+versions. If your mod calls or hooks game code directly (anything beyond the service APIs), import `GameService`
+(`mods/svc/game.h`):
 
 ```cpp
 IMPORT_SERVICE(GameService, svc_game);
@@ -451,25 +462,28 @@ IMPORT_SERVICE(GameService, svc_game);
 
 Its major version is the game code ABI epoch: it's bumped when game struct or vtable layouts change incompatibly, and
 the ordinary service version check then rejects your mod with a clear error instead of letting it corrupt memory in a
-version it wasn't built for. Service-only and asset-only mods should *not* import it; they stay compatible across game
-ABI changes.
+version it wasn't built for. Service-only and asset-only mods should *not* import it and will continue to work across
+game ABI changes.
+
+The more you can do through services, the better: a mod that avoids touching game code directly sidesteps future ABI
+breaks entirely and plays nicer with other enabled mods.
 
 ---
 
 ## Asset Overlays
 
-Files placed under `overlay/` in the `.dusk` archive override game files at the corresponding path. For example,
-`overlay/res/Stage/...` shadows that file on the game disc image. This requires no code: an archive with just
-`mod.json` and `overlay/` is a complete mod.
+Files placed under `overlay/` in the `.dusk` archive override game files at the corresponding path, equivalent to
+replacing files in the .iso. This requires no code: an archive with just `mod.json` and `overlay/` is a complete mod.
 
-Files placed under `textures/` register as texture replacements the same way. Filenames follow the replacement naming
-convention (`tex1_{w}x{h}_{texhash}[_{tluthash}]_{fmt}.dds|.png`, `$` as a hash wildcard). Subdirectories are scanned
-recursively; only the filename needs to match.
+Files placed under `textures/` register as texture replacements, and act just like the user's general
+`texture_replacements/` directory: Dolphin-style naming, matched by texture hash
+(`tex1_{w}x{h}_{texhash}[_{tluthash}]_{fmt}.dds|.png`, `$` as a hash wildcard). Subdirectories are scanned recursively;
+only the filename needs to match.
 
-Both follow the mod's lifecycle: disabling the mod removes its overrides (files revert to the disc contents on their
-next open; added files stop existing), and reloading serves the new bundle's content. Game data the engine already read
-stays as-is until it is loaded again, which may require a scene reload or a full restart. Texture replacements usually
-take effect immediately.
+Both mechanisms are tied to the mod's lifecycle: disabling the mod removes its overrides (files revert to the disc
+contents on their next open; added files stop existing), and reloading serves the new bundle's content. However, game
+data the engine already read stays as-is until it is loaded again, which may require a scene change or, in the worst
+case, a full restart. Texture replacements usually take effect immediately.
 
 If multiple sources replace the same file or texture, the last one wins: runtime registrations override static
 `textures/` or `overlay/` files, and later-loaded mods override earlier ones. Cross-mod conflicts log warnings.
@@ -527,7 +541,8 @@ explicit results.
 
 ## Advanced: Exporting Services
 
-Mods can provide services to other mods. Define the interface in a header both mods share:
+Mods may export services of their own, permitting framework mods and cross-mod integration. Define the interface in a
+header both mods share:
 
 ```cpp
 // my_mod_api.h

@@ -16,12 +16,17 @@ function(setup_windows_exports target)
     set(_symgen "${SYMGEN_EXE}")
     add_dependencies(${target} symgen)
 
+    set(_config_subdir "")
+    if (CMAKE_CONFIGURATION_TYPES)
+        set(_config_subdir "$<CONFIG>/")
+    endif ()
+
     set(_rsp_lines "$<TARGET_OBJECTS:${target}>")
     foreach (_lib IN LISTS JSYSTEM_LIBRARIES)
         list(APPEND _rsp_lines "$<TARGET_FILE:${_lib}>")
     endforeach ()
     list(JOIN _rsp_lines "\n" _rsp_content)
-    set(_rsp "${CMAKE_BINARY_DIR}/dusklight_exports_input.rsp")
+    set(_rsp "${CMAKE_BINARY_DIR}/${_config_subdir}dusklight_exports_input.rsp")
     file(GENERATE OUTPUT "${_rsp}" CONTENT "${_rsp_content}")
 
     set(_sdk_args)
@@ -33,7 +38,7 @@ function(setup_windows_exports target)
     endforeach ()
 
     # Generate curated exports list from the main binary
-    set(_def "${CMAKE_BINARY_DIR}/dusklight_exports.def")
+    set(_def "${CMAKE_BINARY_DIR}/${_config_subdir}dusklight_exports.def")
     add_custom_command(TARGET ${target} PRE_LINK
             # TODO: src/dusk/ is NOT excluded: inline code in game headers
             # currently call into it (e.g. dusk::frame_interp::lookup_replacement).
@@ -50,7 +55,7 @@ function(setup_windows_exports target)
     target_link_options(${target} PRIVATE "/DEF:${_def}")
 
     # Generate import library for mods to link against.
-    set(_implib "${CMAKE_BINARY_DIR}/dusklight_imports.lib")
+    set(_implib "${CMAKE_BINARY_DIR}/${_config_subdir}dusklight_imports.lib")
     get_filename_component(_compiler_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
     find_program(DUSK_LLVM_DLLTOOL llvm-dlltool HINTS "${_compiler_dir}")
     if (DUSK_LLVM_DLLTOOL)
@@ -65,9 +70,7 @@ function(setup_windows_exports target)
             BYPRODUCTS "${_implib}"
             COMMENT "Generating dusklight import library"
             VERBATIM)
-    if ("$CACHE{DUSK_GAME_IMPLIB}" STREQUAL "")
-        set(DUSK_GAME_IMPLIB "${_implib}" CACHE INTERNAL "Import library for Windows mod linking")
-    endif ()
+    set(DUSK_GAME_IMPLIB "${_implib}" CACHE INTERNAL "Import library for Windows mod linking")
     set(DUSK_GAME_DEF "${_def}" CACHE INTERNAL "Curated export .def for the game executable")
 
     # Ship the import library as sdk/dusklight.lib in the install tree: mods may use it to

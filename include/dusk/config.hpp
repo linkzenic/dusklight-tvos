@@ -173,11 +173,10 @@ void unsubscribe(Subscription token);
 
 /**
  * \brief Register a CVar and attach a change callback in one step.
- *
+*
  * Useful for pushing settings into external systems (e.g. aurora) from one place instead of
- * every UI setter. The callback fires only for runtime changes (see subscribe); the value
- * loaded from config or launch arguments does not fire it — the external system reads its
- * initial value itself at its own initialization.
+ * every UI setter. The callback fires only for runtime changes (see subscribe); not when
+ * loaded from config or launch arguments.
  */
 template <ConfigValue T, typename Callback>
 requires std::invocable<Callback, const T&, const T&> Subscription Register(

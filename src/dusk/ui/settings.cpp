@@ -1052,7 +1052,7 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                             mDoAud_seStartMenu(kSoundItemChange);
                             getSettings().game.touchTargeting.setValue(
                                 static_cast<TouchTargeting>(i));
-                            config::Save();
+                            config::save();
                         });
                 }
                 pane.add_rml(fmt::format("<br/>Hybrid: {}<br/>Hold: {}<br/>Switch: {}",

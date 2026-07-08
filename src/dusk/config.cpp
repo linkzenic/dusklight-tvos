@@ -483,9 +483,6 @@ static void LoadFromPath(const char* path) {
         const auto& key = el.key();
         auto configVar = RegisteredConfigVars.find(key);
         if (configVar == RegisteredConfigVars.end()) {
-            DuskConfigLog.debug("Unknown key '{}' found in config! If this gets registered later, "
-                                "that's acceptable!",
-                key);
             UnregisteredConfigVars.emplace(key, el.value());
             continue;
         }

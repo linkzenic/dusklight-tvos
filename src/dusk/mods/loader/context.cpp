@@ -1,11 +1,7 @@
 #include "loader.hpp"
 
-#include "dusk/logging.h"
+#include "dusk/mods/log_buffer.hpp"
 #include "dusk/mods/svc/registry.hpp"
-#include "dusk/ui/ui.hpp"
-#include "fmt/format.h"
-
-#include <chrono>
 
 namespace dusk::mods {
 
@@ -55,16 +51,9 @@ void fail_mod(LoadedMod& mod, ModResult code, std::string_view message) {
     // callback), and full teardown happens via deactivate_mod at a safe point.
     svc::remove_services_for_provider(mod);
     mod.servicesRegistered = false;
-    ModLoader::instance().notify_mod_failure(mod);
-    DuskLog.error("[{}] disabled: {} ({})", mod.metadata.id, message, static_cast<int>(code));
-    if (firstFailure) {
-        ui::push_toast({
-            .type = "warning",
-            .title = "Mod Disabled",
-            .content = ui::escape(fmt::format("{}: {}", mod.metadata.name, message)),
-            .duration = std::chrono::seconds(5),
-        });
-    }
+    ModLoader::instance().notify_mod_failure(mod, firstFailure);
+    log::write(
+        mod.metadata.id, LOG_LEVEL_ERROR, "failed: {} ({})", message, static_cast<int>(code));
 }
 
-}  // namespace dusk::mods::loader
+}  // namespace dusk::mods

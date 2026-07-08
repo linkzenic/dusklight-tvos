@@ -1329,12 +1329,7 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                                 speedrun::disconnectLiveSplit();
                             }
                         }
-                        for (auto& doc : get_document_stack()) {
-                            if (dynamic_cast<MenuBar*>(doc.get())) {
-                                doc = std::make_unique<MenuBar>();
-                                break;
-                            }
-                        }
+                        MenuBar::rebuild();
                     },
             });
         config_bool_select(leftPane, rightPane, getSettings().game.liveSplitEnabled,
@@ -1568,15 +1563,7 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .helpText = "Show advanced settings and debugging tools with "
                             "Shift+F1.<br/><br/><icon class=\"warning\"/> WARNING: Debugging tools "
                             "can easily break your game. Do not use on a regular save!",
-                .onChange =
-                    [](bool) {
-                        for (auto& doc : get_document_stack()) {
-                            if (dynamic_cast<MenuBar*>(doc.get())) {
-                                doc = std::make_unique<MenuBar>();
-                                break;
-                            }
-                        }
-                    },
+                .onChange = [](bool) { MenuBar::rebuild(); },
                 .isDisabled = [] { return getSettings().game.speedrunMode.getValue(); },
             });
         config_bool_select(leftPane, rightPane, getSettings().game.showInputViewer,

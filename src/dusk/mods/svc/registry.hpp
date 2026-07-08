@@ -53,7 +53,6 @@ const ServiceRecord* find_service(
     const char* serviceId, uint16_t majorVersion, uint16_t minMinorVersion);
 // Unlike find_service, also returns deferred records that have not been published yet.
 const ServiceRecord* find_service_record(const char* serviceId, uint16_t majorVersion);
-void clear_services();
 
 ModResult register_module(const ServiceModule& module);
 void modules_mod_detached(LoadedMod& mod);

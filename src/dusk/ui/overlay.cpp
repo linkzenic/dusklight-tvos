@@ -89,6 +89,9 @@ Rml::Element* create_toast(Rml::Element* parent, const Toast& toast) {
         } else if (toast.type == "controller") {
             auto* icon = append(heading, "icon");
             icon->SetClass("controller", true);
+        } else if (toast.type == "warning") {
+            auto* icon = append(heading, "icon");
+            icon->SetClass("warning", true);
         }
     }
     {

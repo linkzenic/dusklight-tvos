@@ -1,7 +1,7 @@
 #include "registry.hpp"
 
 #include "dusk/mods/loader/loader.hpp"
-#include "dusk/mods/loader/manifest.hpp"
+#include "dusk/mods/manifest.hpp"
 #include "fmt/format.h"
 
 #include <algorithm>
@@ -38,7 +38,7 @@ ModResult host_publish_service(
 void host_fail(ModContext* context, const ModResult code, const char* message) {
     auto* mod = mod_from_context(context);
     if (mod != nullptr) {
-        fail_mod(*mod, code, message != nullptr ? message : "mod reported failure");
+        fail_mod(*mod, code, message != nullptr ? message : "Mod reported an unknown failure");
     }
 }
 
@@ -112,9 +112,9 @@ void host_mod_detached(LoadedMod& mod) {
                 MOD_LIFECYCLE_DETACHED, watcher.userData);
         } catch (const std::exception& e) {
             fail_mod(*watcher.owner, MOD_ERROR,
-                fmt::format("exception in mod lifecycle callback: {}", e.what()));
+                fmt::format("Exception in mod lifecycle callback: {}", e.what()));
         } catch (...) {
-            fail_mod(*watcher.owner, MOD_ERROR, "unknown exception in mod lifecycle callback");
+            fail_mod(*watcher.owner, MOD_ERROR, "Unknown exception in mod lifecycle callback");
         }
     }
 }

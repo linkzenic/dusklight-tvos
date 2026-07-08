@@ -3,23 +3,25 @@
 #include "dusk/mod_loader.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <string_view>
 #include <utility>
 
+#include "../manifest.hpp"
 #include "depgraph.hpp"
 #include "dusk/config.hpp"
 #include "dusk/io.hpp"
+#include "dusk/mods/log_buffer.hpp"
 #include "dusk/mods/svc/config.hpp"
 #include "dusk/mods/svc/registry.hpp"
-#include "manifest.hpp"
+#include "dusk/ui/mods_window.hpp"
+#include "dusk/ui/ui.hpp"
 #include "miniz.h"
 #include "native_module.hpp"
 #include "nlohmann/json.hpp"
-
-static aurora::Module Log("dusk::modLoader");
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
@@ -71,6 +73,7 @@ static constexpr std::string_view k_nativeLibName = ""sv;
 
 namespace dusk::mods {
 namespace {
+aurora::Module Log{"dusk::mods::loader"};
 ModLoader g_modLoader;
 
 std::unique_ptr<ModBundle> load_bundle(const std::filesystem::path& modPath, bool fromDir) {
@@ -163,9 +166,11 @@ static std::string resolve_image_path(ModBundle& bundle, const std::string& modI
     std::string_view key, const std::string& manifestPath, const std::string& defaultPath) {
     if (!manifestPath.empty()) {
         if (!is_safe_resource_path(manifestPath)) {
-            Log.warn("{}: invalid {} path '{}' in mod.json", modId, key, manifestPath);
+            log::write(
+                modId, LOG_LEVEL_WARN, "invalid {} path '{}' in mod.json", key, manifestPath);
         } else if (!bundle_has_file(bundle, manifestPath)) {
-            Log.warn("{}: {} path '{}' not found in bundle", modId, key, manifestPath);
+            log::write(
+                modId, LOG_LEVEL_WARN, "{} path '{}' not found in bundle", key, manifestPath);
         } else {
             return manifestPath;
         }
@@ -217,18 +222,18 @@ static ModMetadata load_metadata(const std::filesystem::path& modPath, ModBundle
 
 static bool validate_manifest(const ModManifest* manifest, LoadedMod& mod) {
     if (manifest == nullptr) {
-        Log.error("{} returned a null mod manifest", mod.metadata.id);
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "returned a null mod manifest");
         mod.nativeStatus = NativeModStatus::MissingExport;
         return false;
     }
     if (manifest->struct_size != sizeof(ModManifest)) {
-        Log.error("{} manifest has invalid size {} (expected {})", mod.metadata.id,
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "manifest has invalid size {} (expected {})",
             manifest->struct_size, sizeof(ModManifest));
         mod.nativeStatus = NativeModStatus::ApiVersionMismatch;
         return false;
     }
     if (manifest->abi_version != MOD_ABI_VERSION) {
-        Log.error("{} expects ABI v{} but engine is v{}, skipping", mod.metadata.id,
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "expects ABI v{} but engine is v{}, skipping",
             manifest->abi_version, MOD_ABI_VERSION);
         mod.nativeStatus = NativeModStatus::ApiVersionMismatch;
         return false;
@@ -236,7 +241,7 @@ static bool validate_manifest(const ModManifest* manifest, LoadedMod& mod) {
     if ((manifest->import_count > 0 && manifest->imports == nullptr) ||
         (manifest->export_count > 0 && manifest->exports == nullptr))
     {
-        Log.error("{} manifest has invalid import/export arrays", mod.metadata.id);
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "manifest has invalid import/export arrays");
         mod.nativeStatus = NativeModStatus::MissingExport;
         return false;
     }
@@ -245,7 +250,7 @@ static bool validate_manifest(const ModManifest* manifest, LoadedMod& mod) {
 
 static bool validate_context_symbol(ModContext** contextSymbol, LoadedMod& mod) {
     if (contextSymbol == nullptr) {
-        Log.error("{} missing required mod_ctx export", mod.metadata.id);
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "missing required mod_ctx export");
         mod.nativeStatus = NativeModStatus::MissingExport;
         return false;
     }
@@ -289,8 +294,8 @@ std::filesystem::path ModLoader::external_native_lib_path(const LoadedMod& mod) 
     if (libDir.empty()) {
         return {};
     }
-    fs::path path = libDir / fs::path(mod.metadata.id + io::fs_path_to_string(
-                                                            fs::path(k_nativeLibName).extension()));
+    fs::path path = libDir / fs::path(mod.metadata.id +
+                                      io::fs_path_to_string(fs::path(k_nativeLibName).extension()));
     std::error_code ec;
     if (!fs::is_regular_file(path, ec)) {
         return {};
@@ -300,7 +305,7 @@ std::filesystem::path ModLoader::external_native_lib_path(const LoadedMod& mod) 
 
 void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
     if (!EnableCodeMods) {
-        Log.error("Code mods are not available in this build");
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "Code mods are not available in this build");
         mod.nativeStatus = NativeModStatus::BuildDisabled;
         return;
     }
@@ -318,15 +323,15 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
         } else if (auto external = external_native_lib_path(mod); !external.empty()) {
             libPath = std::move(external);
         } else {
-            Log.error("no native library named {} found in {}; skipping", k_nativeLibName,
-                mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_ERROR,
+                "no native library named {} found; skipping", k_nativeLibName);
             mod.nativeStatus = NativeModStatus::ModMissingPlatform;
             return;
         }
     } else {
         if (dllEntry.empty()) {
-            Log.error("no native library named {} found in {}; skipping", k_nativeLibName,
-                mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_ERROR,
+                "no native library named {} found; skipping", k_nativeLibName);
             mod.nativeStatus = NativeModStatus::ModMissingPlatform;
             return;
         }
@@ -342,14 +347,15 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
         try {
             dllData = mod.bundle->readFile(dllEntry);
         } catch (const std::exception& e) {
-            Log.error("failed to extract {} from {}", dllEntry, mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to extract {}", dllEntry);
             return;
         }
 
         {
             std::ofstream out(dllCachePath, std::ios::binary | std::ios::out);
             if (!out) {
-                Log.error("failed to write {}", io::fs_path_to_string(dllCachePath));
+                log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to write {}",
+                    io::fs_path_to_string(dllCachePath));
                 return;
             }
 
@@ -364,7 +370,8 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
     try {
         nativeMod->handle = std::make_unique<loader::NativeModule>(libPath);
     } catch (const std::runtime_error& e) {
-        Log.error("failed to open {}: {}", io::fs_path_to_string(libPath), e.what());
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to open {}: {}",
+            io::fs_path_to_string(libPath), e.what());
         return;
     }
 
@@ -377,7 +384,8 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
     if (!getManifest || !nativeMod->contextSymbol || !nativeMod->fn_initialize ||
         !nativeMod->fn_update || !nativeMod->fn_shutdown)
     {
-        Log.error("{} missing required mod API exports; skipping",
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR,
+            "{} missing required mod API exports; skipping",
             io::fs_path_to_string(libPath.filename()));
         mod.nativeStatus = NativeModStatus::MissingExport;
         return;
@@ -486,9 +494,9 @@ static void warn_unpublished_deferred_exports(const LoadedMod& mod) {
         const auto* record =
             svc::find_service_record(serviceExport.service_id, serviceExport.major_version);
         if (record != nullptr && record->service == nullptr) {
-            Log.warn("'{}' declared deferred service '{}@{}' but never published it during "
-                     "initialization",
-                mod.metadata.id, serviceExport.service_id, serviceExport.major_version);
+            log::write(mod.metadata.id, LOG_LEVEL_WARN,
+                "declared deferred service '{}@{}' but never published it during initialization",
+                serviceExport.service_id, serviceExport.major_version);
         }
     }
 }
@@ -516,10 +524,10 @@ void ModLoader::try_load_mod(
 
     if (const auto* existing = find_mod(metadata.id)) {
         if (existing->searchDirIndex < searchDirIndex) {
-            Log.info("'{}' ({}) shadowed by higher-priority copy {}", metadata.id,
+            log::write(metadata.id, LOG_LEVEL_INFO, "{} shadowed by higher-priority copy {}",
                 io::fs_path_to_string(modPath.filename()), existing->modPath);
         } else {
-            Log.error("mod with id '{}' already exists, not loading {}", metadata.id,
+            log::write(metadata.id, LOG_LEVEL_ERROR, "duplicate mod id, not loading {}",
                 io::fs_path_to_string(modPath.filename()));
         }
         return;
@@ -537,7 +545,7 @@ void ModLoader::try_load_mod(
     mod.context = std::make_unique<ModContext>();
     mod.context->mod = &mod;
     mod.cvarIsEnabled =
-        std::make_unique<ConfigVar<bool> >(mod_enabled_cvar_name(mod.metadata.id), true);
+        std::make_unique<ConfigVar<bool>>(mod_enabled_cvar_name(mod.metadata.id), true);
 
     const auto [dllEntry, anyLibs] = locate_dll_in_bundle(*mod.bundle);
     if (anyLibs || (mod.inPlace && !external_native_lib_path(mod).empty())) {
@@ -545,19 +553,18 @@ void ModLoader::try_load_mod(
         load_native(mod, dllEntry);
         if (mod.nativeStatus != NativeModStatus::Loaded) {
             Log.error("Native mod '{}' failed to load, disabling", mod.metadata.id);
-            mod.active = false;
-            mod.loadFailed = true;
-            mod.failureReason = native_status_message(mod.nativeStatus);
+            fail_mod(mod, MOD_ERROR, native_status_message(mod.nativeStatus));
         } else {
             mod.manifestInfo = build_manifest_info(*mod.native->manifest);
         }
     }
 
-    Log.info("found '{}' ('{}') v{} by {} ({})", mod.metadata.name, mod.metadata.id,
+    log::write(mod.metadata.id, LOG_LEVEL_INFO, "found '{}' v{} by {} ({})", mod.metadata.name,
         mod.metadata.version, mod.metadata.author, io::fs_path_to_string(modPath.filename()));
 }
 
 bool ModLoader::activate_mod(LoadedMod& mod) {
+    log::write(mod.metadata.id, LOG_LEVEL_INFO, "activating mod");
     mod.active = true;
 
     // Asset-only mods have no lifecycle beyond their overlay files.
@@ -568,33 +575,33 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
 
     if (!mod.servicesRegistered) {
         if (!register_static_service_exports(mod)) {
-            Log.error("'{}' failed to register service exports", mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
             return false;
         }
         mod.servicesRegistered = true;
     }
 
     if (!resolve_service_imports(mod)) {
-        Log.error("'{}' failed to resolve service imports", mod.metadata.id);
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to resolve service imports");
         return false;
     }
 
     *mod.native->contextSymbol = mod.context.get();
 
-    Log.debug("Initializing '{}'", mod.metadata.id);
+    log::write(mod.metadata.id, LOG_LEVEL_TRACE, "calling mod_initialize");
     try {
         ModError error = MOD_ERROR_INIT;
         const auto result = mod.native->fn_initialize(&error);
         if (result == MOD_OK && !mod.loadFailed) {
             mod.initialized = true;
-            Log.info("'{}' initialized", mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_TRACE, "mod_initialize succeeded");
         } else {
             fail_mod(mod, result, lifecycle_error_message("mod_initialize", result, error));
         }
     } catch (const std::exception& e) {
-        fail_mod(mod, MOD_ERROR, fmt::format("exception in mod_initialize: {}", e.what()));
+        fail_mod(mod, MOD_ERROR, fmt::format("Exception in mod_initialize: {}", e.what()));
     } catch (...) {
-        fail_mod(mod, MOD_ERROR, "unknown exception in mod_initialize");
+        fail_mod(mod, MOD_ERROR, "Unknown exception in mod_initialize");
     }
 
     warn_unpublished_deferred_exports(mod);
@@ -611,11 +618,14 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
 
 void ModLoader::deactivate_mod(LoadedMod& mod) {
     if (mod.initialized && mod.native && mod.native->fn_shutdown) {
+        log::write(mod.metadata.id, LOG_LEVEL_TRACE, "calling mod_shutdown");
         try {
             ModError error = MOD_ERROR_INIT;
             const auto result = mod.native->fn_shutdown(&error);
-            if (result != MOD_OK) {
-                Log.error("mod_shutdown failed for '{}': {}", mod.metadata.id,
+            if (result == MOD_OK) {
+                log::write(mod.metadata.id, LOG_LEVEL_TRACE, "mod_shutdown succeeded");
+            } else {
+                log::write(mod.metadata.id, LOG_LEVEL_ERROR, "mod_shutdown failed: {}",
                     lifecycle_error_message("mod_shutdown", result, error));
             }
         } catch (...) {
@@ -719,7 +729,7 @@ void ModLoader::init() {
         if (register_static_service_exports(mod)) {
             mod.servicesRegistered = true;
         } else {
-            Log.error("'{}' failed to register service exports", mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
         }
     }
 
@@ -730,7 +740,7 @@ void ModLoader::init() {
     // Config-disabled mods keep their dependency edges but must not resolve until enabled.
     for (auto& mod : mods()) {
         if (!mod.cvarIsEnabled->getValue()) {
-            Log.info("Mod '{}' is disabled by config", mod.metadata.id);
+            log::write(mod.metadata.id, LOG_LEVEL_INFO, "disabled by config");
             mod.active = false;
             if (mod.servicesRegistered) {
                 svc::remove_services_for_provider(mod);
@@ -753,7 +763,7 @@ void ModLoader::init() {
     m_startupComplete = true;
 }
 
-LoadedMod* ModLoader::find_mod(std::string_view id) {
+LoadedMod* ModLoader::find_mod(std::string_view id) const {
     for (auto& mod : mods()) {
         if (mod.metadata.id == id) {
             return &mod;
@@ -778,13 +788,45 @@ void ModLoader::request_reload(std::string_view id) {
     m_pendingRequests.push_back({std::string{id}, RequestKind::Reload});
 }
 
-void ModLoader::notify_mod_failure(LoadedMod& mod) {
-    // Startup failures are handled inline by activate_mod; the queue only exists for failures
-    // raised while mod code may be on the stack (mod_update, hook callbacks, UI callbacks).
+void ModLoader::notify_mod_failure(LoadedMod& mod, bool firstFailure) {
+    if (firstFailure) {
+        m_pendingFailures.push_back(mod.metadata.name);
+    }
+    // Startup failures are handled inline by activate_mod
     if (!m_startupComplete) {
         return;
     }
     m_pendingRequests.push_back({mod.metadata.id, RequestKind::Disable});
+}
+
+void ModLoader::flush_toasts() {
+    if (m_pendingFailures.empty()) {
+        return;
+    }
+
+    const auto names = std::exchange(m_pendingFailures, {});
+
+    // Skip displaying toasts if the mods window is currently open
+    if (const auto* window = dynamic_cast<const ui::ModsWindow*>(ui::top_document())) {
+        if (window->visible()) {
+            return;
+        }
+    }
+
+    ui::Toast toast{.type = "warning", .duration = std::chrono::seconds{5}};
+    if (names.size() == 1) {
+        toast.title = "Mod failed";
+        toast.content =
+            fmt::format("<div><b>{}</b> failed and was disabled.</div><div>Check Mods for "
+                        "more information.</div>",
+                ui::escape(names.front()));
+    } else {
+        toast.title = "Mods failed";
+        toast.content = fmt::format("<div><b>{} mods</b> failed and were disabled.</div><div>Check "
+                                    "Mods for more information.</div>",
+            names.size());
+    }
+    ui::push_toast(std::move(toast));
 }
 
 static bool requiredDepsActive(const LoadedMod& mod) {
@@ -793,8 +835,8 @@ static bool requiredDepsActive(const LoadedMod& mod) {
 }
 
 std::vector<LoadedMod*> ModLoader::collect_lifecycle_set(LoadedMod& target) {
-    std::vector<LoadedMod*> included{&target};
-    std::vector<LoadedMod*> pending{&target};
+    std::vector included{&target};
+    std::vector pending{&target};
     while (!pending.empty()) {
         auto* current = pending.back();
         pending.pop_back();
@@ -843,7 +885,7 @@ bool ModLoader::ensure_native_loaded(LoadedMod& mod) {
 
 bool ModLoader::reload_bundle(LoadedMod& mod) {
     namespace fs = std::filesystem;
-    Log.info("reloading '{}' from {}", mod.metadata.id, mod.modPath);
+    log::write(mod.metadata.id, LOG_LEVEL_INFO, "reloading from {}", mod.modPath);
 
     std::shared_ptr<ModBundle> newBundle;
     ModMetadata newMetadata;
@@ -852,13 +894,13 @@ bool ModLoader::reload_bundle(LoadedMod& mod) {
         newBundle = load_bundle(mod.modPath, fs::is_directory(mod.modPath, ec));
         newMetadata = load_metadata(mod.modPath, *newBundle);
     } catch (const std::exception& e) {
-        fail_mod(mod, MOD_ERROR, fmt::format("reload failed: {}", e.what()));
+        fail_mod(mod, MOD_ERROR, fmt::format("Reload failed: {}", e.what()));
         return false;
     }
 
     if (newMetadata.id != mod.metadata.id) {
         fail_mod(mod, MOD_CONFLICT,
-            fmt::format("mod id changed on reload ('{}'); restart the game", newMetadata.id));
+            fmt::format("Mod ID changed on reload ('{}'); restart required", newMetadata.id));
         return false;
     }
 
@@ -885,8 +927,8 @@ bool ModLoader::reload_bundle(LoadedMod& mod) {
     if (newInfo != mod.manifestInfo) {
         // The reload changes the mod's imports/exports; rebuild the dependency graph so edges,
         // init/tick/shutdown order and cascade sets reflect the new manifest.
-        Log.info("'{}' changed its service imports/exports; rebuilding mod dependency graph",
-            mod.metadata.id);
+        log::write(mod.metadata.id, LOG_LEVEL_INFO,
+            "changed its service imports/exports; rebuilding mod dependency graph");
         mod.manifestInfo = std::move(newInfo);
         loader::sort_mods(m_mods);
     }
@@ -906,7 +948,7 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
             continue;
         }
         const bool wasActive = mod->active;
-        Log.info("deactivating '{}'", mod->metadata.id);
+        log::write(mod->metadata.id, LOG_LEVEL_INFO, "deactivating mod");
         deactivate_mod(*mod);
         if (mod != &target && wasActive) {
             // Provisional; cleared below if the mod comes straight back up.
@@ -953,7 +995,8 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
         }
         if (!requiredDepsActive(*mod)) {
             mod->suspendedByProvider = true;
-            Log.info("'{}' suspended: a required provider is disabled", mod->metadata.id);
+            log::write(
+                mod->metadata.id, LOG_LEVEL_INFO, "suspended: a required provider is disabled");
             continue;
         }
         mod->suspendedByProvider = false;
@@ -972,6 +1015,10 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
 void ModLoader::on_enabled_changed(LoadedMod& mod) {
     svc::config_mark_dirty();
     if (mod.loadFailed) {
+        if (!mod.cvarIsEnabled->getValue()) {
+            mod.loadFailed = false;
+            mod.failureReason.clear();
+        }
         return;
     }
     if (mod.suspendedByProvider) {
@@ -1013,7 +1060,7 @@ void ModLoader::apply_pending_requests() {
             continue;
         }
         if (request.kind == RequestKind::Reload && mod->inPlace) {
-            Log.warn("'{}' is a built-in mod and can't be reloaded", mod->metadata.id);
+            log::write(mod->metadata.id, LOG_LEVEL_WARN, "is a built-in mod and can't be reloaded");
             continue;
         }
         if (request.kind == RequestKind::Enable && mod->enabledApplied) {
@@ -1046,13 +1093,14 @@ void ModLoader::tick() {
                 fail_mod(mod, result, lifecycle_error_message("mod_update", result, error));
             }
         } catch (const std::exception& e) {
-            fail_mod(mod, MOD_ERROR, fmt::format("exception in mod_update: {}", e.what()));
+            fail_mod(mod, MOD_ERROR, fmt::format("Exception in mod_update: {}", e.what()));
         } catch (...) {
-            fail_mod(mod, MOD_ERROR, "unknown exception in mod_update");
+            fail_mod(mod, MOD_ERROR, "Unknown exception in mod_update");
         }
     }
 
     svc::modules_frame_end();
+    flush_toasts();
 }
 
 void ModLoader::shutdown() {
@@ -1069,7 +1117,6 @@ void ModLoader::shutdown() {
     m_mods.clear();
     drain_retired_natives();
     svc::modules_shutdown();
-    clear_services();
     Log.info("all mods unloaded");
 }
 

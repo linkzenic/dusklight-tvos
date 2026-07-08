@@ -131,9 +131,9 @@ A service is a struct of C function pointers with a version header. You declare 
 loader resolves it before your mod initializes:
 
 ```cpp
-IMPORT_SERVICE(LogService, svc_log);                    // required, any minor version
-IMPORT_SERVICE_VERSION(LogService, svc_log, 2);         // required, minor version >= 2
-IMPORT_OPTIONAL_SERVICE(SomeService, svc_maybe);        // may be null
+IMPORT_SERVICE(LogService, svc_log);              // required, any minor version
+IMPORT_SERVICE_VERSION(LogService, svc_log, 2);   // required, minor version >= 2
+IMPORT_OPTIONAL_SERVICE(SomeService, svc_maybe);  // may be null
 ```
 
 Each service is individually versioned, and there may be multiple major versions of a service provided at once,

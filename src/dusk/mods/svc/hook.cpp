@@ -1,7 +1,7 @@
 #include "registry.hpp"
 
 #include "dusk/mods/loader/loader.hpp"
-#include "dusk/mods/loader/manifest.hpp"
+#include "dusk/mods/manifest.hpp"
 #include "mods/svc/hook.h"
 
 #if DUSK_CODE_MODS

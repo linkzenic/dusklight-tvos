@@ -5,13 +5,11 @@
 
 #include "dusk/logging.h"
 #include "loader.hpp"
-#include "native_module.hpp"
-
-static aurora::Module Log("dusk::modLoader");
+#include "native_module.hpp"  // IWYU pragma: keep
 
 namespace dusk::mods::loader {
-
 namespace {
+aurora::Module Log{"dusk::mods::loader"};
 
 struct Edge {
     size_t provider;
@@ -31,7 +29,7 @@ std::vector<Edge> collect_edges(const std::vector<std::unique_ptr<LoadedMod>>& m
         for (size_t i = 0; i < mods.size(); ++i) {
             const auto matches = [&](const ModManifestInfo::Export& serviceExport) {
                 return serviceExport.major == serviceImport.major &&
-                    serviceExport.id == serviceImport.id;
+                       serviceExport.id == serviceImport.id;
             };
             if (std::ranges::any_of(mods[i]->manifestInfo.exports, matches)) {
                 return i;
@@ -165,7 +163,7 @@ void sort_mods(std::vector<std::unique_ptr<LoadedMod>>& mods) {
             }
             for (const size_t index : cycleMods) {
                 fail_mod(*mods[index], MOD_CONFLICT,
-                    "required service import cycle between mods: " + names);
+                    "Required service import cycle between mods: " + names);
                 place(index);
             }
             continue;
@@ -174,8 +172,7 @@ void sort_mods(std::vector<std::unique_ptr<LoadedMod>>& mods) {
         // Only optional imports left in the cycle: drop one edge and retry. The
         // import still resolves, but without any initialization-order guarantee.
         const auto optionalEdge = std::ranges::find_if(edges, [&](const Edge& edge) {
-            return edge.alive && !edge.required && !placed[edge.provider] &&
-                !placed[edge.importer];
+            return edge.alive && !edge.required && !placed[edge.provider] && !placed[edge.importer];
         });
         if (optionalEdge == edges.end()) {
             // Unreachable: a stall with no required cycle implies an optional edge.

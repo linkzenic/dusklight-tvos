@@ -176,7 +176,7 @@ public:
     void request_enable(std::string_view id);
     void request_disable(std::string_view id);
     void request_reload(std::string_view id);
-    void notify_mod_failure(LoadedMod& mod);
+    void notify_mod_failure(LoadedMod& mod, bool firstFailure);
 
     [[nodiscard]] auto mods() const {
         return m_mods | std::views::transform([](const auto& m) -> LoadedMod& { return *m; });
@@ -204,6 +204,7 @@ private:
     std::vector<ModSearchDir> m_searchDirs;
     std::filesystem::path m_cacheDir;
     std::vector<Request> m_pendingRequests;
+    std::vector<std::string> m_pendingFailures;
     std::vector<RetiredNative> m_retiredNatives;
     bool m_initialized = false;
     bool m_startupComplete = false;
@@ -224,12 +225,11 @@ private:
     bool resolve_service_imports(LoadedMod& mod);
     [[nodiscard]] std::string describe_missing_import(
         const char* serviceId, uint16_t majorVersion, uint16_t minMinorVersion) const;
-    void clear_services();
-    void fail_mod(LoadedMod& mod, ModResult code, std::string_view message);
 
-    LoadedMod* find_mod(std::string_view id);
+    LoadedMod* find_mod(std::string_view id) const;
     void drain_retired_natives();
     void apply_pending_requests();
+    void flush_toasts();
     void on_enabled_changed(LoadedMod& mod);
     // Deactivates `target` (if needed) and its transitive dependents, optionally re-reads the
     // bundle from disk, then reactivates whatever the current cvar/provider state allows.

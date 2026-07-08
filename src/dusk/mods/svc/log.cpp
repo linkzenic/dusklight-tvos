@@ -1,28 +1,14 @@
 #include "registry.hpp"
 
-#include "dusk/logging.h"
 #include "dusk/mods/loader/loader.hpp"
+#include "dusk/mods/log_buffer.hpp"
 
 namespace dusk::mods::svc {
 namespace {
 
 void log_write(ModContext* context, const LogLevel level, const char* message) {
     const char* text = message != nullptr ? message : "";
-    switch (level) {
-    case LOG_LEVEL_TRACE:
-    case LOG_LEVEL_DEBUG:
-        DuskLog.debug("[{}] {}", mod_id_from_context(context), text);
-        break;
-    case LOG_LEVEL_INFO:
-        DuskLog.info("[{}] {}", mod_id_from_context(context), text);
-        break;
-    case LOG_LEVEL_WARN:
-        DuskLog.warn("[{}] {}", mod_id_from_context(context), text);
-        break;
-    case LOG_LEVEL_ERROR:
-        DuskLog.error("[{}] {}", mod_id_from_context(context), text);
-        break;
-    }
+    log::emit(log::Source::Mod, mod_id_from_context(context), level, text);
 }
 
 void log_trace(ModContext* context, const char* message) {

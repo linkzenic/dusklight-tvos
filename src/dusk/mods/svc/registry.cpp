@@ -1,5 +1,6 @@
 #include "registry.hpp"
 
+#include "dusk/app_info.hpp"
 #include "dusk/logging.h"
 #include "dusk/mods/loader/loader.hpp"
 
@@ -22,7 +23,7 @@ std::string service_key(std::string_view id, const uint16_t majorVersion) {
 }
 
 const char* mod_id(const LoadedMod* mod) {
-    return mod != nullptr ? mod->metadata.id.c_str() : "dusklight";
+    return mod != nullptr ? mod->metadata.id.c_str() : AppName;
 }
 
 bool validate_service_header(const ServiceHeader* header, const char* serviceId,
@@ -43,6 +44,11 @@ bool validate_service_header(const ServiceHeader* header, const char* serviceId,
         return false;
     }
     return true;
+}
+
+void clear_services() {
+    s_services.clear();
+    s_modules.clear();
 }
 
 }  // namespace
@@ -131,11 +137,6 @@ const ServiceRecord* find_service_record(const char* serviceId, const uint16_t m
     return it != s_services.end() ? &it->second : nullptr;
 }
 
-void clear_services() {
-    s_services.clear();
-    s_modules.clear();
-}
-
 ModResult register_module(const ServiceModule& module) {
     const auto result = register_service(
         module.id, module.majorVersion, module.minorVersion, module.service, nullptr, false);
@@ -187,6 +188,7 @@ void modules_shutdown() {
             module->shutdown();
         }
     }
+    clear_services();
 }
 
 }  // namespace dusk::mods::svc
@@ -222,13 +224,13 @@ bool ModLoader::register_static_service_exports(LoadedMod& mod) {
         if (serviceExport.struct_size != sizeof(ServiceExport) ||
             !svc::valid_service_id(serviceExport.service_id))
         {
-            fail_mod(mod, MOD_INVALID_ARGUMENT, "invalid service export descriptor");
+            fail_mod(mod, MOD_INVALID_ARGUMENT, "Invalid service export descriptor");
             return false;
         }
 
         const bool deferred = (serviceExport.flags & SERVICE_EXPORT_DEFERRED) != 0;
         if (!deferred && serviceExport.service == nullptr) {
-            fail_mod(mod, MOD_INVALID_ARGUMENT, "static service export has null service pointer");
+            fail_mod(mod, MOD_INVALID_ARGUMENT, "Static service export has null service pointer");
             return false;
         }
 
@@ -236,7 +238,7 @@ bool ModLoader::register_static_service_exports(LoadedMod& mod) {
             svc::register_service(serviceExport.service_id, serviceExport.major_version,
                 serviceExport.minor_version, serviceExport.service, &mod, deferred);
         if (result != MOD_OK) {
-            fail_mod(mod, result, "service export registration failed");
+            fail_mod(mod, result, "Service export registration failed");
             return false;
         }
     }
@@ -248,10 +250,10 @@ std::string ModLoader::describe_missing_import(
     const char* serviceId, const uint16_t majorVersion, const uint16_t minMinorVersion) const {
     if (const auto* record = svc::find_service_record(serviceId, majorVersion)) {
         if (record->service == nullptr) {
-            return fmt::format("required service {}@{} was never published by provider '{}'",
+            return fmt::format("Required service {}@{} was never published by provider '{}'",
                 serviceId, majorVersion, svc::mod_id(record->provider));
         }
-        return fmt::format("required service {}@{} only provides minor version {} (need >= {})",
+        return fmt::format("Required service {}@{} only provides minor version {} (need >= {})",
             serviceId, majorVersion, record->minorVersion, minMinorVersion);
     }
 
@@ -270,14 +272,14 @@ std::string ModLoader::describe_missing_import(
                 std::string_view{serviceExport.service_id} == serviceId &&
                 serviceExport.major_version == majorVersion)
             {
-                return fmt::format("required service {}@{} unavailable: provider '{}' {}",
+                return fmt::format("Required service {}@{} unavailable: provider '{}' {}",
                     serviceId, majorVersion, other.metadata.id,
                     other.loadFailed ? "failed to load" : "is disabled");
             }
         }
     }
 
-    return fmt::format("required service unavailable: {}@{}", serviceId, majorVersion);
+    return fmt::format("Required service unavailable: {}@{}", serviceId, majorVersion);
 }
 
 bool ModLoader::resolve_service_imports(LoadedMod& mod) {
@@ -291,7 +293,7 @@ bool ModLoader::resolve_service_imports(LoadedMod& mod) {
         if (serviceImport.struct_size != sizeof(ServiceImport) ||
             !svc::valid_service_id(serviceImport.service_id) || serviceImport.slot == nullptr)
         {
-            fail_mod(mod, MOD_INVALID_ARGUMENT, "invalid service import descriptor");
+            fail_mod(mod, MOD_INVALID_ARGUMENT, "Invalid service import descriptor");
             return false;
         }
 
@@ -313,14 +315,6 @@ bool ModLoader::resolve_service_imports(LoadedMod& mod) {
     }
 
     return true;
-}
-
-void ModLoader::clear_services() {
-    svc::clear_services();
-}
-
-void ModLoader::fail_mod(LoadedMod& mod, const ModResult code, std::string_view message) {
-    mods::fail_mod(mod, code, message);
 }
 
 }  // namespace dusk::mods

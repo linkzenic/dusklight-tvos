@@ -385,9 +385,9 @@ ModResult config_subscribe(ModContext* context, ConfigVarHandle var, ConfigChang
                 callback(modPtr->context.get(), varHandle, &currentValue, &previousValue, userData);
             } catch (const std::exception& e) {
                 fail_mod(*modPtr, MOD_ERROR,
-                    fmt::format("exception in config change callback: {}", e.what()));
+                    fmt::format("Exception in config change callback: {}", e.what()));
             } catch (...) {
-                fail_mod(*modPtr, MOD_ERROR, "unknown exception in config change callback");
+                fail_mod(*modPtr, MOD_ERROR, "Unknown exception in config change callback");
             }
         });
     if (outHandle != nullptr) {

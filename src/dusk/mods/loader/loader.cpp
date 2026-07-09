@@ -476,6 +476,11 @@ static std::string mod_enabled_cvar_name(std::string_view const id) {
     return fmt::format("mod.{}.enabled", escape_mod_id_for_config(id));
 }
 
+static bool required_deps_active(const LoadedMod& mod) {
+    return std::ranges::all_of(mod.dependencies,
+        [](const ModDependencyEdge& edge) { return !edge.required || edge.mod->active; });
+}
+
 // A deferred export that was not published by the end of the provider's initialization can
 // never resolve, which is almost certainly a bug in the provider.
 static void warn_unpublished_deferred_exports(const LoadedMod& mod) {
@@ -576,6 +581,7 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
     if (!mod.servicesRegistered) {
         if (!register_static_service_exports(mod)) {
             log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
+            deactivate_mod(mod);
             return false;
         }
         mod.servicesRegistered = true;
@@ -583,6 +589,7 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
 
     if (!resolve_service_imports(mod)) {
         log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to resolve service imports");
+        deactivate_mod(mod);
         return false;
     }
 
@@ -608,7 +615,7 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
 
     if (!mod.active) {
         // Failed initialization may have left hooks or other service state behind
-        svc::modules_mod_detached(mod);
+        deactivate_mod(mod);
         return false;
     }
 
@@ -722,30 +729,39 @@ void ModLoader::init() {
 
     init_services();
 
+    // Providers must initialize (and publish deferred services) before their importers, so
+    // imports are resolved per mod, interleaved with initialization, in dependency order.
+    loader::sort_mods(m_mods);
+
+    // Decide the startup lifecycle state before publishing exports. Config-disabled mods and
+    // mods blocked by required providers keep dependency edges but must not resolve or provide
+    // services until they can actually initialize.
     for (auto& mod : mods()) {
-        if (!mod.native) {
+        if (!mod.cvarIsEnabled->getValue()) {
+            log::write(mod.metadata.id, LOG_LEVEL_INFO, "disabled by config");
+            mod.active = false;
+            mod.suspendedByProvider = false;
+            continue;
+        }
+        if (!mod.loadFailed && !required_deps_active(mod)) {
+            log::write(
+                mod.metadata.id, LOG_LEVEL_INFO, "suspended: a required provider is disabled");
+            mod.active = false;
+            mod.suspendedByProvider = true;
+            continue;
+        }
+        mod.suspendedByProvider = false;
+    }
+
+    for (auto& mod : mods()) {
+        if (!mod.active || !mod.native) {
             continue;
         }
         if (register_static_service_exports(mod)) {
             mod.servicesRegistered = true;
         } else {
             log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
-        }
-    }
-
-    // Providers must initialize (and publish deferred services) before their importers, so
-    // imports are resolved per mod, interleaved with initialization, in dependency order.
-    loader::sort_mods(m_mods);
-
-    // Config-disabled mods keep their dependency edges but must not resolve until enabled.
-    for (auto& mod : mods()) {
-        if (!mod.cvarIsEnabled->getValue()) {
-            log::write(mod.metadata.id, LOG_LEVEL_INFO, "disabled by config");
-            mod.active = false;
-            if (mod.servicesRegistered) {
-                svc::remove_services_for_provider(mod);
-                mod.servicesRegistered = false;
-            }
+            deactivate_mod(mod);
         }
     }
 
@@ -827,11 +843,6 @@ void ModLoader::flush_toasts() {
             names.size());
     }
     ui::push_toast(std::move(toast));
-}
-
-static bool requiredDepsActive(const LoadedMod& mod) {
-    return std::ranges::all_of(mod.dependencies,
-        [](const ModDependencyEdge& edge) { return !edge.required || edge.mod->active; });
 }
 
 std::vector<LoadedMod*> ModLoader::collect_lifecycle_set(LoadedMod& target) {
@@ -983,8 +994,14 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
         if (!ensure_native_loaded(*mod)) {
             continue;
         }
-        if (mod->native && !mod->servicesRegistered && register_static_service_exports(*mod)) {
-            mod->servicesRegistered = true;
+        if (mod->native && !mod->servicesRegistered) {
+            if (register_static_service_exports(*mod)) {
+                mod->servicesRegistered = true;
+            } else {
+                log::write(
+                    mod->metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
+                deactivate_mod(*mod);
+            }
         }
     }
 
@@ -993,7 +1010,7 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
         if (mod->active || mod->loadFailed || !mod->cvarIsEnabled->getValue()) {
             continue;
         }
-        if (!requiredDepsActive(*mod)) {
+        if (!required_deps_active(*mod)) {
             mod->suspendedByProvider = true;
             log::write(
                 mod->metadata.id, LOG_LEVEL_INFO, "suspended: a required provider is disabled");

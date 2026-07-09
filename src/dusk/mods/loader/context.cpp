@@ -44,7 +44,9 @@ void fail_mod(LoadedMod& mod, ModResult code, std::string_view message) {
     const bool firstFailure = !mod.loadFailed;
     mod.active = false;
     mod.loadFailed = true;
-    mod.failureReason = message;
+    if (firstFailure || mod.failureReason.empty()) {
+        mod.failureReason = message;
+    }
     // Stop the failed mod's services from resolving; mods that required them fail in turn.
     // Pointers already handed to other mods stay callable since the library remains loaded.
     // Nothing else is torn down here: fail_mod can run mid-frame (e.g. from a failing mod

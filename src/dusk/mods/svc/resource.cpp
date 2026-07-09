@@ -74,10 +74,18 @@ void resource_free(ModContext* context, ResourceBuffer* buffer) {
     {
         return;
     }
-    if (s_buffers.erase(buffer->data) == 0) {
+    auto* mod = mod_from_context(context);
+    const auto it = s_buffers.find(buffer->data);
+    if (it == s_buffers.end()) {
         Log.error("[{}] resource free: not a live loaded buffer", mod_id_from_context(context));
         return;
     }
+    if (mod == nullptr || it->second != mod) {
+        Log.error("[{}] resource free: buffer is owned by '{}'", mod_id_from_context(context),
+            it->second != nullptr ? it->second->metadata.id : "unknown");
+        return;
+    }
+    s_buffers.erase(it);
     std::free(buffer->data);
     buffer->data = nullptr;
     buffer->size = 0;

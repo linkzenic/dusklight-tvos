@@ -281,6 +281,11 @@ uint64_t texture_register_raw(
     entry.gxFormat = data.gxFormat;
     entry.label = fmt::format("mod {} texture {}", mod.metadata.id, entry.handle);
     register_runtime_entry(entry, record.appliedPriority);
+    if (entry.registration.id == 0) {
+        Log.error("[{}] texture register_data failed: replacement was rejected", mod.metadata.id);
+        record.runtime.pop_back();
+        return 0;
+    }
     return entry.handle;
 }
 
@@ -377,6 +382,9 @@ ModResult texture_register_data(ModContext* context, const TextureKey* key, cons
             .mipCount = data->mip_count,
             .gxFormat = data->gx_format,
         });
+    if (handle == 0) {
+        return MOD_INVALID_ARGUMENT;
+    }
     if (outHandle != nullptr) {
         *outHandle = handle;
     }

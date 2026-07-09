@@ -602,7 +602,7 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
         if (result == MOD_OK && !mod.loadFailed) {
             mod.initialized = true;
             log::write(mod.metadata.id, LOG_LEVEL_TRACE, "mod_initialize succeeded");
-        } else {
+        } else if (result != MOD_OK && !mod.loadFailed) {
             fail_mod(mod, result, lifecycle_error_message("mod_initialize", result, error));
         }
     } catch (const std::exception& e) {

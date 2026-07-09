@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <exception>
+#include <fmt/format.h>
 #include <funchook.h>
 #include <unordered_map>
 #include <vector>
@@ -69,6 +71,18 @@ HookOptions normalize_options(const HookOptions* options) {
         return HOOK_OPTIONS_INIT;
     }
     return *options;
+}
+
+void fail_hook_callback(ModContext* context, const char* kind, const std::exception& e) {
+    if (auto* mod = mod_from_context(context)) {
+        fail_mod(*mod, MOD_ERROR, fmt::format("Exception in {} hook callback: {}", kind, e.what()));
+    }
+}
+
+void fail_unknown_hook_callback(ModContext* context, const char* kind) {
+    if (auto* mod = mod_from_context(context)) {
+        fail_mod(*mod, MOD_ERROR, fmt::format("Unknown exception in {} hook callback", kind));
+    }
 }
 
 template <class T>
@@ -295,9 +309,20 @@ ModResult hook_dispatch_pre(
     }
     auto& slot = it->second;
     for (auto& hook : slot.pre) {
-        if (hook.callback != nullptr &&
-            hook.callback(hook.context, args, retval, hook.options.userdata) == HOOK_SKIP_ORIGINAL)
-        {
+        if (hook.callback == nullptr) {
+            continue;
+        }
+        HookAction action = HOOK_CONTINUE;
+        try {
+            action = hook.callback(hook.context, args, retval, hook.options.userdata);
+        } catch (const std::exception& e) {
+            fail_hook_callback(hook.context, "pre", e);
+            continue;
+        } catch (...) {
+            fail_unknown_hook_callback(hook.context, "pre");
+            continue;
+        }
+        if (action == HOOK_SKIP_ORIGINAL) {
             if (outSkipOriginal != nullptr) {
                 *outSkipOriginal = 1;
             }
@@ -305,8 +330,16 @@ ModResult hook_dispatch_pre(
         }
     }
     if (slot.replace.replaceCallback != nullptr) {
-        slot.replace.replaceCallback(
-            slot.replace.context, args, retval, slot.replace.options.userdata);
+        try {
+            slot.replace.replaceCallback(
+                slot.replace.context, args, retval, slot.replace.options.userdata);
+        } catch (const std::exception& e) {
+            fail_hook_callback(slot.replace.context, "replace", e);
+            return MOD_ERROR;
+        } catch (...) {
+            fail_unknown_hook_callback(slot.replace.context, "replace");
+            return MOD_ERROR;
+        }
         if (outSkipOriginal != nullptr) {
             *outSkipOriginal = 1;
         }
@@ -326,7 +359,13 @@ ModResult hook_dispatch_post(ModContext*, void* fnAddr, void* args, void* retval
     }
     for (auto& hook : it->second.post) {
         if (hook.postCallback != nullptr) {
-            hook.postCallback(hook.context, args, retval, hook.options.userdata);
+            try {
+                hook.postCallback(hook.context, args, retval, hook.options.userdata);
+            } catch (const std::exception& e) {
+                fail_hook_callback(hook.context, "post", e);
+            } catch (...) {
+                fail_unknown_hook_callback(hook.context, "post");
+            }
         }
     }
     return MOD_OK;

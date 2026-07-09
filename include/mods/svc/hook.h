@@ -43,11 +43,6 @@ typedef enum HookReplacePolicy {
     HOOK_REPLACE_OVERRIDE = 2, /* take over unconditionally */
 } HookReplacePolicy;
 
-typedef enum HookFlags {
-    HOOK_FLAG_NONE = 0u,
-    HOOK_FLAG_FAIL_ON_CONFLICT = 1u << 0u,
-} HookFlags;
-
 /*
  * Hook callbacks. `args` is an array of pointers to the call's arguments (index 0 is `this`
  * for member functions); `retval` points at the return slot (NULL for void). Read and write
@@ -63,12 +58,11 @@ typedef struct HookOptions {
     /* Higher runs first; ties break by registration order. Applies to pre/post ordering and,
      * with HOOK_REPLACE_PRIORITY, to replace-hook takeover. */
     int32_t priority;
-    uint32_t flags; /* HookFlags */
     HookReplacePolicy replace_policy;
     void* userdata; /* passed back to the callback */
 } HookOptions;
 
-#define HOOK_OPTIONS_INIT {sizeof(HookOptions), 0, HOOK_FLAG_NONE, HOOK_REPLACE_CONFLICT, NULL}
+#define HOOK_OPTIONS_INIT {sizeof(HookOptions), 0, HOOK_REPLACE_CONFLICT, NULL}
 
 typedef struct HookService {
     ServiceHeader header;

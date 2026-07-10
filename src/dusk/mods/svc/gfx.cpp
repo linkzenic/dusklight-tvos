@@ -1,4 +1,5 @@
 #include "registry.hpp"
+#include "slot_map.hpp"
 
 #include "aurora/lib/logging.hpp"
 #include "dusk/gfx.hpp"
@@ -35,9 +36,6 @@ enum class GfxStreamBuffer : uint8_t {
 
 struct GfxSlot {
     GfxSlotKind kind = GfxSlotKind::DrawType;
-    uint32_t generation = 1;
-    bool alive = false;
-    LoadedMod* owner = nullptr;
     ModContext* ownerContext = nullptr;
     std::string ownerId;
     void* userData = nullptr;
@@ -60,71 +58,37 @@ struct WorkerFailure {
 };
 
 std::mutex s_mutex;
-std::vector<GfxSlot> s_slots;
-std::vector<uint32_t> s_freeSlots;
+using GfxSlotMap = svc::SlotMap<GfxSlot>;
+GfxSlotMap s_slots;
 std::vector<WorkerFailure> s_workerFailures;
 bool s_modOffscreenOpen = false;
 
-constexpr uint64_t make_handle(uint32_t index, uint32_t generation) {
-    return static_cast<uint64_t>(generation) << 32 | index;
+GfxSlotMap::Entry* resolve_entry_locked(uint64_t handle, GfxSlotKind kind) {
+    auto* entry = s_slots.find(handle);
+    if (entry == nullptr || entry->value.kind != kind) {
+        return nullptr;
+    }
+    return entry;
 }
 
 GfxSlot* resolve_slot_locked(uint64_t handle, GfxSlotKind kind) {
-    const auto index = static_cast<uint32_t>(handle & 0xFFFFFFFFu);
-    const auto generation = static_cast<uint32_t>(handle >> 32);
-    if (handle == 0 || index >= s_slots.size()) {
-        return nullptr;
-    }
-    auto& slot = s_slots[index];
-    if (!slot.alive || slot.generation != generation || slot.kind != kind) {
-        return nullptr;
-    }
-    return &slot;
+    auto* entry = resolve_entry_locked(handle, kind);
+    return entry != nullptr ? &entry->value : nullptr;
 }
 
 GfxSlot* resolve_owned_slot_locked(LoadedMod& mod, uint64_t handle, GfxSlotKind kind) {
-    auto* slot = resolve_slot_locked(handle, kind);
-    if (slot == nullptr || slot->owner != &mod) {
+    auto* entry = s_slots.find_owned(handle, mod);
+    if (entry == nullptr || entry->value.kind != kind) {
         return nullptr;
     }
-    return slot;
+    return &entry->value;
 }
 
-uint32_t alloc_slot_locked() {
-    if (!s_freeSlots.empty()) {
-        const auto index = s_freeSlots.back();
-        s_freeSlots.pop_back();
-        return index;
-    }
-    const auto index = static_cast<uint32_t>(s_slots.size());
-    s_slots.emplace_back();
-    return index;
-}
-
-void free_slot_locked(uint32_t index) {
-    auto& slot = s_slots[index];
-    slot.alive = false;
-    ++slot.generation;
-    slot.owner = nullptr;
-    slot.ownerContext = nullptr;
-    slot.ownerId.clear();
-    slot.userData = nullptr;
-    slot.drawFn = nullptr;
-    slot.auroraDrawId = aurora::gfx::InvalidDrawType;
-    slot.stageFn = nullptr;
-    slot.stage = GFX_STAGE_SCENE_AFTER_TERRAIN;
-    slot.computeFn = nullptr;
-    slot.auroraTaskId = aurora::gfx::InvalidEncoderTask;
-    s_freeSlots.push_back(index);
-}
-
-void collect_mod_slots_locked(LoadedMod* owner, std::vector<aurora::gfx::DrawTypeId>& drawIds,
+void collect_mod_slots_locked(LoadedMod& owner, std::vector<aurora::gfx::DrawTypeId>& drawIds,
     std::vector<aurora::gfx::EncoderTaskId>& taskIds) {
-    for (uint32_t i = 0; i < s_slots.size(); ++i) {
-        auto& slot = s_slots[i];
-        if (!slot.alive || slot.owner != owner) {
-            continue;
-        }
+    auto entries = s_slots.take_all(owner);
+    for (auto& entry : entries) {
+        const auto& slot = entry.value;
         if (slot.kind == GfxSlotKind::DrawType && slot.auroraDrawId != aurora::gfx::InvalidDrawType)
         {
             drawIds.push_back(slot.auroraDrawId);
@@ -133,7 +97,6 @@ void collect_mod_slots_locked(LoadedMod* owner, std::vector<aurora::gfx::DrawTyp
         {
             taskIds.push_back(slot.auroraTaskId);
         }
-        free_slot_locked(i);
     }
 }
 
@@ -157,15 +120,16 @@ void draw_trampoline(const aurora::gfx::DrawContext& ctx, const wgpu::RenderPass
     std::string ownerId;
     {
         std::lock_guard lock{s_mutex};
-        auto* slot = resolve_slot_locked(handle, GfxSlotKind::DrawType);
-        if (slot == nullptr) {
+        auto* entry = resolve_entry_locked(handle, GfxSlotKind::DrawType);
+        if (entry == nullptr) {
             return;
         }
-        fn = slot->drawFn;
-        userData = slot->userData;
-        modContext = slot->ownerContext;
-        owner = slot->owner;
-        ownerId = slot->ownerId;
+        const auto& slot = entry->value;
+        fn = slot.drawFn;
+        userData = slot.userData;
+        modContext = slot.ownerContext;
+        owner = entry->owner;
+        ownerId = slot.ownerId;
     }
 
     GfxDrawContext drawContext{
@@ -200,7 +164,7 @@ void draw_trampoline(const aurora::gfx::DrawContext& ctx, const wgpu::RenderPass
         .modId = std::move(ownerId),
         .message = std::move(failure),
     };
-    collect_mod_slots_locked(owner, record.drawIds, record.taskIds);
+    collect_mod_slots_locked(*owner, record.drawIds, record.taskIds);
     s_workerFailures.push_back(std::move(record));
 }
 
@@ -214,15 +178,16 @@ void compute_trampoline(const aurora::gfx::EncoderTaskContext& ctx, const wgpu::
     std::string ownerId;
     {
         std::lock_guard lock{s_mutex};
-        auto* slot = resolve_slot_locked(handle, GfxSlotKind::ComputeType);
-        if (slot == nullptr) {
+        auto* entry = resolve_entry_locked(handle, GfxSlotKind::ComputeType);
+        if (entry == nullptr) {
             return;
         }
-        fn = slot->computeFn;
-        userData = slot->userData;
-        modContext = slot->ownerContext;
-        owner = slot->owner;
-        ownerId = slot->ownerId;
+        const auto& slot = entry->value;
+        fn = slot.computeFn;
+        userData = slot.userData;
+        modContext = slot.ownerContext;
+        owner = entry->owner;
+        ownerId = slot.ownerId;
     }
 
     GfxComputeContext computeContext{
@@ -251,7 +216,7 @@ void compute_trampoline(const aurora::gfx::EncoderTaskContext& ctx, const wgpu::
         .modId = std::move(ownerId),
         .message = std::move(failure),
     };
-    collect_mod_slots_locked(owner, record.drawIds, record.taskIds);
+    collect_mod_slots_locked(*owner, record.drawIds, record.taskIds);
     s_workerFailures.push_back(std::move(record));
 }
 
@@ -264,16 +229,13 @@ ModResult gfx_register_draw_type(
     uint64_t handle = 0;
     {
         std::lock_guard lock{s_mutex};
-        const auto index = alloc_slot_locked();
-        auto& slot = s_slots[index];
-        slot.kind = GfxSlotKind::DrawType;
-        slot.alive = true;
-        slot.owner = &mod;
-        slot.ownerContext = mod.context.get();
-        slot.ownerId = mod.metadata.id;
-        slot.userData = userData;
-        slot.drawFn = draw;
-        handle = make_handle(index, slot.generation);
+        handle = s_slots.emplace(mod, GfxSlot{
+                                          .kind = GfxSlotKind::DrawType,
+                                          .ownerContext = mod.context.get(),
+                                          .ownerId = mod.metadata.id,
+                                          .userData = userData,
+                                          .drawFn = draw,
+                                      });
     }
 
     const auto auroraId = aurora::gfx::register_draw_type(aurora::gfx::DrawTypeDescriptor{
@@ -283,9 +245,7 @@ ModResult gfx_register_draw_type(
     });
     if (auroraId == aurora::gfx::InvalidDrawType) {
         std::lock_guard lock{s_mutex};
-        if (resolve_owned_slot_locked(mod, handle, GfxSlotKind::DrawType) != nullptr) {
-            free_slot_locked(static_cast<uint32_t>(handle & 0xFFFFFFFFu));
-        }
+        s_slots.erase_owned(handle, mod);
         return MOD_ERROR;
     }
 
@@ -308,7 +268,7 @@ ModResult gfx_unregister_draw_type(LoadedMod& mod, uint64_t handle) {
             return MOD_INVALID_ARGUMENT;
         }
         auroraId = slot->auroraDrawId;
-        free_slot_locked(static_cast<uint32_t>(handle & 0xFFFFFFFFu));
+        s_slots.erase_owned(handle, mod);
     }
     aurora::gfx::unregister_draw_type(auroraId);
     return MOD_OK;
@@ -359,17 +319,14 @@ ModResult gfx_register_stage_hook(
     LoadedMod& mod, GfxStage stage, GfxStageFn callback, void* userData, uint64_t& outHandle) {
     outHandle = 0;
     std::lock_guard lock{s_mutex};
-    const auto index = alloc_slot_locked();
-    auto& slot = s_slots[index];
-    slot.kind = GfxSlotKind::StageHook;
-    slot.alive = true;
-    slot.owner = &mod;
-    slot.ownerContext = mod.context.get();
-    slot.ownerId = mod.metadata.id;
-    slot.userData = userData;
-    slot.stageFn = callback;
-    slot.stage = stage;
-    outHandle = make_handle(index, slot.generation);
+    outHandle = s_slots.emplace(mod, GfxSlot{
+                                         .kind = GfxSlotKind::StageHook,
+                                         .ownerContext = mod.context.get(),
+                                         .ownerId = mod.metadata.id,
+                                         .userData = userData,
+                                         .stageFn = callback,
+                                         .stage = stage,
+                                     });
     return MOD_OK;
 }
 
@@ -379,7 +336,7 @@ ModResult gfx_unregister_stage_hook(LoadedMod& mod, uint64_t handle) {
     if (slot == nullptr) {
         return MOD_INVALID_ARGUMENT;
     }
-    free_slot_locked(static_cast<uint32_t>(handle & 0xFFFFFFFFu));
+    s_slots.erase_owned(handle, mod);
     return MOD_OK;
 }
 
@@ -429,16 +386,13 @@ ModResult gfx_register_compute_type(
     uint64_t handle = 0;
     {
         std::lock_guard lock{s_mutex};
-        const auto index = alloc_slot_locked();
-        auto& slot = s_slots[index];
-        slot.kind = GfxSlotKind::ComputeType;
-        slot.alive = true;
-        slot.owner = &mod;
-        slot.ownerContext = mod.context.get();
-        slot.ownerId = mod.metadata.id;
-        slot.userData = userData;
-        slot.computeFn = callback;
-        handle = make_handle(index, slot.generation);
+        handle = s_slots.emplace(mod, GfxSlot{
+                                          .kind = GfxSlotKind::ComputeType,
+                                          .ownerContext = mod.context.get(),
+                                          .ownerId = mod.metadata.id,
+                                          .userData = userData,
+                                          .computeFn = callback,
+                                      });
     }
 
     const auto auroraId =
@@ -449,9 +403,7 @@ ModResult gfx_register_compute_type(
         });
     if (auroraId == aurora::gfx::InvalidEncoderTask) {
         std::lock_guard lock{s_mutex};
-        if (resolve_owned_slot_locked(mod, handle, GfxSlotKind::ComputeType) != nullptr) {
-            free_slot_locked(static_cast<uint32_t>(handle & 0xFFFFFFFFu));
-        }
+        s_slots.erase_owned(handle, mod);
         return MOD_ERROR;
     }
 
@@ -474,7 +426,7 @@ ModResult gfx_unregister_compute_type(LoadedMod& mod, uint64_t handle) {
             return MOD_INVALID_ARGUMENT;
         }
         auroraId = slot->auroraTaskId;
-        free_slot_locked(static_cast<uint32_t>(handle & 0xFFFFFFFFu));
+        s_slots.erase_owned(handle, mod);
     }
     aurora::gfx::unregister_encoder_task_type(auroraId);
     return MOD_OK;
@@ -510,18 +462,18 @@ void gfx_run_stage(
     std::vector<StageEntry> entries;
     {
         std::lock_guard lock{s_mutex};
-        for (uint32_t i = 0; i < s_slots.size(); ++i) {
-            const auto& slot = s_slots[i];
-            if (slot.alive && slot.kind == GfxSlotKind::StageHook && slot.stage == stage) {
+        s_slots.for_each([&](uint64_t handle, const auto& slotEntry) {
+            const auto& slot = slotEntry.value;
+            if (slot.kind == GfxSlotKind::StageHook && slot.stage == stage) {
                 entries.push_back(StageEntry{
-                    .handle = make_handle(i, slot.generation),
+                    .handle = handle,
                     .fn = slot.stageFn,
                     .userData = slot.userData,
                     .context = slot.ownerContext,
-                    .owner = slot.owner,
+                    .owner = slotEntry.owner,
                 });
             }
-        }
+        });
     }
     if (entries.empty()) {
         return;
@@ -600,7 +552,7 @@ void gfx_remove_mod(LoadedMod& mod) {
     std::vector<aurora::gfx::EncoderTaskId> taskIds;
     {
         std::lock_guard lock{s_mutex};
-        collect_mod_slots_locked(&mod, drawIds, taskIds);
+        collect_mod_slots_locked(mod, drawIds, taskIds);
     }
     if (drawIds.empty() && taskIds.empty()) {
         return;

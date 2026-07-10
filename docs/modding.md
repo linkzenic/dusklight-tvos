@@ -28,7 +28,7 @@ function, read and write data fields, and hook the vast majority of game functio
 
 ## Getting Started
 
-Fork the [mod template](../tools/mod_template/), a self-contained CMake project that uses the Dusklight mod SDK.
+Fork the [mod template](../mods/template_mod/), a self-contained CMake project that uses the Dusklight mod SDK.
 
 ```
 my_mod/

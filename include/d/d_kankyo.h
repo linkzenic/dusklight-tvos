@@ -471,7 +471,7 @@ public:
     /* 0x130C */ u8 staffroll_next_timer;
 };  // Size: 0x1310
 
-extern dScnKy_env_light_c g_env_light;
+DUSK_GAME_EXTERN dScnKy_env_light_c g_env_light;
 
 STATIC_ASSERT(sizeof(dScnKy_env_light_c) == 4880);
 

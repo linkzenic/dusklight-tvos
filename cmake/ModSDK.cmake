@@ -64,9 +64,6 @@ function(add_mod target_name)
             WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     target_compile_features(${target_name} PRIVATE cxx_std_20)
     target_link_libraries(${target_name} PRIVATE dusklight_game_headers)
-    if (WIN32 AND TARGET dawn::webgpu_dawn)
-        target_link_libraries(${target_name} PRIVATE dawn::webgpu_dawn)
-    endif ()
 
     if (NOT TARGET dusklight)
         # Apply global compile options for out-of-tree mod builds

@@ -409,6 +409,25 @@ existing documents restyle immediately, and future ones pick it up when created.
 host styles and may override them. Scope selectors tightly (use `[mod-id="..."]`!), especially for `UI_SCOPE_WINDOW`,
 unless changing host UI is intentional.
 
+### CameraService (`mods/svc/camera.h`)
+
+Converts a game view provided by a render callback into WebGPU-convention camera data. Matrix fields are column-major
+`float[16]` values using the matrix * column-vector convention (transpose of the game's row-major `Mtx`/`Mtx44` layout),
+ready to copy into WGSL `mat4x4f` uniforms.
+
+```cpp
+IMPORT_SERVICE(CameraService, svc_camera);
+
+CameraInfo camera = CAMERA_INFO_INIT;
+if (svc_camera->get_camera(mod_ctx, game_view, &camera) == MOD_OK) {
+    // camera.view_from_world, camera.proj_from_view, camera.eye, ...
+}
+```
+
+`get_camera` returns `MOD_UNAVAILABLE` while the view is not a valid perspective camera, such as before the
+first in-game frame. Projection matrices match the renderer's WebGPU clip convention and renderer depth convention
+(reversed-Z by default).
+
 ---
 
 ## Hooking Game Functions

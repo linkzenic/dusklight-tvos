@@ -4,6 +4,7 @@
 #include "JSystem/J3DGraphBase/J3DShapeDraw.h"
 #include "JSystem/J3DAssert.h"
 #include "JSystem/J3DGraphBase/J3DFifo.h"
+#include "JSystem/JMath/JMath.h"
 #include <mtx.h>
 #include "dusk/endian_gx.hpp"
 

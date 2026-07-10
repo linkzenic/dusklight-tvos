@@ -64,7 +64,7 @@ function(add_mod target_name)
             WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     target_compile_features(${target_name} PRIVATE cxx_std_20)
     target_link_libraries(${target_name} PRIVATE dusklight_game_headers)
-    if (TARGET dawn::webgpu_dawn)
+    if (WIN32 AND TARGET dawn::webgpu_dawn)
         target_link_libraries(${target_name} PRIVATE dawn::webgpu_dawn)
     endif ()
 

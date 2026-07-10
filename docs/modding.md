@@ -409,6 +409,35 @@ existing documents restyle immediately, and future ones pick it up when created.
 host styles and may override them. Scope selectors tightly (use `[mod-id="..."]`!), especially for `UI_SCOPE_WINDOW`,
 unless changing host UI is intentional.
 
+### GfxService (`mods/svc/gfx.h`)
+
+Direct WebGPU access at various stages of the rendering pipeline. Mods use the `wgpu*` C API (via `webgpu/webgpu.h`) for
+custom draws and compute dispatches. Mods must manage their own WebGPU state, including pipelines and bind groups.
+
+```cpp
+IMPORT_SERVICE(GfxService, svc_gfx);
+
+GfxDeviceInfo info = GFX_DEVICE_INFO_INIT;
+svc_gfx->get_device_info(mod_ctx, &info);
+```
+
+`register_stage_hook` runs a game-thread callback during frame recording. The public stages are:
+
+- `GFX_STAGE_SCENE_BEGIN`: world camera window after camera/projection/light setup
+- `GFX_STAGE_SCENE_AFTER_TERRAIN`: after terrain/shadow lists, before object and translucent lists
+- `GFX_STAGE_SCENE_AFTER_OPAQUE`: after sky/terrain/object opaque lists, before translucent lists
+- `GFX_STAGE_FRAME_BEFORE_HUD`: 3D scene and wipe are complete, before 2D/HUD lists
+- `GFX_STAGE_FRAME_AFTER_HUD`: full game scene, including HUD
+
+Inside a stage callback, record work with `push_draw`, stream per-frame data with `push_verts`, `push_indices`,
+`push_uniform`, or `push_storage`, snapshot the current frame with `resolve_pass`, and use `create_pass`/`resolve_pass`
+for temporary offscreen passes. Draw callbacks run later on the render worker thread with the live
+`WGPURenderPassEncoder`; they may use only their `GfxDrawContext` handles and raw `wgpu*` calls. Compute callbacks
+registered with `register_compute_type` follow the same worker-thread rule and run on the frame command encoder.
+
+All WGPU handles from the service are borrowed. Resolved target views are valid for the current frame only. GPU objects
+created by a mod are owned by that mod and should be released in `mod_shutdown`.
+
 ### CameraService (`mods/svc/camera.h`)
 
 Converts a game view provided by a render callback into WebGPU-convention camera data. Matrix fields are column-major

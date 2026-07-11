@@ -28,7 +28,7 @@ function, read and write data fields, and hook the vast majority of game functio
 
 ## Getting Started
 
-Fork the [mod template](../tools/mod_template/), a self-contained CMake project that uses the Dusklight mod SDK.
+Fork the [mod template](../mods/template_mod/), a self-contained CMake project that uses the Dusklight mod SDK.
 
 ```
 my_mod/
@@ -408,6 +408,54 @@ existing documents restyle immediately, and future ones pick it up when created.
 `UI_SCOPE_MENU_BAR`, `UI_SCOPE_OVERLAY`, `UI_SCOPE_TOUCH_CONTROLS`, and `UI_SCOPE_GRAPHICS_TUNER`. Sheets apply after
 host styles and may override them. Scope selectors tightly (use `[mod-id="..."]`!), especially for `UI_SCOPE_WINDOW`,
 unless changing host UI is intentional.
+
+### GfxService (`mods/svc/gfx.h`)
+
+Direct WebGPU access at various stages of the rendering pipeline. Mods use the `wgpu*` C API (via `webgpu/webgpu.h`) for
+custom draws and compute dispatches. Mods must manage their own WebGPU state, including pipelines and bind groups.
+
+```cpp
+IMPORT_SERVICE(GfxService, svc_gfx);
+
+GfxDeviceInfo info = GFX_DEVICE_INFO_INIT;
+svc_gfx->get_device_info(mod_ctx, &info);
+```
+
+`register_stage_hook` runs a game-thread callback during frame recording. The public stages are:
+
+- `GFX_STAGE_SCENE_BEGIN`: world camera window after camera/projection/light setup
+- `GFX_STAGE_SCENE_AFTER_TERRAIN`: after terrain/shadow lists, before object and translucent lists
+- `GFX_STAGE_SCENE_AFTER_OPAQUE`: after sky/terrain/object opaque lists, before translucent lists
+- `GFX_STAGE_FRAME_BEFORE_HUD`: 3D scene and wipe are complete, before 2D/HUD lists
+- `GFX_STAGE_FRAME_AFTER_HUD`: full game scene, including HUD
+
+Inside a stage callback, record work with `push_draw`, stream per-frame data with `push_verts`, `push_indices`,
+`push_uniform`, or `push_storage`, snapshot the current frame with `resolve_pass`, and use `create_pass`/`resolve_pass`
+for temporary offscreen passes. Draw callbacks run later on the render worker thread with the live
+`WGPURenderPassEncoder`; they may use only their `GfxDrawContext` handles and raw `wgpu*` calls. Compute callbacks
+registered with `register_compute_type` follow the same worker-thread rule and run on the frame command encoder.
+
+All WGPU handles from the service are borrowed. Resolved target views are valid for the current frame only. GPU objects
+created by a mod are owned by that mod and should be released in `mod_shutdown`.
+
+### CameraService (`mods/svc/camera.h`)
+
+Converts a game view provided by a render callback into WebGPU-convention camera data. Matrix fields are column-major
+`float[16]` values using the matrix * column-vector convention (transpose of the game's row-major `Mtx`/`Mtx44` layout),
+ready to copy into WGSL `mat4x4f` uniforms.
+
+```cpp
+IMPORT_SERVICE(CameraService, svc_camera);
+
+CameraInfo camera = CAMERA_INFO_INIT;
+if (svc_camera->get_camera(mod_ctx, game_view, &camera) == MOD_OK) {
+    // camera.view_from_world, camera.proj_from_view, camera.eye, ...
+}
+```
+
+`get_camera` returns `MOD_UNAVAILABLE` while the view is not a valid perspective camera, such as before the
+first in-game frame. Projection matrices match the renderer's WebGPU clip convention and renderer depth convention
+(reversed-Z by default).
 
 ---
 

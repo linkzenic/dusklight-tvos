@@ -37,6 +37,16 @@ function(setup_windows_exports target)
         endif ()
     endforeach ()
 
+    set(_forward_args)
+    if (TARGET dawn::webgpu_dawn)
+        get_target_property(_dawn_type dawn::webgpu_dawn TYPE)
+        if (_dawn_type STREQUAL "SHARED_LIBRARY")
+            list(APPEND _forward_args
+                    --forward-dll "$<TARGET_FILE:dawn::webgpu_dawn>"
+                    --forward-sym-prefix wgpu)
+        endif ()
+    endif ()
+
     # Generate curated exports list from the main binary
     set(_def "${CMAKE_BINARY_DIR}/${_config_subdir}dusklight_exports.def")
     add_custom_command(TARGET ${target} PRE_LINK
@@ -50,6 +60,7 @@ function(setup_windows_exports target)
             --exclude asan_options
             --max-exports 58000
             ${_sdk_args}
+            ${_forward_args}
             COMMENT "Generating dusklight exports"
             VERBATIM)
     target_link_options(${target} PRIVATE "/DEF:${_def}")

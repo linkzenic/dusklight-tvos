@@ -1,7 +1,7 @@
 # Dusklight Mod SDK entry point
 #
-# Provides game/service headers, compile definitions and version.h without
-# configuring the full game tree.
+# Provides game/service headers, compile definitions, version.h and WebGPU
+# headers without configuring the full game tree.
 #
 # Usage (from a mod project):
 #   add_subdirectory(<dusk>/sdk dusk-sdk EXCLUDE_FROM_ALL)
@@ -29,6 +29,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/DetectVersion.cmake")
 detect_version()
 configure_version_header()
+
+# Provides dawn::webgpu_dawn and dawn::dawncpp_headers for public gfx service headers.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../extern/aurora/cmake/AuroraDependencyVersions.cmake")
+set(AURORA_DAWN_PROVIDER "package" CACHE STRING "How to provide Dawn for the mod SDK")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../extern/aurora/cmake/AuroraDawnProvider.cmake")
 
 # Game ABI headers & compile definitions
 include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/GameABIConfig.cmake")

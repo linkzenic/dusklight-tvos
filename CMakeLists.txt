@@ -304,6 +304,7 @@ source_group("dusklight" FILES ${DUSK_FILES} ${DUSK_HTTP_BACKEND_FILES})
 include(cmake/GameABIConfig.cmake)
 
 find_package(Threads REQUIRED)
+set(GAME_COMPILE_DEFS DUSK_BUILDING_GAME=1)
 set(GAME_LIBS aurora::core aurora::gx aurora::gd aurora::si aurora::vi aurora::pad aurora::mtx aurora::os aurora::dvd
     aurora::card freeverb cxxopts::cxxopts absl::flat_hash_map nlohmann_json::nlohmann_json TracyClient fmt::fmt
     Threads::Threads zstd::libzstd dusklight_game_headers)
@@ -559,7 +560,9 @@ include(cmake/ModSDK.cmake)
 
 if (DUSK_ENABLE_CODE_MODS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_custom_target(dusklight_mods) # Aggregate target for all in-tree mods
-    add_subdirectory(tools/mod_template)
+    add_subdirectory(mods/template_mod)
+    add_subdirectory(mods/ao_mod)
+    add_subdirectory(mods/shadow_mod)
 endif ()
 
 if (APPLE)

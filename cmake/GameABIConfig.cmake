@@ -25,3 +25,8 @@ set(_game_include_dirs
 add_library(dusklight_game_headers INTERFACE)
 target_include_directories(dusklight_game_headers INTERFACE ${_game_include_dirs})
 target_compile_definitions(dusklight_game_headers INTERFACE ${_game_compile_defs})
+if (TARGET dawn::dawncpp_headers)
+    target_link_libraries(dusklight_game_headers INTERFACE dawn::dawncpp_headers)
+elseif (TARGET dawn::webgpu_dawn)
+    target_link_libraries(dusklight_game_headers INTERFACE dawn::webgpu_dawn)
+endif ()

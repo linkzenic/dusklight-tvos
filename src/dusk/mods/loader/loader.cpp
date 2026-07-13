@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -16,6 +17,7 @@
 #include "dusk/io.hpp"
 #include "dusk/mods/log_buffer.hpp"
 #include "dusk/mods/svc/config.hpp"
+#include "dusk/mods/svc/hook.hpp"
 #include "dusk/mods/svc/registry.hpp"
 #include "dusk/ui/mods_window.hpp"
 #include "dusk/ui/ui.hpp"
@@ -220,31 +222,149 @@ static ModMetadata load_metadata(const std::filesystem::path& modPath, ModBundle
     };
 }
 
-static bool validate_manifest(const ModManifest* manifest, LoadedMod& mod) {
-    if (manifest == nullptr) {
-        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "returned a null mod manifest");
-        mod.nativeStatus = NativeModStatus::MissingExport;
+// True if the first `capacity` bytes of `str` contain a NUL.
+static bool terminated_within(const char* str, size_t capacity) {
+    return std::memchr(str, '\0', capacity) != nullptr;
+}
+
+static bool parse_meta(NativeMod& native, LoadedMod& mod) {
+    const ModMeta* meta = native.meta;
+    if (meta->struct_size < sizeof(ModMeta)) {
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "mod_meta descriptor has invalid size {}",
+            meta->struct_size);
+        mod.nativeStatus = NativeModStatus::InvalidMetadata;
         return false;
     }
-    if (manifest->struct_size != sizeof(ModManifest)) {
-        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "manifest has invalid size {} (expected {})",
-            manifest->struct_size, sizeof(ModManifest));
-        mod.nativeStatus = NativeModStatus::ApiVersionMismatch;
-        return false;
-    }
-    if (manifest->abi_version != MOD_ABI_VERSION) {
-        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "expects ABI v{} but engine is v{}, skipping",
-            manifest->abi_version, MOD_ABI_VERSION);
-        mod.nativeStatus = NativeModStatus::ApiVersionMismatch;
-        return false;
-    }
-    if ((manifest->import_count > 0 && manifest->imports == nullptr) ||
-        (manifest->export_count > 0 && manifest->exports == nullptr))
+    const auto* cursor = static_cast<const uint8_t*>(meta->records_begin);
+    const auto* end = static_cast<const uint8_t*>(meta->records_end);
+    if (cursor == nullptr || end == nullptr || cursor > end ||
+        (reinterpret_cast<uintptr_t>(cursor) & 7) != 0)
     {
-        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "manifest has invalid import/export arrays");
-        mod.nativeStatus = NativeModStatus::MissingExport;
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "mod_meta section bounds are invalid");
+        mod.nativeStatus = NativeModStatus::InvalidMetadata;
         return false;
     }
+
+    ModMetaParsed parsed;
+    size_t headerCount = 0;
+    const auto invalid = [&](std::string_view why) {
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "invalid metadata record at offset {}: {}",
+            cursor - static_cast<const uint8_t*>(meta->records_begin), why);
+        mod.nativeStatus = NativeModStatus::InvalidMetadata;
+        return false;
+    };
+
+    while (cursor < end) {
+        if (end - cursor < 8) {
+            return invalid("trailing bytes");
+        }
+        uint64_t first = 0;
+        std::memcpy(&first, cursor, sizeof(first));
+        if (first == 0) {  // linker padding / bounds sentinel
+            cursor += 8;
+            continue;
+        }
+
+        const auto* rec = reinterpret_cast<const ModMetaRecord*>(cursor);
+        const size_t size = rec->size;
+        if (size < 8 || size % 8 != 0 || size > static_cast<size_t>(end - cursor)) {
+            return invalid("bad record size");
+        }
+
+        switch (rec->kind) {
+        case MOD_META_PAD:
+            break;
+        case MOD_META_HEADER: {
+            if (size < sizeof(ModMetaHeader)) {
+                return invalid("truncated header record");
+            }
+            const auto* header = reinterpret_cast<const ModMetaHeader*>(rec);
+            ++headerCount;
+            parsed.abiVersion = header->abi_version;
+            break;
+        }
+        case MOD_META_IMPORT: {
+            if (size < sizeof(ModMetaImport)) {
+                return invalid("truncated import record");
+            }
+            auto* record = reinterpret_cast<ModMetaImport*>(const_cast<uint8_t*>(cursor));
+            if (!terminated_within(record->service_id, sizeof(record->service_id))) {
+                return invalid("unterminated import service id");
+            }
+            parsed.imports.push_back(record);
+            break;
+        }
+        case MOD_META_EXPORT: {
+            if (size < sizeof(ModMetaExport)) {
+                return invalid("truncated export record");
+            }
+            auto* record = reinterpret_cast<ModMetaExport*>(const_cast<uint8_t*>(cursor));
+            if (!terminated_within(record->service_id, sizeof(record->service_id))) {
+                return invalid("unterminated export service id");
+            }
+            parsed.exports.push_back(record);
+            break;
+        }
+        case MOD_META_HOOK_FN: {
+            if (size < sizeof(ModMetaHookFn)) {
+                return invalid("truncated hook record");
+            }
+            parsed.hookFns.push_back(
+                reinterpret_cast<ModMetaHookFn*>(const_cast<uint8_t*>(cursor)));
+            break;
+        }
+        case MOD_META_HOOK_MEM: {
+            if (size <= sizeof(ModMetaHookMem)) {
+                return invalid("truncated hook record");
+            }
+            auto* record = reinterpret_cast<ModMetaHookMem*>(const_cast<uint8_t*>(cursor));
+            const char* strings = reinterpret_cast<const char*>(cursor) + sizeof(ModMetaHookMem);
+            const size_t capacity = size - sizeof(ModMetaHookMem);
+            if (!terminated_within(strings, capacity)) {
+                return invalid("unterminated hook vtable symbol");
+            }
+            const size_t vtableLen = std::char_traits<char>::length(strings);
+            if (!terminated_within(strings + vtableLen + 1, capacity - vtableLen - 1)) {
+                return invalid("unterminated hook display name");
+            }
+            parsed.hookMems.push_back(record);
+            break;
+        }
+        case MOD_META_HOOK_NAME: {
+            if (size <= sizeof(ModMetaHookName)) {
+                return invalid("truncated hook record");
+            }
+            auto* record = reinterpret_cast<ModMetaHookName*>(const_cast<uint8_t*>(cursor));
+            const char* name = reinterpret_cast<const char*>(cursor) + sizeof(ModMetaHookName);
+            if (!terminated_within(name, size - sizeof(ModMetaHookName))) {
+                return invalid("unterminated hook symbol name");
+            }
+            parsed.hookNames.push_back(record);
+            break;
+        }
+        default:
+            // Additive record kinds may appear within a format version; skip them.
+            log::write(mod.metadata.id, LOG_LEVEL_DEBUG, "skipping unknown metadata record kind {}",
+                rec->kind);
+            break;
+        }
+        cursor += size;
+    }
+
+    if (headerCount != 1) {
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "expected 1 metadata header record, found {}",
+            headerCount);
+        mod.nativeStatus = NativeModStatus::InvalidMetadata;
+        return false;
+    }
+    if (parsed.abiVersion != MOD_ABI_VERSION) {
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "expects ABI v{} but engine is v{}, skipping",
+            parsed.abiVersion, MOD_ABI_VERSION);
+        mod.nativeStatus = NativeModStatus::ApiVersionMismatch;
+        return false;
+    }
+
+    native.parsed = std::move(parsed);
     return true;
 }
 
@@ -276,6 +396,8 @@ static std::string native_status_message(const NativeModStatus status) {
         return "Mod ABI version mismatch";
     case NativeModStatus::MissingExport:
         return "Missing required mod API exports";
+    case NativeModStatus::InvalidMetadata:
+        return "Invalid mod metadata records";
     case NativeModStatus::Unknown:
         return "Unknown mod load failure";
     case NativeModStatus::None:
@@ -375,13 +497,13 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
         return;
     }
 
-    const auto getManifest = nativeMod->handle->LookupSymbol<ModGetManifestFn>("mod_get_manifest");
+    nativeMod->meta = nativeMod->handle->LookupSymbol<const ModMeta*>("mod_meta");
     nativeMod->contextSymbol = nativeMod->handle->LookupSymbol<ModContext**>("mod_ctx");
     nativeMod->fn_initialize = nativeMod->handle->LookupSymbol<ModInitializeFn>("mod_initialize");
     nativeMod->fn_update = nativeMod->handle->LookupSymbol<ModUpdateFn>("mod_update");
     nativeMod->fn_shutdown = nativeMod->handle->LookupSymbol<ModShutdownFn>("mod_shutdown");
 
-    if (!getManifest || !nativeMod->contextSymbol || !nativeMod->fn_initialize ||
+    if (!nativeMod->meta || !nativeMod->contextSymbol || !nativeMod->fn_initialize ||
         !nativeMod->fn_update || !nativeMod->fn_shutdown)
     {
         log::write(mod.metadata.id, LOG_LEVEL_ERROR,
@@ -391,8 +513,7 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
         return;
     }
 
-    nativeMod->manifest = getManifest();
-    if (!validate_manifest(nativeMod->manifest, mod)) {
+    if (!parse_meta(*nativeMod, mod)) {
         return;
     }
 
@@ -427,28 +548,22 @@ void ModLoader::drain_retired_natives() {
     m_retiredNatives.clear();
 }
 
-static ModManifestInfo build_manifest_info(const ModManifest& manifest) {
+static ModManifestInfo build_manifest_info(const ModMetaParsed& parsed) {
     ModManifestInfo info;
-    info.imports.reserve(manifest.import_count);
-    for (size_t i = 0; i < manifest.import_count; ++i) {
-        const auto& serviceImport = manifest.imports[i];
-        if (serviceImport.struct_size != sizeof(ServiceImport) ||
-            !svc::valid_service_id(serviceImport.service_id))
-        {
+    info.imports.reserve(parsed.imports.size());
+    for (const auto* record : parsed.imports) {
+        if (!svc::valid_service_id(record->service_id)) {
             continue;
         }
-        info.imports.push_back({serviceImport.service_id, serviceImport.major_version,
-            (serviceImport.flags & SERVICE_IMPORT_OPTIONAL) == 0});
+        info.imports.push_back({record->service_id, record->major_version,
+            (record->rec.flags & SERVICE_IMPORT_OPTIONAL) == 0});
     }
-    info.exports.reserve(manifest.export_count);
-    for (size_t i = 0; i < manifest.export_count; ++i) {
-        const auto& serviceExport = manifest.exports[i];
-        if (serviceExport.struct_size != sizeof(ServiceExport) ||
-            !svc::valid_service_id(serviceExport.service_id))
-        {
+    info.exports.reserve(parsed.exports.size());
+    for (const auto* record : parsed.exports) {
+        if (!svc::valid_service_id(record->service_id)) {
             continue;
         }
-        info.exports.push_back({serviceExport.service_id, serviceExport.major_version});
+        info.exports.push_back({record->service_id, record->major_version});
     }
     return info;
 }
@@ -484,24 +599,20 @@ static bool required_deps_active(const LoadedMod& mod) {
 // A deferred export that was not published by the end of the provider's initialization can
 // never resolve, which is almost certainly a bug in the provider.
 static void warn_unpublished_deferred_exports(const LoadedMod& mod) {
-    if (!mod.active || !mod.native || mod.native->manifest == nullptr) {
+    if (!mod.active || !mod.native) {
         return;
     }
 
-    const auto& manifest = *mod.native->manifest;
-    for (size_t i = 0; i < manifest.export_count; ++i) {
-        const auto& serviceExport = manifest.exports[i];
-        if (serviceExport.struct_size != sizeof(ServiceExport) ||
-            (serviceExport.flags & SERVICE_EXPORT_DEFERRED) == 0)
-        {
+    for (const auto* serviceExport : mod.native->parsed.exports) {
+        if ((serviceExport->rec.flags & SERVICE_EXPORT_DEFERRED) == 0) {
             continue;
         }
         const auto* record =
-            svc::find_service_record(serviceExport.service_id, serviceExport.major_version);
+            svc::find_service_record(serviceExport->service_id, serviceExport->major_version);
         if (record != nullptr && record->service == nullptr) {
             log::write(mod.metadata.id, LOG_LEVEL_WARN,
                 "declared deferred service '{}@{}' but never published it during initialization",
-                serviceExport.service_id, serviceExport.major_version);
+                serviceExport->service_id, serviceExport->major_version);
         }
     }
 }
@@ -560,7 +671,7 @@ void ModLoader::try_load_mod(
             Log.error("Native mod '{}' failed to load, disabling", mod.metadata.id);
             fail_mod(mod, MOD_ERROR, native_status_message(mod.nativeStatus));
         } else {
-            mod.manifestInfo = build_manifest_info(*mod.native->manifest);
+            mod.manifestInfo = build_manifest_info(mod.native->parsed);
         }
     }
 
@@ -592,6 +703,8 @@ bool ModLoader::activate_mod(LoadedMod& mod) {
         deactivate_mod(mod);
         return false;
     }
+
+    svc::hook_resolve_mod_records(mod);
 
     *mod.native->contextSymbol = mod.context.get();
 
@@ -929,7 +1042,7 @@ bool ModLoader::reload_bundle(LoadedMod& mod) {
             fail_mod(mod, MOD_ERROR, native_status_message(mod.nativeStatus));
             return false;
         }
-        newInfo = build_manifest_info(*mod.native->manifest);
+        newInfo = build_manifest_info(mod.native->parsed);
     } else {
         mod.nativeStatus = NativeModStatus::None;
         ++mod.cacheGeneration;
@@ -998,8 +1111,7 @@ void ModLoader::apply_lifecycle_change(LoadedMod& target, const bool reload) {
             if (register_static_service_exports(*mod)) {
                 mod->servicesRegistered = true;
             } else {
-                log::write(
-                    mod->metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
+                log::write(mod->metadata.id, LOG_LEVEL_ERROR, "failed to register service exports");
                 deactivate_mod(*mod);
             }
         }

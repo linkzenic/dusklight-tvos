@@ -469,7 +469,13 @@ Mods may hook the vast majority of game functions, including file-local static, 
 #include "mods/svc/hook.h"
 
 IMPORT_SERVICE(HookService, svc_hook);
+
+DEFINE_HOOK(&daAlink_c::posMove, LinkPosMove);
+DEFINE_HOOK(&daAlink_c::execute, LinkExecute);
 ```
+
+Every hook target must be **declared** at namespace scope with `DEFINE_HOOK` (a target you can name in C++) or
+`DEFINE_HOOK_SYMBOL` (a symbol name).
 
 ### Pre-hooks
 
@@ -484,7 +490,7 @@ HookAction on_pos_move_pre(ModContext*, void* args, void* retval, void* userdata
     return HOOK_CONTINUE;
 }
 
-dusk::mods::hook_add_pre<&daAlink_c::posMove>(svc_hook, on_pos_move_pre);
+dusk::mods::hook_add_pre<LinkPosMove>(svc_hook, on_pos_move_pre);
 ```
 
 ### Post-hooks
@@ -495,24 +501,22 @@ if any.
 ```cpp
 void on_pos_move_post(ModContext*, void* args, void* retval, void* userdata) { ... }
 
-dusk::mods::hook_add_post<&daAlink_c::posMove>(svc_hook, on_pos_move_post);
+dusk::mods::hook_add_post<LinkPosMove>(svc_hook, on_pos_move_post);
 ```
 
 ### Replace-hooks
 
-Substitute the original entirely. Call through to it via `Hook<...>::g_orig` if needed:
+Substitute the original entirely. Call through to it via the declaration's `g_orig` if needed:
 
 ```cpp
-using ExecuteEntry = dusk::mods::Hook<&daAlink_c::execute>;
-
 void on_execute_replace(ModContext*, void* args, void* retval, void*) {
-    int result = ExecuteEntry::g_orig(dusk::mods::arg<daAlink_c*>(args, 0));
+    int result = LinkExecute::g_orig(dusk::mods::arg<daAlink_c*>(args, 0));
     if (retval != nullptr) {
         *static_cast<int*>(retval) = result;
     }
 }
 
-dusk::mods::hook_replace<&daAlink_c::execute>(svc_hook, on_execute_replace);
+dusk::mods::hook_replace<LinkExecute>(svc_hook, on_execute_replace);
 ```
 
 By default a second replace-hook on the same function is a conflict; `HookOptions` (`replace_policy`, `priority`,
@@ -525,10 +529,8 @@ Functions you can't name in C++ (file-local statics, private class members, anyt
 symbol name instead. You must supply the signature along with the name.
 
 ```cpp
-// static callback used by Link's hookshot collider in d_a_alink_hook.inc
-using HookshotHit = dusk::mods::NamedHook<
-    "daAlink_hookshotAtHitCallBack",
-    void(fopAc_ac_c*, dCcD_GObjInf*, fopAc_ac_c*, dCcD_GObjInf*)>;
+DEFINE_HOOK_SYMBOL("daAlink_hookshotAtHitCallBack",
+    void(fopAc_ac_c*, dCcD_GObjInf*, fopAc_ac_c*, dCcD_GObjInf*), HookshotHit);
 
 dusk::mods::hook_add_pre<HookshotHit>(svc_hook, on_hookshot_hit_pre);
 ...
@@ -537,9 +539,16 @@ HookshotHit::g_orig(link, atObjInf, target, tgObjInf);  // call through to the o
 
 Class member functions must include `Class*` as the first argument.
 
-The install fails with the resolve error when the name is missing (`MOD_UNAVAILABLE`), ambiguous (`MOD_CONFLICT`),
-or the manifest is absent (`MOD_UNSUPPORTED`). Unlike `Hook<&Class::method>`, the signature is **not**
-compiler-checked: a mismatched signature will corrupt the call.
+Two spellings work on every platform:
+
+- **Display names** (`daAlink_c::posMove`, `fapGm_Before`): the qualified name with no parameter list. They carry no
+  signature, so overload sets (and file-local statics sharing a name) return `MOD_CONFLICT`.
+- **Decorated names** (`_ZN9daAlink_c7posMoveEv` / `?posMove@daAlink_c@@...`): the platform's mangled spelling in
+  dlsym convention (no Mach-O leading underscore). The escape hatch for overloads.
+
+Installing fails with `MOD_UNAVAILABLE` when it didn't resolve (missing, ambiguous, or no symbol manifest). Unlike
+`DEFINE_HOOK`, the signature is **not** compiler-checked: a mismatched signature will corrupt the
+call.
 
 ### Reading and writing arguments
 
@@ -552,6 +561,8 @@ T& ref   = dusk::mods::arg_ref<T>(args, n);  // read/write reference
 ```
 
 ```cpp
+DEFINE_HOOK(fopAcM_createItem, CreateItem);
+
 // fpc_ProcID fopAcM_createItem(..., int itemNo, ...): turn heart drops into green rupees
 HookAction on_create_item_pre(ModContext*, void* args, void*, void*) {
     int& itemNo = dusk::mods::arg_ref<int>(args, 1);
@@ -561,35 +572,10 @@ HookAction on_create_item_pre(ModContext*, void* args, void*, void*) {
     return HOOK_CONTINUE;
 }
 
-dusk::mods::hook_add_pre<&fopAcM_createItem>(svc_hook, on_create_item_pre);
+dusk::mods::hook_add_pre<CreateItem>(svc_hook, on_create_item_pre);
 ```
 
 For reference parameters (e.g. `const cXyz& pos`), `arg_ref<cXyz>` yields a direct reference.
-
-### Resolving symbols by name
-
-`resolve` looks a symbol up in the **symbol manifest**: a name→address map generated alongside every game build and
-keyed to that exact binary. It covers the whole image, including functions that aren't exported (file-local statics),
-which makes them hookable:
-
-```cpp
-IMPORT_SERVICE(HookService, svc_hook);
-
-void* addr = nullptr;
-uint32_t flags = 0;
-if (svc_hook->resolve(mod_ctx, "GXSetProjection", &addr, &flags) == MOD_OK) {
-    // addr is the function's real address in the running game; hook or call it.
-}
-```
-
-Two spellings work on every platform:
-
-- **Display names** (`daAlink_c::posMove`, `fapGm_Before`): the qualified name with no parameter list. They carry no
-  signature, so overload sets (and file-local statics sharing a name) return `MOD_CONFLICT`.
-- **Decorated names** (`_ZN9daAlink_c7posMoveEv` / `?posMove@daAlink_c@@...`): the platform's mangled spelling in
-  dlsym convention (no Mach-O leading underscore). The escape hatch for overloads.
-
-`MOD_UNSUPPORTED` means the manifest is missing or was built for a different game binary.
 
 ### Game code ABI contract
 

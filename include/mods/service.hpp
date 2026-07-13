@@ -46,10 +46,13 @@ inline ModResult set_error(ModError* outError, ModResult code, const char* messa
 #define IMPORT_SERVICE_EX(                                                                         \
     service_type, variable, service_id_value, major_value, min_minor_value, flags_value)           \
     static const service_type* variable = nullptr;                                                 \
-    MOD_META_RECORD static constinit ModMetaImport mod_meta_import_##variable =                    \
-        ::dusk::mods::detail::make_import((service_id_value), static_cast<uint16_t>(major_value),  \
-            static_cast<uint16_t>(min_minor_value), static_cast<uint8_t>(flags_value),             \
-            &(variable))
+    MOD_META_RECORD static constinit ModMetaImport mod_meta_import_##variable = {                  \
+        {sizeof(ModMetaImport), MOD_META_IMPORT, static_cast<uint8_t>(flags_value)},               \
+        static_cast<uint16_t>(major_value),                                                        \
+        static_cast<uint16_t>(min_minor_value),                                                    \
+        &(variable),                                                                               \
+        ::dusk::mods::detail::make_service_id(service_id_value),                                   \
+    }
 
 #define IMPORT_SERVICE_VERSION(service_type, variable, min_minor_value)                            \
     IMPORT_SERVICE_EX(service_type, variable, ::dusk::mods::ServiceTraits<service_type>::id,       \
@@ -67,15 +70,23 @@ inline ModResult set_error(ModError* outError, ModResult code, const char* messa
     IMPORT_OPTIONAL_SERVICE_VERSION(service_type, variable, 0)
 
 #define EXPORT_SERVICE_AS(instance, service_id_value)                                              \
-    MOD_META_RECORD static constinit ModMetaExport mod_meta_export_##instance =                    \
-        ::dusk::mods::detail::make_export((service_id_value), (instance).header.major_version,     \
-            (instance).header.minor_version, SERVICE_EXPORT_STATIC, &(instance))
+    MOD_META_RECORD static constinit ModMetaExport mod_meta_export_##instance = {                  \
+        {sizeof(ModMetaExport), MOD_META_EXPORT, SERVICE_EXPORT_STATIC},                           \
+        (instance).header.major_version,                                                           \
+        (instance).header.minor_version,                                                           \
+        &(instance),                                                                               \
+        ::dusk::mods::detail::make_service_id(service_id_value),                                   \
+    }
 
 #define EXPORT_SERVICE(instance)                                                                   \
     EXPORT_SERVICE_AS(                                                                             \
         instance, ::dusk::mods::ServiceTraits<std::remove_cv_t<decltype(instance)>>::id)
 
 #define EXPORT_DEFERRED_SERVICE(token, service_id_value, major_value, minor_value)                 \
-    MOD_META_RECORD static constinit ModMetaExport mod_meta_export_##token =                       \
-        ::dusk::mods::detail::make_export((service_id_value), static_cast<uint16_t>(major_value),  \
-            static_cast<uint16_t>(minor_value), SERVICE_EXPORT_DEFERRED, nullptr)
+    MOD_META_RECORD static constinit ModMetaExport mod_meta_export_##token = {                     \
+        {sizeof(ModMetaExport), MOD_META_EXPORT, SERVICE_EXPORT_DEFERRED},                         \
+        static_cast<uint16_t>(major_value),                                                        \
+        static_cast<uint16_t>(minor_value),                                                        \
+        nullptr,                                                                                   \
+        ::dusk::mods::detail::make_service_id(service_id_value),                                   \
+    }

@@ -156,6 +156,10 @@ typedef struct ModMetaRecord {
     uint8_t flags; /* ServiceImportFlags / ServiceExportFlags for imports/exports */
 } ModMetaRecord;
 
+typedef struct ModMetaServiceId {
+    char chars[MOD_META_SERVICE_ID_SIZE]; /* NUL-terminated */
+} ModMetaServiceId;
+
 typedef struct MOD_META_ALIGN ModMetaHeader {
     ModMetaRecord rec;
     uint32_t abi_version;
@@ -168,7 +172,7 @@ typedef struct MOD_META_ALIGN ModMetaImport {
     uint16_t major_version;
     uint16_t min_minor_version;
     void* slot; /* runtime only */
-    char service_id[MOD_META_SERVICE_ID_SIZE];
+    ModMetaServiceId service_id;
 } ModMetaImport;
 
 static_assert(sizeof(ModMetaImport) == 16 + MOD_META_SERVICE_ID_SIZE);
@@ -178,7 +182,7 @@ typedef struct MOD_META_ALIGN ModMetaExport {
     uint16_t major_version;
     uint16_t minor_version;
     const void* service; /* runtime only */
-    char service_id[MOD_META_SERVICE_ID_SIZE];
+    ModMetaServiceId service_id;
 } ModMetaExport;
 
 static_assert(sizeof(ModMetaExport) == 16 + MOD_META_SERVICE_ID_SIZE);

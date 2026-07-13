@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 /*
  * modmeta records. Each IMPORT_SERVICE/EXPORT_SERVICE/DEFINE_HOOK use places one
@@ -141,44 +142,16 @@ struct member_traits<R (C::*)(A...) const> {
     using Class = C;
 };
 
-consteval size_t cstr_len(const char* s) {
-    size_t n = 0;
-    while (s[n] != '\0') {
-        ++n;
-    }
-    return n;
-}
-
-consteval void copy_service_id(char (&dst)[MOD_META_SERVICE_ID_SIZE], const char* id) {
+consteval ModMetaServiceId make_service_id(const char* id) {
+    ModMetaServiceId out{};
     size_t n = 0;
     for (; id[n] != '\0'; ++n) {
         if (n + 1 >= MOD_META_SERVICE_ID_SIZE) {
             throw "service id exceeds MOD_META_SERVICE_ID_SIZE";
         }
-        dst[n] = id[n];
+        out.chars[n] = id[n];
     }
-}
-
-consteval ModMetaImport make_import(
-    const char* serviceId, uint16_t major, uint16_t minMinor, uint8_t flags, void* slot) {
-    ModMetaImport r{};
-    r.rec = {sizeof(ModMetaImport), MOD_META_IMPORT, flags};
-    r.major_version = major;
-    r.min_minor_version = minMinor;
-    r.slot = slot;
-    copy_service_id(r.service_id, serviceId);
-    return r;
-}
-
-consteval ModMetaExport make_export(
-    const char* serviceId, uint16_t major, uint16_t minor, uint8_t flags, const void* service) {
-    ModMetaExport r{};
-    r.rec = {sizeof(ModMetaExport), MOD_META_EXPORT, flags};
-    r.major_version = major;
-    r.minor_version = minor;
-    r.service = service;
-    copy_service_id(r.service_id, serviceId);
-    return r;
+    return out;
 }
 
 consteval ModMetaHeader make_header() {
@@ -227,39 +200,73 @@ constexpr size_t align_up(size_t n) {
     return (n + (N - 1)) & ~(N - 1);
 }
 
+template <size_t N>
+struct HookMemNames {
+    char chars[N]{};
+    size_t len{};
+};
+
 template <auto Target, FixedString Disp>
-consteval auto make_hook_record() {
-    using F = decltype(Target);
+consteval auto make_hook_mem_names() {
+    using C = member_traits<decltype(Target)>::Class;
     // Strip the leading '&' of the stringified target expression for display.
     constexpr size_t dispFrom = Disp.chars[0] == '&' ? 1 : 0;
     constexpr size_t dispLen = sizeof(Disp.chars) - 1 - dispFrom;
-    if constexpr (std::is_member_function_pointer_v<F>) {
-        using C = member_traits<F>::Class;
-        static_assert(sizeof(F) <= 16, "unsupported pointer-to-member representation");
-        constexpr auto vtbl = vtable_symbol<C>();
-        constexpr size_t vtblLen = std::string_view{vtbl.data()}.size();
-        constexpr size_t n = align_up<8>(vtblLen + 1 + dispLen + 1);
-        HookMemRecord<F, n> r{};
-        r.rec = {sizeof(r), MOD_META_HOOK_MEM, 0};
-        r.pmf.fn = Target;
-        size_t at = 0;
-        for (size_t i = 0; i < vtblLen; ++i) {
-            r.names[at++] = vtbl[i];
-        }
-        r.names[at++] = '\0';
-        for (size_t i = 0; i < dispLen; ++i) {
-            r.names[at++] = Disp.chars[dispFrom + i];
-        }
-        return r;
-    } else {
-        static_assert(std::is_pointer_v<F> && std::is_function_v<std::remove_pointer_t<F>>,
-            "hook target must be a function or member function");
-        HookFnRecord<F> r{};
-        r.rec = {sizeof(r), MOD_META_HOOK_FN, 0};
-        r.target = Target;
-        return r;
+    constexpr auto vtbl = vtable_symbol<C>();
+    constexpr size_t vtblLen = std::string_view{vtbl.data()}.size();
+    HookMemNames<align_up<8>(vtblLen + 1 + dispLen + 1)> r{};
+    size_t at = 0;
+    for (size_t i = 0; i < vtblLen; ++i) {
+        r.chars[at++] = vtbl[i];
     }
+    r.chars[at++] = '\0';
+    for (size_t i = 0; i < dispLen; ++i) {
+        r.chars[at++] = Disp.chars[dispFrom + i];
+    }
+    r.len = sizeof(r.chars);
+    return r;
 }
+
+/*
+ * MSVC constant-evaluates a pointer-to-member only when every other operand in the
+ * initializer is a literal: no consteval calls, constexpr-object copies, or default
+ * member initializers.
+ */
+template <auto Target, char... Cs>
+struct HookMemHolder {
+    using F = decltype(Target);
+    static_assert(sizeof(F) <= 16, "unsupported pointer-to-member representation");
+    MOD_META_RECORD static constinit inline HookMemRecord<F, sizeof...(Cs)> record = {
+        {sizeof(HookMemRecord<F, sizeof...(Cs)>), MOD_META_HOOK_MEM, 0}, 0, {Target}, nullptr,
+        {Cs...}};
+};
+
+template <auto Target>
+struct HookFnHolder {
+    using F = decltype(Target);
+    static_assert(std::is_pointer_v<F> && std::is_function_v<std::remove_pointer_t<F>>,
+        "hook target must be a function or member function");
+    MOD_META_RECORD static constinit inline HookFnRecord<F> record = {
+        {sizeof(HookFnRecord<F>), MOD_META_HOOK_FN, 0}, 0, Target, nullptr};
+};
+
+template <auto Target, FixedString Disp,
+    bool = std::is_member_function_pointer_v<decltype(Target)>>
+struct HookRecordFor {
+    using Holder = HookFnHolder<Target>;
+};
+
+template <auto Target, FixedString Disp>
+struct HookRecordFor<Target, Disp, true> {
+    template <class Seq>
+    struct Bind;
+    template <size_t... Is>
+    struct Bind<std::index_sequence<Is...>> {
+        using Type = HookMemHolder<Target, make_hook_mem_names<Target, Disp>().chars[Is]...>;
+    };
+    using Holder =
+        Bind<std::make_index_sequence<make_hook_mem_names<Target, Disp>().len>>::Type;
+};
 
 template <FixedString Name>
 consteval auto make_hook_name_record() {

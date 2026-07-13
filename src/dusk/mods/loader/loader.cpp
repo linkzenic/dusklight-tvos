@@ -288,7 +288,7 @@ static bool parse_meta(NativeMod& native, LoadedMod& mod) {
                 return invalid("truncated import record");
             }
             auto* record = reinterpret_cast<ModMetaImport*>(const_cast<uint8_t*>(cursor));
-            if (!terminated_within(record->service_id, sizeof(record->service_id))) {
+            if (!terminated_within(record->service_id.chars, sizeof(record->service_id.chars))) {
                 return invalid("unterminated import service id");
             }
             parsed.imports.push_back(record);
@@ -299,7 +299,7 @@ static bool parse_meta(NativeMod& native, LoadedMod& mod) {
                 return invalid("truncated export record");
             }
             auto* record = reinterpret_cast<ModMetaExport*>(const_cast<uint8_t*>(cursor));
-            if (!terminated_within(record->service_id, sizeof(record->service_id))) {
+            if (!terminated_within(record->service_id.chars, sizeof(record->service_id.chars))) {
                 return invalid("unterminated export service id");
             }
             parsed.exports.push_back(record);
@@ -552,18 +552,18 @@ static ModManifestInfo build_manifest_info(const ModMetaParsed& parsed) {
     ModManifestInfo info;
     info.imports.reserve(parsed.imports.size());
     for (const auto* record : parsed.imports) {
-        if (!svc::valid_service_id(record->service_id)) {
+        if (!svc::valid_service_id(record->service_id.chars)) {
             continue;
         }
-        info.imports.push_back({record->service_id, record->major_version,
+        info.imports.push_back({record->service_id.chars, record->major_version,
             (record->rec.flags & SERVICE_IMPORT_OPTIONAL) == 0});
     }
     info.exports.reserve(parsed.exports.size());
     for (const auto* record : parsed.exports) {
-        if (!svc::valid_service_id(record->service_id)) {
+        if (!svc::valid_service_id(record->service_id.chars)) {
             continue;
         }
-        info.exports.push_back({record->service_id, record->major_version});
+        info.exports.push_back({record->service_id.chars, record->major_version});
     }
     return info;
 }
@@ -608,11 +608,11 @@ static void warn_unpublished_deferred_exports(const LoadedMod& mod) {
             continue;
         }
         const auto* record =
-            svc::find_service_record(serviceExport->service_id, serviceExport->major_version);
+            svc::find_service_record(serviceExport->service_id.chars, serviceExport->major_version);
         if (record != nullptr && record->service == nullptr) {
             log::write(mod.metadata.id, LOG_LEVEL_WARN,
                 "declared deferred service '{}@{}' but never published it during initialization",
-                serviceExport->service_id, serviceExport->major_version);
+                serviceExport->service_id.chars, serviceExport->major_version);
         }
     }
 }

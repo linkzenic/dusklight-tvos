@@ -136,10 +136,14 @@ struct NamedHook<Name, R(A...)> : HookImpl<detail::NameTag<Name>, R, A...> {};
  * ambiguous and need the mangled form.
  */
 #define DEFINE_HOOK(target, alias)                                                                 \
-    MOD_META_RECORD static constinit auto mod_meta_hook_##alias =                                  \
-        ::dusk::mods::detail::make_hook_record<(target), ::dusk::mods::FixedString{#target}>();    \
+    [[maybe_unused]] static const void* const mod_meta_hook_##alias =                              \
+        &::dusk::mods::detail::HookRecordFor<(target),                                             \
+            ::dusk::mods::FixedString{#target}>::Holder::record;                                   \
     struct alias : ::dusk::mods::Hook<(target)> {                                                  \
-        static void* resolved_target() { return mod_meta_hook_##alias.resolved; }                  \
+        static void* resolved_target() {                                                           \
+            return ::dusk::mods::detail::HookRecordFor<(target),                                   \
+                ::dusk::mods::FixedString{#target}>::Holder::record.resolved;                      \
+        }                                                                                          \
     }
 
 #define DEFINE_HOOK_SYMBOL(name, sig, alias)                                                       \

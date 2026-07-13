@@ -16,7 +16,11 @@
 #pragma section("modmeta$a", read, write)
 #pragma section("modmeta$d", read, write)
 #pragma section("modmeta$z", read, write)
+#if defined(__clang__)
+#define MOD_META_RECORD __declspec(allocate("modmeta$d")) __attribute__((used))
+#else
 #define MOD_META_RECORD __declspec(allocate("modmeta$d"))
+#endif
 #elif defined(__APPLE__)
 #define MOD_META_RECORD __attribute__((section("__DATA,__modmeta"), used))
 #elif defined(__has_attribute) && __has_attribute(retain)

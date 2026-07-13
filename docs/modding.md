@@ -22,7 +22,7 @@ function, read and write data fields, and hook the vast majority of game functio
 7. [Asset Overlays](#asset-overlays)
 8. [Runtime Lifecycle](#runtime-lifecycle)
 9. [Error Handling](#error-handling)
-10. [Advanced: Exporting Services](#advanced-exporting-services)
+10. [Advanced](#advanced)
 
 ---
 
@@ -131,26 +131,30 @@ A service is a struct of C function pointers with a version header. You declare 
 loader resolves it before your mod initializes:
 
 ```cpp
-IMPORT_SERVICE(LogService, svc_log);              // required, any minor version
-IMPORT_SERVICE_VERSION(LogService, svc_log, 2);   // required, minor version >= 2
+IMPORT_SERVICE(LogService, svc_log);              // required, latest minor version
+IMPORT_SERVICE_VERSION(LogService, svc_log, 0);   // required, minimum minor version 0 (for backwards compatibility)
 IMPORT_OPTIONAL_SERVICE(SomeService, svc_maybe);  // may be null
 ```
 
 Each service is individually versioned, and there may be multiple major versions of a service provided at once,
 allowing backwards compatibility with older mods while still changing services fundamentally if necessary. A **major**
 bump is a breaking change, treated as a different service entirely. For **additive** changes, a service appends new
-functions to the end of the struct without breaking existing callers and simply bumps the minor version. Mods that
-want the newer functions may use `IMPORT_SERVICE_VERSION` to require that minor at **load time**, or `SERVICE_HAS` to
-check at **runtime** whether a specific function is available.
+functions to the end of the struct without breaking existing callers and simply bumps the minor version.
+
+`IMPORT_SERVICE` and `IMPORT_OPTIONAL_SERVICE` require the latest minor version compiled against, making every field in
+the service safe to call. A mod can use `IMPORT_SERVICE_VERSION` (or its optional counterpart) with an older minor
+version to remain compatible with older Dusklight versions, then use `SERVICE_HAS` to check at runtime for fields added
+after that explicitly requested version.
 
 The contract (see `include/mods/api.h` for the full version):
 
 - **A required import is guaranteed valid.** If the service is missing or too old, the mod fails to load with a clear
   error. No need to null check at call sites.
-- **Anything at or below the minor version you imported can be called unconditionally.**
+- **Anything at or below the minor version you imported can be called unconditionally.** The default macros import
+  the service type's current minor version; the versioned macros explicitly override that minimum.
 - Optional imports may be null; check once in `mod_initialize`.
-- Fields newer than your imported minor must be gated behind `SERVICE_HAS(service, ServiceType, field)` plus a null
-  check.
+- Fields newer than your imported minor version must be gated behind `SERVICE_HAS(service, ServiceType, field)` plus a
+  null check.
 
 ---
 
@@ -200,13 +204,13 @@ const char* dir = svc_host->mod_dir(mod_ctx);  // writable per-mod directory
 svc_host->fail(mod_ctx, MOD_ERROR, "something unrecoverable happened");  // disables the mod
 ```
 
-`get_service`/`publish_service` provide dynamic service lookup; see [Advanced](#advanced-exporting-services).
+`get_service`/`publish_service` provide dynamic service lookup; see [Exporting Services](#exporting-services).
 
 **Lifecycle watches.** If your mod provides a service that hands out per-caller state (registrations, callbacks,
 handles), watch other mods' lifecycle and drop what you hold for a mod when it detaches.
 
 ```cpp
-IMPORT_SERVICE_VERSION(HostService, svc_host, 1);
+IMPORT_SERVICE(HostService, svc_host);
 
 void on_mod_lifecycle(ModContext* ctx, ModContext* subject, const char* subject_id,
     ModLifecycleEvent event, void* user_data) {
@@ -666,7 +670,9 @@ explicit results.
 
 ---
 
-## Advanced: Exporting Services
+## Advanced
+
+### Exporting Services
 
 Mods may export services of their own, permitting framework mods and cross-mod integration. Define the interface in a
 header both mods share:
@@ -690,6 +696,7 @@ template <>
 struct dusk::mods::ServiceTraits<MyModService> {
     static constexpr const char* id = MY_MOD_SERVICE_ID;
     static constexpr uint16_t major_version = MY_MOD_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = MY_MOD_SERVICE_MINOR;
 };
 #endif
 ```
@@ -718,7 +725,7 @@ svc_my_mod->do_thing(mod_ctx, 42);
 The loader registers all exports before resolving any imports, so declaration order between mods doesn't matter. Note
 that the `ctx` a provider receives identifies the *calling* mod.
 
-### Dependencies between mods
+#### Dependencies between mods
 
 Service imports are also dependency declarations: the loader initializes mods in dependency order, so by the time your
 `mod_initialize` runs, every mod you import services from (required *or* optional) has already finished its own
@@ -748,3 +755,31 @@ For services whose construction can't happen at static-init time, declare the ex
 and publish the pointer later via `svc_host->publish_service(...)`. Consumers can fetch services dynamically with
 `svc_host->get_service(...)`; prefer manifest imports whenever possible, since they give the loader dependency
 information and fail fast with good errors.
+
+### Native Runtime Libraries
+
+`RUNTIME_LIBRARIES` passed to `add_mod` are packaged beside the mod's native module in `lib/<platform>/`. Dusklight
+extracts the whole directory before loading the mod, so libraries linked by the mod resolve normally. The SDK links the
+mod itself with `$ORIGIN` on Linux and `@loader_path` on Apple platforms; runtime libraries with their own non-system
+dependencies must also be built with origin-relative lookup paths. On Windows, Dusklight uses an isolated DLL search
+rooted at this directory.
+
+```cmake
+add_mod(my_mod
+        SOURCES src/mod.cpp
+        MOD_JSON mod.json
+        RUNTIME_LIBRARIES "${VENDOR_RUNTIME_LIBRARY}")
+```
+
+SDKs that load plugins by directory can pass them the absolute runtime path from the current HostService:
+
+```cpp
+IMPORT_SERVICE(HostService, svc_host);
+
+const char* nativeDir = svc_host->native_dir(mod_ctx);  // read-only
+```
+
+Libraries loaded explicitly by the mod remain its responsibility: stop their threads and unload them during
+`mod_shutdown`. Do not write into `native_dir`; use `mod_dir` for writable state. Native library namespaces are
+process-wide on some platforms, so two mods cannot safely assume that incompatible libraries with the same filename
+will remain isolated.

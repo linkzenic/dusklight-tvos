@@ -176,6 +176,8 @@ struct LoadedMod {
     uint32_t cacheGeneration = 0;
     // Currently extracted native library, empty if none.
     std::string nativePath;
+    // Read-only directory containing the current platform's main module and runtime libraries.
+    std::string nativeDir;
 
     NativeModStatus nativeStatus = NativeModStatus::None;
     std::unique_ptr<NativeMod> native;
@@ -225,7 +227,7 @@ private:
     // the next tick, by which point every per-frame entry into the mod should have returned.
     struct RetiredNative {
         std::unique_ptr<NativeMod> native;
-        std::string path;
+        std::string directory;
     };
 
     std::vector<std::unique_ptr<LoadedMod>> m_mods;
@@ -238,7 +240,8 @@ private:
     bool m_startupComplete = false;
 
     void try_load_mod(const std::filesystem::path& modPath, bool fromDir, uint32_t searchDirIndex);
-    void load_native(LoadedMod& mod, const std::string& dllEntry);
+    void load_native(LoadedMod& mod, const std::string& dllEntry,
+        const std::vector<std::string>& runtimeEntries);
     // Resolved <nativeLibDir>/<mod id><ext> if it exists on disk, empty otherwise.
     [[nodiscard]] std::filesystem::path external_native_lib_path(const LoadedMod& mod) const;
     void unload_native(LoadedMod& mod);

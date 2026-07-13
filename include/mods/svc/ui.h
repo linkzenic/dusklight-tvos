@@ -280,5 +280,6 @@ template <>
 struct dusk::mods::ServiceTraits<UiService> {
     static constexpr const char* id = UI_SERVICE_ID;
     static constexpr uint16_t major_version = UI_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = UI_SERVICE_MINOR;
 };
 #endif

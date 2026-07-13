@@ -53,5 +53,6 @@ template <>
 struct dusk::mods::ServiceTraits<OverlayService> {
     static constexpr const char* id = OVERLAY_SERVICE_ID;
     static constexpr uint16_t major_version = OVERLAY_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = OVERLAY_SERVICE_MINOR;
 };
 #endif

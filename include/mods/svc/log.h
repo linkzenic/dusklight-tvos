@@ -43,5 +43,6 @@ template <>
 struct dusk::mods::ServiceTraits<LogService> {
     static constexpr const char* id = LOG_SERVICE_ID;
     static constexpr uint16_t major_version = LOG_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = LOG_SERVICE_MINOR;
 };
 #endif

@@ -30,46 +30,51 @@ using namespace std::string_view_literals;
 
 #if defined(_WIN32)
 #if defined(_M_ARM64)
-static constexpr std::string_view k_nativeLibName = "windows-arm64.dll"sv;
+static constexpr std::string_view k_nativePlatform = "windows-arm64"sv;
 #elif defined(_M_X64)
-static constexpr std::string_view k_nativeLibName = "windows-amd64.dll"sv;
+static constexpr std::string_view k_nativePlatform = "windows-amd64"sv;
 #elif defined(_M_IX86)
-static constexpr std::string_view k_nativeLibName = "windows-x86.dll"sv;
+static constexpr std::string_view k_nativePlatform = "windows-x86"sv;
 #else
-static constexpr std::string_view k_nativeLibName = ""sv;
+static constexpr std::string_view k_nativePlatform = ""sv;
 #endif
+static constexpr std::string_view k_nativeLibName = "mod.dll"sv;
 #elif defined(__ANDROID__)
 #if defined(__aarch64__)
-static constexpr std::string_view k_nativeLibName = "android-aarch64.so"sv;
+static constexpr std::string_view k_nativePlatform = "android-aarch64"sv;
 #elif defined(__x86_64__)
-static constexpr std::string_view k_nativeLibName = "android-x86_64.so"sv;
+static constexpr std::string_view k_nativePlatform = "android-x86_64"sv;
 #else
-static constexpr std::string_view k_nativeLibName = ""sv;
+static constexpr std::string_view k_nativePlatform = ""sv;
 #endif
+static constexpr std::string_view k_nativeLibName = "mod.so"sv;
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
 #if TARGET_OS_IOS
-static constexpr std::string_view k_nativeLibName = "ios-arm64.dylib"sv;
+static constexpr std::string_view k_nativePlatform = "ios-arm64"sv;
 #elif TARGET_OS_TV
-static constexpr std::string_view k_nativeLibName = "tvos-arm64.dylib"sv;
+static constexpr std::string_view k_nativePlatform = "tvos-arm64"sv;
 #elif defined(__aarch64__)
-static constexpr std::string_view k_nativeLibName = "darwin-arm64.dylib"sv;
+static constexpr std::string_view k_nativePlatform = "darwin-arm64"sv;
 #elif defined(__x86_64__)
-static constexpr std::string_view k_nativeLibName = "darwin-x86_64.dylib"sv;
+static constexpr std::string_view k_nativePlatform = "darwin-x86_64"sv;
 #else
-static constexpr std::string_view k_nativeLibName = ""sv;
+static constexpr std::string_view k_nativePlatform = ""sv;
 #endif
+static constexpr std::string_view k_nativeLibName = "mod.dylib"sv;
 #elif defined(__linux__)
 #if defined(__aarch64__)
-static constexpr std::string_view k_nativeLibName = "linux-aarch64.so"sv;
+static constexpr std::string_view k_nativePlatform = "linux-aarch64"sv;
 #elif defined(__x86_64__)
-static constexpr std::string_view k_nativeLibName = "linux-x86_64.so"sv;
+static constexpr std::string_view k_nativePlatform = "linux-x86_64"sv;
 #elif defined(__i386__)
-static constexpr std::string_view k_nativeLibName = "linux-x86.so"sv;
+static constexpr std::string_view k_nativePlatform = "linux-x86"sv;
 #else
-static constexpr std::string_view k_nativeLibName = ""sv;
+static constexpr std::string_view k_nativePlatform = ""sv;
 #endif
+static constexpr std::string_view k_nativeLibName = "mod.so"sv;
 #else
+static constexpr std::string_view k_nativePlatform = ""sv;
 static constexpr std::string_view k_nativeLibName = ""sv;
 #endif
 
@@ -77,6 +82,23 @@ namespace dusk::mods {
 namespace {
 aurora::Module Log{"dusk::mods::loader"};
 ModLoader g_modLoader;
+constexpr std::string_view k_nativeLibDir = "lib/"sv;
+
+class DirectoryRollback {
+public:
+    ~DirectoryRollback() {
+        if (!mPath.empty()) {
+            std::error_code ec;
+            std::filesystem::remove_all(mPath, ec);
+        }
+    }
+
+    void set_path(std::filesystem::path path) { mPath = std::move(path); }
+    void release() { mPath.clear(); }
+
+private:
+    std::filesystem::path mPath;
+};
 
 std::unique_ptr<ModBundle> load_bundle(const std::filesystem::path& modPath, bool fromDir) {
     if (fromDir) {
@@ -87,24 +109,49 @@ std::unique_ptr<ModBundle> load_bundle(const std::filesystem::path& modPath, boo
     }
 }
 
-struct DllLocateResult {
+struct NativeLocateResult {
     std::string entry;
+    std::vector<std::string> runtimeEntries;
     bool anyLibs = false;
 };
 
-DllLocateResult locate_dll_in_bundle(ModBundle& bundle) {
-    DllLocateResult result;
+NativeLocateResult locate_native_runtime(ModBundle& bundle) {
+    NativeLocateResult result;
+    const std::string platformPrefix = fmt::format("{}{}/", k_nativeLibDir, k_nativePlatform);
+    const std::string nativeEntry = platformPrefix + std::string{k_nativeLibName};
     for (const auto& name : bundle.getFileNames()) {
-        if (name.find('/') != std::string::npos ||
-            (!name.ends_with(".dll"sv) && !name.ends_with(".dylib"sv) && !name.ends_with(".so"sv)))
-        {
+        if (!name.starts_with(k_nativeLibDir)) {
             continue;
         }
-        result.anyLibs = true;
-        if (name == k_nativeLibName) {
+
+        const std::string_view libPath{
+            name.data() + k_nativeLibDir.size(), name.size() - k_nativeLibDir.size()};
+        const auto platformEnd = libPath.find('/');
+        if (platformEnd != std::string_view::npos) {
+            const auto entryName = libPath.substr(platformEnd + 1);
+            if (entryName.find('/') == std::string_view::npos &&
+                (entryName == "mod.dll"sv || entryName == "mod.dylib"sv || entryName == "mod.so"sv))
+            {
+                result.anyLibs = true;
+            }
+        }
+
+        if (!k_nativePlatform.empty() && name.starts_with(platformPrefix)) {
+            const std::string_view relativeName{
+                name.data() + platformPrefix.size(), name.size() - platformPrefix.size()};
+            if (!is_safe_resource_path(relativeName)) {
+                continue;
+            }
+            result.runtimeEntries.push_back(name);
+        }
+        if (name == nativeEntry) {
             result.entry = name;
         }
     }
+    std::ranges::sort(result.runtimeEntries);
+    result.runtimeEntries.erase(
+        std::unique(result.runtimeEntries.begin(), result.runtimeEntries.end()),
+        result.runtimeEntries.end());
     return result;
 }
 }  // namespace
@@ -390,7 +437,7 @@ static std::string native_status_message(const NativeModStatus status) {
     case NativeModStatus::BuildDisabled:
         return "Code mods are disabled on this Dusklight build";
     case NativeModStatus::ModMissingPlatform:
-        return fmt::format("Mod not supported on this platform ({})", k_nativeLibName);
+        return fmt::format("Mod not supported on this platform ({})", k_nativePlatform);
     case NativeModStatus::ApiVersionMismatch:
         // TODO: differentiate whether mod or Dusklight is out of date
         return "Mod ABI version mismatch";
@@ -425,7 +472,8 @@ std::filesystem::path ModLoader::external_native_lib_path(const LoadedMod& mod) 
     return path;
 }
 
-void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
+void ModLoader::load_native(
+    LoadedMod& mod, const std::string& dllEntry, const std::vector<std::string>& runtimeEntries) {
     if (!EnableCodeMods) {
         log::write(mod.metadata.id, LOG_LEVEL_ERROR, "Code mods are not available in this build");
         mod.nativeStatus = NativeModStatus::BuildDisabled;
@@ -435,10 +483,19 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
     namespace fs = std::filesystem;
 
     const fs::path cacheDir = m_cacheDir / mod.metadata.id;
+    const fs::path scratchDir = cacheDir / "data";
     std::error_code ec;
-    fs::create_directories(cacheDir, ec);
+    fs::create_directories(scratchDir, ec);
+    if (ec) {
+        log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to create mod directory {}: {}",
+            io::fs_path_to_string(scratchDir), ec.message());
+        return;
+    }
+    mod.dir = io::fs_path_to_string(fs::absolute(scratchDir));
 
     fs::path libPath;
+    fs::path runtimeDir;
+    DirectoryRollback runtimeDirRollback;
     if (mod.inPlace) {
         if (!dllEntry.empty()) {
             libPath = fs::path(mod.modPath) / dllEntry;
@@ -450,6 +507,7 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
             mod.nativeStatus = NativeModStatus::ModMissingPlatform;
             return;
         }
+        runtimeDir = libPath.parent_path();
     } else {
         if (dllEntry.empty()) {
             log::write(mod.metadata.id, LOG_LEVEL_ERROR,
@@ -458,34 +516,63 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
             return;
         }
 
-        // Generation-versioned filename: every dlopen gets a path it has never seen, so a reload
-        // always yields a fresh image with fresh statics even if the previous dlclose did not
-        // fully unmap the old one (TLS/ObjC pinning). The .cache dir is wiped on startup.
-        const fs::path dllCachePath =
-            cacheDir / fmt::format("{}.g{}{}", mod.metadata.id, ++mod.cacheGeneration,
-                           io::fs_path_to_string(fs::path(dllEntry).extension()));
-
-        std::vector<u8> dllData;
-        try {
-            dllData = mod.bundle->readFile(dllEntry);
-        } catch (const std::exception& e) {
-            log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to extract {}", dllEntry);
+        // Every generation gets a new directory. The main module and all of its runtime
+        // libraries therefore have fresh paths and can coexist with a previous generation
+        // that is still unwinding after a reload.
+        runtimeDir = cacheDir / fmt::format("g{}", ++mod.cacheGeneration);
+        runtimeDirRollback.set_path(runtimeDir);
+        fs::create_directories(runtimeDir, ec);
+        if (ec) {
+            log::write(mod.metadata.id, LOG_LEVEL_ERROR,
+                "failed to create native runtime directory {}: {}",
+                io::fs_path_to_string(runtimeDir), ec.message());
             return;
         }
 
-        {
-            std::ofstream out(dllCachePath, std::ios::binary | std::ios::out);
-            if (!out) {
-                log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to write {}",
-                    io::fs_path_to_string(dllCachePath));
+        const std::string platformPrefix = fmt::format("{}{}/", k_nativeLibDir, k_nativePlatform);
+        for (const auto& entry : runtimeEntries) {
+            if (!entry.starts_with(platformPrefix)) {
+                continue;
+            }
+            const std::string_view relativeName{
+                entry.data() + platformPrefix.size(), entry.size() - platformPrefix.size()};
+            if (!is_safe_resource_path(relativeName)) {
+                log::write(mod.metadata.id, LOG_LEVEL_ERROR,
+                    "unsafe native runtime path '{}'; skipping", entry);
                 return;
             }
 
-            out.write(reinterpret_cast<const char*>(dllData.data()),
-                static_cast<std::streamsize>(dllData.size()));
+            const fs::path outputPath = runtimeDir / fs::path{relativeName};
+            fs::create_directories(outputPath.parent_path(), ec);
+            if (ec) {
+                log::write(mod.metadata.id, LOG_LEVEL_ERROR,
+                    "failed to create directory for {}: {}", entry, ec.message());
+                return;
+            }
+
+            std::vector<u8> data;
+            try {
+                data = mod.bundle->readFile(entry);
+            } catch (const std::exception& e) {
+                log::write(
+                    mod.metadata.id, LOG_LEVEL_ERROR, "failed to extract {}: {}", entry, e.what());
+                return;
+            }
+
+            std::ofstream out(outputPath, std::ios::binary | std::ios::out);
+            if (!out) {
+                log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to write {}", entry);
+                return;
+            }
+            out.write(reinterpret_cast<const char*>(data.data()),
+                static_cast<std::streamsize>(data.size()));
+            if (!out) {
+                log::write(mod.metadata.id, LOG_LEVEL_ERROR, "failed to write {}", entry);
+                return;
+            }
         }
 
-        libPath = dllCachePath;
+        libPath = runtimeDir / fs::path{dllEntry}.filename();
     }
 
     auto nativeMod = std::make_unique<NativeMod>();
@@ -522,10 +609,11 @@ void ModLoader::load_native(LoadedMod& mod, const std::string& dllEntry) {
     }
     *nativeMod->contextSymbol = mod.context.get();
 
-    mod.dir = io::fs_path_to_string(fs::absolute(cacheDir));
     mod.nativePath = io::fs_path_to_string(fs::absolute(libPath));
+    mod.nativeDir = io::fs_path_to_string(fs::absolute(runtimeDir));
     mod.native = std::move(nativeMod);
     mod.nativeStatus = NativeModStatus::Loaded;
+    runtimeDirRollback.release();
 }
 
 void ModLoader::unload_native(LoadedMod& mod) {
@@ -533,16 +621,17 @@ void ModLoader::unload_native(LoadedMod& mod) {
         return;
     }
     // Deferred dlclose: this mod's code may still be on the stack below the current tick
-    m_retiredNatives.push_back({std::move(mod.native), std::move(mod.nativePath)});
+    m_retiredNatives.push_back({std::move(mod.native), std::move(mod.nativeDir)});
     mod.nativePath.clear();
+    mod.nativeDir.clear();
 }
 
 void ModLoader::drain_retired_natives() {
     for (auto& retired : m_retiredNatives) {
         retired.native.reset();
-        if (!retired.path.empty()) {
+        if (!retired.directory.empty()) {
             std::error_code ec;
-            std::filesystem::remove(retired.path, ec);
+            std::filesystem::remove_all(retired.directory, ec);
         }
     }
     m_retiredNatives.clear();
@@ -663,10 +752,10 @@ void ModLoader::try_load_mod(
     mod.cvarIsEnabled =
         std::make_unique<ConfigVar<bool>>(mod_enabled_cvar_name(mod.metadata.id), true);
 
-    const auto [dllEntry, anyLibs] = locate_dll_in_bundle(*mod.bundle);
+    const auto [dllEntry, runtimeEntries, anyLibs] = locate_native_runtime(*mod.bundle);
     if (anyLibs || (mod.inPlace && !external_native_lib_path(mod).empty())) {
         mod.nativeStatus = NativeModStatus::Unknown;
-        load_native(mod, dllEntry);
+        load_native(mod, dllEntry, runtimeEntries);
         if (mod.nativeStatus != NativeModStatus::Loaded) {
             Log.error("Native mod '{}' failed to load, disabling", mod.metadata.id);
             fail_mod(mod, MOD_ERROR, native_status_message(mod.nativeStatus));
@@ -992,14 +1081,14 @@ bool ModLoader::ensure_native_loaded(LoadedMod& mod) {
         return true;
     }
 
-    const auto [dllEntry, anyLibs] = locate_dll_in_bundle(*mod.bundle);
+    const auto [dllEntry, runtimeEntries, anyLibs] = locate_native_runtime(*mod.bundle);
     if (!anyLibs && !(mod.inPlace && !external_native_lib_path(mod).empty())) {
         mod.nativeStatus = NativeModStatus::None;
         return true;
     }
 
     mod.nativeStatus = NativeModStatus::Unknown;
-    load_native(mod, dllEntry);
+    load_native(mod, dllEntry, runtimeEntries);
     if (mod.nativeStatus != NativeModStatus::Loaded) {
         fail_mod(mod, MOD_ERROR, native_status_message(mod.nativeStatus));
         return false;
@@ -1035,9 +1124,11 @@ bool ModLoader::reload_bundle(LoadedMod& mod) {
     mod.failureReason.clear();
 
     ModManifestInfo newInfo;
-    if (const auto [dllEntry, anyLibs] = locate_dll_in_bundle(*mod.bundle); anyLibs) {
+    if (const auto [dllEntry, runtimeEntries, anyLibs] = locate_native_runtime(*mod.bundle);
+        anyLibs)
+    {
         mod.nativeStatus = NativeModStatus::Unknown;
-        load_native(mod, dllEntry);
+        load_native(mod, dllEntry, runtimeEntries);
         if (mod.nativeStatus != NativeModStatus::Loaded) {
             fail_mod(mod, MOD_ERROR, native_status_message(mod.nativeStatus));
             return false;

@@ -9,7 +9,7 @@
 
 #define HOST_SERVICE_ID "dev.twilitrealm.dusklight.host"
 #define HOST_SERVICE_MAJOR 2u
-#define HOST_SERVICE_MINOR 0u
+#define HOST_SERVICE_MINOR 1u
 
 /*
  * Ignore unknown values: later service minors may add events.
@@ -91,6 +91,16 @@ typedef struct HostService {
     ModResult (*watch_mod_lifecycle)(
         ModContext* ctx, ModLifecycleFn fn, void* user_data, uint64_t* out_handle);
     ModResult (*unwatch_mod_lifecycle)(ModContext* ctx, uint64_t handle);
+
+    /*
+     * Read-only directory containing this platform's packaged native runtime: the mod module
+     * and any RUNTIME_LIBRARIES. The path is absolute and remains valid until mod_shutdown
+     * returns. Libraries loaded dynamically from here are owned by the mod and must be unloaded
+     * during mod_shutdown.
+     *
+     * Added in minor version 1.
+     */
+    const char* (*native_dir)(ModContext* ctx);
 } HostService;
 
 #ifdef __cplusplus
@@ -100,5 +110,6 @@ template <>
 struct dusk::mods::ServiceTraits<HostService> {
     static constexpr const char* id = HOST_SERVICE_ID;
     static constexpr uint16_t major_version = HOST_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = HOST_SERVICE_MINOR;
 };
 #endif

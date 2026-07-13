@@ -63,6 +63,11 @@ const char* host_mod_dir(ModContext* context) {
     return mod != nullptr ? mod->dir.c_str() : "";
 }
 
+const char* host_native_dir(ModContext* context) {
+    const auto* mod = mod_from_context(context);
+    return mod != nullptr ? mod->nativeDir.c_str() : "";
+}
+
 struct LifecycleWatcher {
     ModLifecycleFn fn = nullptr;
     void* userData = nullptr;
@@ -142,6 +147,7 @@ constinit HostService s_hostService{
     .mod_dir = host_mod_dir,
     .watch_mod_lifecycle = host_watch_mod_lifecycle,
     .unwatch_mod_lifecycle = host_unwatch_mod_lifecycle,
+    .native_dir = host_native_dir,
 };
 
 }  // namespace

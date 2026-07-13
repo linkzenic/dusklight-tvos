@@ -84,5 +84,6 @@ template <>
 struct dusk::mods::ServiceTraits<TextureService> {
     static constexpr const char* id = TEXTURE_SERVICE_ID;
     static constexpr uint16_t major_version = TEXTURE_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = TEXTURE_SERVICE_MINOR;
 };
 #endif

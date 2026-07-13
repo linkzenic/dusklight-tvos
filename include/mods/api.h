@@ -23,7 +23,7 @@ extern "C" {
 #define MOD_EXTERN_C
 #endif
 
-#define MOD_ABI_VERSION 6u
+#define MOD_ABI_VERSION 1u
 #define MOD_ERROR_MESSAGE_SIZE 512u
 
 typedef struct ModContext ModContext;

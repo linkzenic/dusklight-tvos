@@ -42,7 +42,8 @@ inline ModResult set_error(ModError* outError, ModResult code, const char* messa
 
 // Declares `static const service_type* variable`, filled in by the host before mod_initialize.
 // Required imports are guaranteed non-null (the mod fails to load otherwise); optional imports
-// must be checked against nullptr before use.
+// must be checked against nullptr before use. The unversioned macros use the latest minor version;
+// set an explicit version to target an older minor version for backwards compatibility.
 #define IMPORT_SERVICE_EX(                                                                         \
     service_type, variable, service_id_value, major_value, min_minor_value, flags_value)           \
     static const service_type* variable = nullptr;                                                 \
@@ -59,7 +60,9 @@ inline ModResult set_error(ModError* outError, ModResult code, const char* messa
         ::dusk::mods::ServiceTraits<service_type>::major_version, min_minor_value,                 \
         SERVICE_IMPORT_REQUIRED)
 
-#define IMPORT_SERVICE(service_type, variable) IMPORT_SERVICE_VERSION(service_type, variable, 0)
+#define IMPORT_SERVICE(service_type, variable)                                                     \
+    IMPORT_SERVICE_VERSION(                                                                        \
+        service_type, variable, ::dusk::mods::ServiceTraits<service_type>::minor_version)
 
 #define IMPORT_OPTIONAL_SERVICE_VERSION(service_type, variable, min_minor_value)                   \
     IMPORT_SERVICE_EX(service_type, variable, ::dusk::mods::ServiceTraits<service_type>::id,       \
@@ -67,7 +70,8 @@ inline ModResult set_error(ModError* outError, ModResult code, const char* messa
         SERVICE_IMPORT_OPTIONAL)
 
 #define IMPORT_OPTIONAL_SERVICE(service_type, variable)                                            \
-    IMPORT_OPTIONAL_SERVICE_VERSION(service_type, variable, 0)
+    IMPORT_OPTIONAL_SERVICE_VERSION(                                                               \
+        service_type, variable, ::dusk::mods::ServiceTraits<service_type>::minor_version)
 
 #define EXPORT_SERVICE_AS(instance, service_id_value)                                              \
     MOD_META_RECORD static constinit ModMetaExport mod_meta_export_##instance = {                  \

@@ -1,8 +1,9 @@
-# add_mod(<target> SOURCES <file>... MOD_JSON <mod.json> [RES_DIR <res>] [OVERLAY_DIR <overlay>]
+# add_mod(<target> SOURCES <file>... MOD_JSON <mod.json>
+#         [RUNTIME_LIBRARIES <file>...] [RES_DIR <res>] [OVERLAY_DIR <overlay>]
 #         [TEXTURES_DIR <textures>] [OUTPUT_DIR <dir>] [BUNDLE])
 set(DUSK_MODS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/mods" CACHE PATH "Directory to write mod packages into")
 
-function(_mod_lib_name out_var)
+function(_mod_lib_info out_platform_var out_name_var)
     set(_arch "${CMAKE_SYSTEM_PROCESSOR}")
     if (APPLE AND CMAKE_OSX_ARCHITECTURES)
         list(LENGTH CMAKE_OSX_ARCHITECTURES _count)
@@ -23,7 +24,8 @@ function(_mod_lib_name out_var)
     else ()
         set(_ext ".so")
     endif ()
-    set(${out_var} "${_platform}-${_arch}${_ext}" PARENT_SCOPE)
+    set(${out_platform_var} "${_platform}-${_arch}" PARENT_SCOPE)
+    set(${out_name_var} "mod${_ext}" PARENT_SCOPE)
 endfunction()
 
 function(_mod_resolve_source_path out_var path)
@@ -45,7 +47,8 @@ function(_mod_collect_assets out_var dir)
 endfunction()
 
 function(add_mod target_name)
-    cmake_parse_arguments(ARG "BUNDLE" "MOD_JSON;RES_DIR;OVERLAY_DIR;TEXTURES_DIR;OUTPUT_DIR" "SOURCES" ${ARGN})
+    cmake_parse_arguments(ARG "BUNDLE" "MOD_JSON;RES_DIR;OVERLAY_DIR;TEXTURES_DIR;OUTPUT_DIR"
+            "SOURCES;RUNTIME_LIBRARIES" ${ARGN})
     if (NOT ARG_MOD_JSON)
         message(FATAL_ERROR "add_mod: MOD_JSON is required")
     endif ()
@@ -55,11 +58,12 @@ function(add_mod target_name)
     endif ()
 
     set(_has_lib FALSE)
+    set(_lib_platform "")
     set(_lib_name "")
     if (ARG_SOURCES)
         set(_has_lib TRUE)
         add_library(${target_name} SHARED ${ARG_SOURCES})
-        _mod_lib_name(_lib_name)
+        _mod_lib_info(_lib_platform _lib_name)
         set_target_properties(${target_name} PROPERTIES
                 PREFIX ""
                 C_VISIBILITY_PRESET hidden
@@ -92,6 +96,9 @@ function(add_mod target_name)
         if (APPLE)
             # Game symbols resolve against the host executable at dlopen time.
             target_link_options(${target_name} PRIVATE -undefined dynamic_lookup)
+            set_target_properties(${target_name} PROPERTIES
+                    BUILD_RPATH "@loader_path"
+                    INSTALL_RPATH "@loader_path")
         elseif (ANDROID)
             if (TARGET dusklight)
                 target_link_libraries(${target_name} PRIVATE dusklight)
@@ -100,8 +107,14 @@ function(add_mod target_name)
             else ()
                 message(FATAL_ERROR "add_mod: DUSK_GAME_SOLIB is not set (libmain.so)")
             endif ()
+            set_target_properties(${target_name} PROPERTIES
+                    BUILD_RPATH "$ORIGIN"
+                    INSTALL_RPATH "$ORIGIN")
         elseif (UNIX)
             target_link_options(${target_name} PRIVATE -Wl,--allow-shlib-undefined)
+            set_target_properties(${target_name} PROPERTIES
+                    BUILD_RPATH "$ORIGIN"
+                    INSTALL_RPATH "$ORIGIN")
         elseif (WIN32)
             # Link against the generated import library (game ABI surface). Function calls
             # resolve through import thunks. Data is toolchain dependent:
@@ -134,6 +147,9 @@ function(add_mod target_name)
             endif ()
         endif ()
     endif ()
+    if (ARG_RUNTIME_LIBRARIES AND NOT _has_lib)
+        message(FATAL_ERROR "add_mod: RUNTIME_LIBRARIES requires SOURCES")
+    endif ()
 
     set(_output_dir "${DUSK_MODS_OUTPUT_DIR}")
     if (ARG_OUTPUT_DIR)
@@ -142,18 +158,39 @@ function(add_mod target_name)
     set(_stage "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_stage")
     set(_out "${_output_dir}/${target_name}.dusk")
 
-    set(_zip_args "${_lib_name}" mod.json)
+    set(_zip_args mod.json)
     set(_package_deps "${_mod_json}")
     set(_package_inputs "${_mod_json}")
     set(_extra_cmds "")
     set(_lib_copy_cmd "")
     set(_target_depend "")
     if (_has_lib)
-        list(APPEND _zip_args "${_lib_name}")
-        set(_lib_copy_cmd COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$<TARGET_FILE:${target_name}>" "${_stage}/${_lib_name}")
+        list(APPEND _zip_args lib)
+        set(_lib_copy_cmd
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${_stage}/lib/${_lib_platform}"
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:${target_name}>" "${_stage}/lib/${_lib_platform}/${_lib_name}")
         set(_target_depend ${target_name})
     endif ()
+    string(TOLOWER "${_lib_name}" _lib_name_key)
+    set(_runtime_lib_name_keys "${_lib_name_key}")
+    foreach (_runtime_lib IN LISTS ARG_RUNTIME_LIBRARIES)
+        _mod_resolve_source_path(_runtime_lib_path "${_runtime_lib}")
+        if (NOT EXISTS "${_runtime_lib_path}" OR IS_DIRECTORY "${_runtime_lib_path}")
+            message(FATAL_ERROR "add_mod: runtime library does not exist or is not a file: ${_runtime_lib_path}")
+        endif ()
+        get_filename_component(_runtime_lib_name "${_runtime_lib_path}" NAME)
+        string(TOLOWER "${_runtime_lib_name}" _runtime_lib_name_key)
+        list(FIND _runtime_lib_name_keys "${_runtime_lib_name_key}" _runtime_lib_name_index)
+        if (NOT _runtime_lib_name_index EQUAL -1)
+            message(FATAL_ERROR "add_mod: duplicate runtime library filename: ${_runtime_lib_name}")
+        endif ()
+        list(APPEND _runtime_lib_name_keys "${_runtime_lib_name_key}")
+        list(APPEND _package_deps "${_runtime_lib_path}")
+        list(APPEND _package_inputs "${_runtime_lib_path}")
+        list(APPEND _lib_copy_cmd COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${_runtime_lib_path}" "${_stage}/lib/${_lib_platform}/${_runtime_lib_name}")
+    endforeach ()
     if (ARG_RES_DIR)
         _mod_resolve_source_path(_res_dir "${ARG_RES_DIR}")
         _mod_collect_assets(_res_deps "${_res_dir}")
@@ -190,6 +227,7 @@ function(add_mod target_name)
         set_property(GLOBAL APPEND PROPERTY DUSK_BUNDLED_MOD_IDS "${_mod_id}")
         set_property(GLOBAL APPEND PROPERTY DUSK_BUNDLED_MOD_STAGES "${_stage}")
         set_property(GLOBAL APPEND PROPERTY DUSK_BUNDLED_MOD_PACKAGES "${_out}")
+        set_property(GLOBAL APPEND PROPERTY DUSK_BUNDLED_MOD_LIB_PLATFORMS "${_lib_platform}")
         set_property(GLOBAL APPEND PROPERTY DUSK_BUNDLED_MOD_LIB_NAMES "${_lib_name}")
         set(_bundle_cmds
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/bundled_mods"
@@ -230,7 +268,8 @@ endfunction()
 #   read-only installs.
 # - macOS: pre-extracted stage dirs into the installed app's Contents/Resources/mods, dylibs
 #   ad-hoc signed in place, then the whole bundle re-signed.
-# - iOS/tvOS: assets into <app>/mods/<id> and the dylib into Frameworks/<id>.dylib.
+# - iOS/tvOS: assets into <app>/mods/<id>, the mod dylib into Frameworks/<id>.dylib,
+#   and runtime libraries alongside it.
 # - Android: nothing here; gradle packs ${CMAKE_BINARY_DIR}/bundled_mods into APK assets.
 function(install_bundled_mods)
     get_property(_targets GLOBAL PROPERTY DUSK_BUNDLED_MOD_TARGETS)
@@ -239,6 +278,7 @@ function(install_bundled_mods)
     endif ()
     get_property(_ids GLOBAL PROPERTY DUSK_BUNDLED_MOD_IDS)
     get_property(_stages GLOBAL PROPERTY DUSK_BUNDLED_MOD_STAGES)
+    get_property(_lib_platforms GLOBAL PROPERTY DUSK_BUNDLED_MOD_LIB_PLATFORMS)
     get_property(_lib_names GLOBAL PROPERTY DUSK_BUNDLED_MOD_LIB_NAMES)
     list(LENGTH _targets _count)
     math(EXPR _last "${_count} - 1")
@@ -254,19 +294,30 @@ function(install_bundled_mods)
                 list(GET _targets ${_i} _target)
                 list(GET _ids ${_i} _id)
                 list(GET _stages ${_i} _stage)
+                list(GET _lib_platforms ${_i} _lib_platform)
                 list(GET _lib_names ${_i} _lib_name)
                 install(DIRECTORY "${_stage}/" DESTINATION "${_bundle_dir}/mods/${_id}"
-                        PATTERN "${_lib_name}" EXCLUDE)
+                        PATTERN "lib" EXCLUDE)
                 install(PROGRAMS "$<TARGET_FILE:${_target}>"
                         DESTINATION "${_bundle_dir}/Frameworks" RENAME "${_id}.dylib")
+                install(DIRECTORY "${_stage}/lib/${_lib_platform}/"
+                        DESTINATION "${_bundle_dir}/Frameworks"
+                        PATTERN "${_lib_name}" EXCLUDE)
             endforeach ()
         else ()
             foreach (_i RANGE ${_last})
                 list(GET _ids ${_i} _id)
                 list(GET _stages ${_i} _stage)
+                list(GET _lib_platforms ${_i} _lib_platform)
                 list(GET _lib_names ${_i} _lib_name)
                 install(DIRECTORY "${_stage}/" DESTINATION "${_bundle_dir}/Contents/Resources/mods/${_id}")
-                install(CODE "execute_process(COMMAND /usr/bin/codesign --force --sign - \"${_bundle_dir}/Contents/Resources/mods/${_id}/${_lib_name}\" COMMAND_ERROR_IS_FATAL ANY)")
+                install(CODE "
+                    file(GLOB _mod_libs \"${_bundle_dir}/Contents/Resources/mods/${_id}/lib/${_lib_platform}/*\")
+                    foreach (_mod_lib IN LISTS _mod_libs)
+                        if (NOT IS_DIRECTORY \"\${_mod_lib}\")
+                            execute_process(COMMAND /usr/bin/codesign --force --sign - \"\${_mod_lib}\" COMMAND_ERROR_IS_FATAL ANY)
+                        endif ()
+                    endforeach ()")
             endforeach ()
             if (TARGET crashpad_handler)
                 install(CODE "execute_process(COMMAND /usr/bin/codesign --force --sign - \"${_bundle_dir}/Contents/MacOS/$<TARGET_FILE_NAME:crashpad_handler>\" COMMAND_ERROR_IS_FATAL ANY)")

@@ -22,7 +22,7 @@ function, read and write data fields, and hook the vast majority of game functio
 7. [Asset Overlays](#asset-overlays)
 8. [Runtime Lifecycle](#runtime-lifecycle)
 9. [Error Handling](#error-handling)
-10. [Advanced: Exporting Services](#advanced-exporting-services)
+10. [Advanced](#advanced)
 
 ---
 
@@ -131,26 +131,30 @@ A service is a struct of C function pointers with a version header. You declare 
 loader resolves it before your mod initializes:
 
 ```cpp
-IMPORT_SERVICE(LogService, svc_log);              // required, any minor version
-IMPORT_SERVICE_VERSION(LogService, svc_log, 2);   // required, minor version >= 2
+IMPORT_SERVICE(LogService, svc_log);              // required, latest minor version
+IMPORT_SERVICE_VERSION(LogService, svc_log, 0);   // required, minimum minor version 0 (for backwards compatibility)
 IMPORT_OPTIONAL_SERVICE(SomeService, svc_maybe);  // may be null
 ```
 
 Each service is individually versioned, and there may be multiple major versions of a service provided at once,
 allowing backwards compatibility with older mods while still changing services fundamentally if necessary. A **major**
 bump is a breaking change, treated as a different service entirely. For **additive** changes, a service appends new
-functions to the end of the struct without breaking existing callers and simply bumps the minor version. Mods that
-want the newer functions may use `IMPORT_SERVICE_VERSION` to require that minor at **load time**, or `SERVICE_HAS` to
-check at **runtime** whether a specific function is available.
+functions to the end of the struct without breaking existing callers and simply bumps the minor version.
+
+`IMPORT_SERVICE` and `IMPORT_OPTIONAL_SERVICE` require the latest minor version compiled against, making every field in
+the service safe to call. A mod can use `IMPORT_SERVICE_VERSION` (or its optional counterpart) with an older minor
+version to remain compatible with older Dusklight versions, then use `SERVICE_HAS` to check at runtime for fields added
+after that explicitly requested version.
 
 The contract (see `include/mods/api.h` for the full version):
 
 - **A required import is guaranteed valid.** If the service is missing or too old, the mod fails to load with a clear
   error. No need to null check at call sites.
-- **Anything at or below the minor version you imported can be called unconditionally.**
+- **Anything at or below the minor version you imported can be called unconditionally.** The default macros import
+  the service type's current minor version; the versioned macros explicitly override that minimum.
 - Optional imports may be null; check once in `mod_initialize`.
-- Fields newer than your imported minor must be gated behind `SERVICE_HAS(service, ServiceType, field)` plus a null
-  check.
+- Fields newer than your imported minor version must be gated behind `SERVICE_HAS(service, ServiceType, field)` plus a
+  null check.
 
 ---
 
@@ -200,13 +204,13 @@ const char* dir = svc_host->mod_dir(mod_ctx);  // writable per-mod directory
 svc_host->fail(mod_ctx, MOD_ERROR, "something unrecoverable happened");  // disables the mod
 ```
 
-`get_service`/`publish_service` provide dynamic service lookup; see [Advanced](#advanced-exporting-services).
+`get_service`/`publish_service` provide dynamic service lookup; see [Exporting Services](#exporting-services).
 
 **Lifecycle watches.** If your mod provides a service that hands out per-caller state (registrations, callbacks,
 handles), watch other mods' lifecycle and drop what you hold for a mod when it detaches.
 
 ```cpp
-IMPORT_SERVICE_VERSION(HostService, svc_host, 1);
+IMPORT_SERVICE(HostService, svc_host);
 
 void on_mod_lifecycle(ModContext* ctx, ModContext* subject, const char* subject_id,
     ModLifecycleEvent event, void* user_data) {
@@ -469,7 +473,13 @@ Mods may hook the vast majority of game functions, including file-local static, 
 #include "mods/svc/hook.h"
 
 IMPORT_SERVICE(HookService, svc_hook);
+
+DEFINE_HOOK(&daAlink_c::posMove, LinkPosMove);
+DEFINE_HOOK(&daAlink_c::execute, LinkExecute);
 ```
+
+Every hook target must be **declared** at namespace scope with `DEFINE_HOOK` (a target you can name in C++) or
+`DEFINE_HOOK_SYMBOL` (a symbol name).
 
 ### Pre-hooks
 
@@ -484,7 +494,7 @@ HookAction on_pos_move_pre(ModContext*, void* args, void* retval, void* userdata
     return HOOK_CONTINUE;
 }
 
-dusk::mods::hook_add_pre<&daAlink_c::posMove>(svc_hook, on_pos_move_pre);
+dusk::mods::hook_add_pre<LinkPosMove>(svc_hook, on_pos_move_pre);
 ```
 
 ### Post-hooks
@@ -495,24 +505,22 @@ if any.
 ```cpp
 void on_pos_move_post(ModContext*, void* args, void* retval, void* userdata) { ... }
 
-dusk::mods::hook_add_post<&daAlink_c::posMove>(svc_hook, on_pos_move_post);
+dusk::mods::hook_add_post<LinkPosMove>(svc_hook, on_pos_move_post);
 ```
 
 ### Replace-hooks
 
-Substitute the original entirely. Call through to it via `Hook<...>::g_orig` if needed:
+Substitute the original entirely. Call through to it via the declaration's `g_orig` if needed:
 
 ```cpp
-using ExecuteEntry = dusk::mods::Hook<&daAlink_c::execute>;
-
 void on_execute_replace(ModContext*, void* args, void* retval, void*) {
-    int result = ExecuteEntry::g_orig(dusk::mods::arg<daAlink_c*>(args, 0));
+    int result = LinkExecute::g_orig(dusk::mods::arg<daAlink_c*>(args, 0));
     if (retval != nullptr) {
         *static_cast<int*>(retval) = result;
     }
 }
 
-dusk::mods::hook_replace<&daAlink_c::execute>(svc_hook, on_execute_replace);
+dusk::mods::hook_replace<LinkExecute>(svc_hook, on_execute_replace);
 ```
 
 By default a second replace-hook on the same function is a conflict; `HookOptions` (`replace_policy`, `priority`,
@@ -525,10 +533,8 @@ Functions you can't name in C++ (file-local statics, private class members, anyt
 symbol name instead. You must supply the signature along with the name.
 
 ```cpp
-// static callback used by Link's hookshot collider in d_a_alink_hook.inc
-using HookshotHit = dusk::mods::NamedHook<
-    "daAlink_hookshotAtHitCallBack",
-    void(fopAc_ac_c*, dCcD_GObjInf*, fopAc_ac_c*, dCcD_GObjInf*)>;
+DEFINE_HOOK_SYMBOL("daAlink_hookshotAtHitCallBack",
+    void(fopAc_ac_c*, dCcD_GObjInf*, fopAc_ac_c*, dCcD_GObjInf*), HookshotHit);
 
 dusk::mods::hook_add_pre<HookshotHit>(svc_hook, on_hookshot_hit_pre);
 ...
@@ -537,9 +543,16 @@ HookshotHit::g_orig(link, atObjInf, target, tgObjInf);  // call through to the o
 
 Class member functions must include `Class*` as the first argument.
 
-The install fails with the resolve error when the name is missing (`MOD_UNAVAILABLE`), ambiguous (`MOD_CONFLICT`),
-or the manifest is absent (`MOD_UNSUPPORTED`). Unlike `Hook<&Class::method>`, the signature is **not**
-compiler-checked: a mismatched signature will corrupt the call.
+Two spellings work on every platform:
+
+- **Display names** (`daAlink_c::posMove`, `fapGm_Before`): the qualified name with no parameter list. They carry no
+  signature, so overload sets (and file-local statics sharing a name) return `MOD_CONFLICT`.
+- **Decorated names** (`_ZN9daAlink_c7posMoveEv` / `?posMove@daAlink_c@@...`): the platform's mangled spelling in
+  dlsym convention (no Mach-O leading underscore). The escape hatch for overloads.
+
+Installing fails with `MOD_UNAVAILABLE` when it didn't resolve (missing, ambiguous, or no symbol manifest). Unlike
+`DEFINE_HOOK`, the signature is **not** compiler-checked: a mismatched signature will corrupt the
+call.
 
 ### Reading and writing arguments
 
@@ -552,6 +565,8 @@ T& ref   = dusk::mods::arg_ref<T>(args, n);  // read/write reference
 ```
 
 ```cpp
+DEFINE_HOOK(fopAcM_createItem, CreateItem);
+
 // fpc_ProcID fopAcM_createItem(..., int itemNo, ...): turn heart drops into green rupees
 HookAction on_create_item_pre(ModContext*, void* args, void*, void*) {
     int& itemNo = dusk::mods::arg_ref<int>(args, 1);
@@ -561,35 +576,10 @@ HookAction on_create_item_pre(ModContext*, void* args, void*, void*) {
     return HOOK_CONTINUE;
 }
 
-dusk::mods::hook_add_pre<&fopAcM_createItem>(svc_hook, on_create_item_pre);
+dusk::mods::hook_add_pre<CreateItem>(svc_hook, on_create_item_pre);
 ```
 
 For reference parameters (e.g. `const cXyz& pos`), `arg_ref<cXyz>` yields a direct reference.
-
-### Resolving symbols by name
-
-`resolve` looks a symbol up in the **symbol manifest**: a name→address map generated alongside every game build and
-keyed to that exact binary. It covers the whole image, including functions that aren't exported (file-local statics),
-which makes them hookable:
-
-```cpp
-IMPORT_SERVICE(HookService, svc_hook);
-
-void* addr = nullptr;
-uint32_t flags = 0;
-if (svc_hook->resolve(mod_ctx, "GXSetProjection", &addr, &flags) == MOD_OK) {
-    // addr is the function's real address in the running game; hook or call it.
-}
-```
-
-Two spellings work on every platform:
-
-- **Display names** (`daAlink_c::posMove`, `fapGm_Before`): the qualified name with no parameter list. They carry no
-  signature, so overload sets (and file-local statics sharing a name) return `MOD_CONFLICT`.
-- **Decorated names** (`_ZN9daAlink_c7posMoveEv` / `?posMove@daAlink_c@@...`): the platform's mangled spelling in
-  dlsym convention (no Mach-O leading underscore). The escape hatch for overloads.
-
-`MOD_UNSUPPORTED` means the manifest is missing or was built for a different game binary.
 
 ### Game code ABI contract
 
@@ -680,7 +670,9 @@ explicit results.
 
 ---
 
-## Advanced: Exporting Services
+## Advanced
+
+### Exporting Services
 
 Mods may export services of their own, permitting framework mods and cross-mod integration. Define the interface in a
 header both mods share:
@@ -704,6 +696,7 @@ template <>
 struct dusk::mods::ServiceTraits<MyModService> {
     static constexpr const char* id = MY_MOD_SERVICE_ID;
     static constexpr uint16_t major_version = MY_MOD_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = MY_MOD_SERVICE_MINOR;
 };
 #endif
 ```
@@ -732,7 +725,7 @@ svc_my_mod->do_thing(mod_ctx, 42);
 The loader registers all exports before resolving any imports, so declaration order between mods doesn't matter. Note
 that the `ctx` a provider receives identifies the *calling* mod.
 
-### Dependencies between mods
+#### Dependencies between mods
 
 Service imports are also dependency declarations: the loader initializes mods in dependency order, so by the time your
 `mod_initialize` runs, every mod you import services from (required *or* optional) has already finished its own
@@ -762,3 +755,31 @@ For services whose construction can't happen at static-init time, declare the ex
 and publish the pointer later via `svc_host->publish_service(...)`. Consumers can fetch services dynamically with
 `svc_host->get_service(...)`; prefer manifest imports whenever possible, since they give the loader dependency
 information and fail fast with good errors.
+
+### Native Runtime Libraries
+
+`RUNTIME_LIBRARIES` passed to `add_mod` are packaged beside the mod's native module in `lib/<platform>/`. Dusklight
+extracts the whole directory before loading the mod, so libraries linked by the mod resolve normally. The SDK links the
+mod itself with `$ORIGIN` on Linux and `@loader_path` on Apple platforms; runtime libraries with their own non-system
+dependencies must also be built with origin-relative lookup paths. On Windows, Dusklight uses an isolated DLL search
+rooted at this directory.
+
+```cmake
+add_mod(my_mod
+        SOURCES src/mod.cpp
+        MOD_JSON mod.json
+        RUNTIME_LIBRARIES "${VENDOR_RUNTIME_LIBRARY}")
+```
+
+SDKs that load plugins by directory can pass them the absolute runtime path from the current HostService:
+
+```cpp
+IMPORT_SERVICE(HostService, svc_host);
+
+const char* nativeDir = svc_host->native_dir(mod_ctx);  // read-only
+```
+
+Libraries loaded explicitly by the mod remain its responsibility: stop their threads and unload them during
+`mod_shutdown`. Do not write into `native_dir`; use `mod_dir` for writable state. Native library namespaces are
+process-wide on some platforms, so two mods cannot safely assume that incompatible libraries with the same filename
+will remain isolated.

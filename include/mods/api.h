@@ -23,7 +23,7 @@ extern "C" {
 #define MOD_EXTERN_C
 #endif
 
-#define MOD_ABI_VERSION 5u
+#define MOD_ABI_VERSION 1u
 #define MOD_ERROR_MESSAGE_SIZE 512u
 
 typedef struct ModContext ModContext;
@@ -37,7 +37,8 @@ typedef enum ModResult {
     MOD_INVALID_ARGUMENT = 5,
 } ModResult;
 
-static_assert(sizeof(ModResult) == 4, "mod SDK enums must be int-sized; do not build mods with -fshort-enums");
+static_assert(sizeof(ModResult) == 4,
+    "mod SDK enums must be int-sized; do not build mods with -fshort-enums");
 
 typedef struct ModError {
     uint32_t struct_size;
@@ -108,40 +109,133 @@ typedef enum ServiceExportFlags {
     SERVICE_EXPORT_DEFERRED = 1u << 0u,
 } ServiceExportFlags;
 
-typedef struct ServiceImport {
-    uint32_t struct_size;
-    const char* service_id;
+/*
+ * Mod metadata records.
+ *
+ * A mod's manifest is a sequence of records in a dedicated section of the native library ("modmeta"
+ * on ELF, "__DATA,__modmeta" on Mach-O, "modmeta$a/$d/$z" on PE).
+ *
+ * The records are pure data. Every string is inline and NUL-terminated. Fields documented as
+ * runtime-only hold relocated pointers that are meaningless on disk; static parsers recover their
+ * targets from the file's relocation/bind entries instead.
+ *
+ * Layout rules:
+ * - Little-endian, 8-byte aligned; every record size is a multiple of 8.
+ * - Parsers must skip all-zero 8-byte units (linker padding) and records of unknown kind.
+ * - Exactly one MOD_META_HEADER record per library.
+ *
+ * The IMPORT_SERVICE/EXPORT_SERVICE/DEFINE_HOOK macros emit these records; mods do not construct
+ * them by hand.
+ */
+
+#define MOD_META_SERVICE_ID_SIZE 64u
+
+/* Records are 8-byte aligned so the linker packs them without padding; most are naturally
+ * aligned by their pointer fields, the alignment below covers the rest. */
+#if defined(__cplusplus)
+#define MOD_META_ALIGN alignas(8)
+#elif defined(_MSC_VER)
+#define MOD_META_ALIGN __declspec(align(8))
+#else
+#define MOD_META_ALIGN __attribute__((aligned(8)))
+#endif
+
+typedef enum ModMetaKind {
+    MOD_META_PAD = 0,
+    MOD_META_HEADER = 1,
+    MOD_META_IMPORT = 2,
+    MOD_META_EXPORT = 3,
+    MOD_META_HOOK_FN = 4,
+    MOD_META_HOOK_MEM = 5,
+    MOD_META_HOOK_NAME = 6,
+} ModMetaKind;
+
+typedef struct ModMetaRecord {
+    uint16_t size; /* total record size in bytes, a multiple of 8 */
+    uint8_t kind;  /* ModMetaKind */
+    uint8_t flags; /* ServiceImportFlags / ServiceExportFlags for imports/exports */
+} ModMetaRecord;
+
+typedef struct ModMetaServiceId {
+    char chars[MOD_META_SERVICE_ID_SIZE]; /* NUL-terminated */
+} ModMetaServiceId;
+
+typedef struct MOD_META_ALIGN ModMetaHeader {
+    ModMetaRecord rec;
+    uint32_t abi_version;
+} ModMetaHeader;
+
+static_assert(sizeof(ModMetaHeader) == 8);
+
+typedef struct MOD_META_ALIGN ModMetaImport {
+    ModMetaRecord rec;
     uint16_t major_version;
     uint16_t min_minor_version;
-    uint32_t flags;
-    void* slot;
-} ServiceImport;
+    void* slot; /* runtime only */
+    ModMetaServiceId service_id;
+} ModMetaImport;
 
-typedef struct ServiceExport {
-    uint32_t struct_size;
-    const char* service_id;
+static_assert(sizeof(ModMetaImport) == 16 + MOD_META_SERVICE_ID_SIZE);
+
+typedef struct MOD_META_ALIGN ModMetaExport {
+    ModMetaRecord rec;
     uint16_t major_version;
     uint16_t minor_version;
-    uint32_t flags;
-    const void* service;
-} ServiceExport;
+    const void* service; /* runtime only */
+    ModMetaServiceId service_id;
+} ModMetaExport;
 
-typedef struct ModManifest {
+static_assert(sizeof(ModMetaExport) == 16 + MOD_META_SERVICE_ID_SIZE);
+
+/* Hook on a function named at link time: `target` carries the &fn relocation. */
+typedef struct MOD_META_ALIGN ModMetaHookFn {
+    ModMetaRecord rec;
+    uint32_t reserved;
+    void* target;   /* runtime only */
+    void* resolved; /* runtime only */
+} ModMetaHookFn;
+
+static_assert(sizeof(ModMetaHookFn) == 24);
+
+/*
+ * Hook on a member function: `pmf` holds the compiler's pointer-to-member representation
+ * (non-virtual: a function address relocation; virtual Itanium/AAPCS: literal slot words). Two
+ * NUL-terminated strings follow `resolved`: the class vtable symbol (empty if the class name is not
+ * representable), then the stringified target for tooling display.
+ */
+typedef struct MOD_META_ALIGN ModMetaHookMem {
+    ModMetaRecord rec;
+    uint32_t reserved;
+    unsigned char pmf[16];
+    void* resolved; /* runtime only */
+} ModMetaHookMem;
+
+static_assert(sizeof(ModMetaHookMem) == 32);
+
+/*
+ * Hook on a function by symbol name, for targets that cannot be named in C++ (file-local statics,
+ * private members). One NUL-terminated string follows `resolved`; it may be either the platform
+ * mangled name or the demangled qualified display name.
+ */
+typedef struct MOD_META_ALIGN ModMetaHookName {
+    ModMetaRecord rec;
+    uint32_t reserved;
+    void* resolved; /* runtime only */
+} ModMetaHookName;
+
+static_assert(sizeof(ModMetaHookName) == 16);
+
+typedef struct ModMeta {
     uint32_t struct_size;
-    uint32_t abi_version;
-    const ServiceImport* imports;
-    size_t import_count;
-    const ServiceExport* exports;
-    size_t export_count;
-} ModManifest;
+    const void* records_begin;
+    const void* records_end;
+} ModMeta;
 
-typedef const ModManifest* (*ModGetManifestFn)(void);
+MOD_EXPORT extern const ModMeta mod_meta;
 
 typedef ModResult (*ModInitializeFn)(ModError* out_error);
 typedef ModResult (*ModUpdateFn)(ModError* out_error);
 typedef ModResult (*ModShutdownFn)(ModError* out_error);
-
-MOD_EXPORT const ModManifest* mod_get_manifest(void);
 
 MOD_EXPORT ModResult mod_initialize(ModError* out_error);
 MOD_EXPORT ModResult mod_update(ModError* out_error);

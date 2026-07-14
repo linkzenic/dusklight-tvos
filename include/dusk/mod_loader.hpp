@@ -67,9 +67,32 @@ struct ModSearchDir {
     std::filesystem::path nativeLibDir;
 };
 
+struct ModMetaParsed {
+    uint32_t abiVersion = 0;
+    std::vector<ModMetaImport*> imports;
+    std::vector<ModMetaExport*> exports;
+    std::vector<ModMetaHookFn*> hookFns;
+    std::vector<ModMetaHookMem*> hookMems;
+    std::vector<ModMetaHookName*> hookNames;
+};
+
+inline const char* hook_mem_vtable_symbol(const ModMetaHookMem& rec) {
+    return reinterpret_cast<const char*>(&rec) + sizeof(ModMetaHookMem);
+}
+
+inline const char* hook_mem_display_name(const ModMetaHookMem& rec) {
+    const char* vtable = hook_mem_vtable_symbol(rec);
+    return vtable + std::char_traits<char>::length(vtable) + 1;
+}
+
+inline const char* hook_name_symbol(const ModMetaHookName& rec) {
+    return reinterpret_cast<const char*>(&rec) + sizeof(ModMetaHookName);
+}
+
 struct NativeMod {
     std::unique_ptr<loader::NativeModule> handle;
-    const ModManifest* manifest = nullptr;
+    const ModMeta* meta = nullptr;
+    ModMetaParsed parsed;
     ModContext** contextSymbol = nullptr;
 
     ModInitializeFn fn_initialize = nullptr;
@@ -112,6 +135,11 @@ enum class NativeModStatus : u8 {
     MissingExport,
 
     /**
+     * Mod's metadata record section is malformed.
+     */
+    InvalidMetadata,
+
+    /**
      * Unknown error loading the native mod.
      */
     Unknown,
@@ -126,7 +154,7 @@ struct LoadedMod {
     // Native lib is dlopen'd in place and stays resident for the session. Reload is unsupported.
     bool inPlace = false;
 
-    std::unique_ptr<ConfigVar<bool> > cvarIsEnabled;
+    std::unique_ptr<ConfigVar<bool>> cvarIsEnabled;
     config::Subscription enabledSubscription = 0;
 
     bool active = false;
@@ -148,6 +176,8 @@ struct LoadedMod {
     uint32_t cacheGeneration = 0;
     // Currently extracted native library, empty if none.
     std::string nativePath;
+    // Read-only directory containing the current platform's main module and runtime libraries.
+    std::string nativeDir;
 
     NativeModStatus nativeStatus = NativeModStatus::None;
     std::unique_ptr<NativeMod> native;
@@ -197,10 +227,10 @@ private:
     // the next tick, by which point every per-frame entry into the mod should have returned.
     struct RetiredNative {
         std::unique_ptr<NativeMod> native;
-        std::string path;
+        std::string directory;
     };
 
-    std::vector<std::unique_ptr<LoadedMod> > m_mods;
+    std::vector<std::unique_ptr<LoadedMod>> m_mods;
     std::vector<ModSearchDir> m_searchDirs;
     std::filesystem::path m_cacheDir;
     std::vector<Request> m_pendingRequests;
@@ -210,7 +240,8 @@ private:
     bool m_startupComplete = false;
 
     void try_load_mod(const std::filesystem::path& modPath, bool fromDir, uint32_t searchDirIndex);
-    void load_native(LoadedMod& mod, const std::string& dllEntry);
+    void load_native(LoadedMod& mod, const std::string& dllEntry,
+        const std::vector<std::string>& runtimeEntries);
     // Resolved <nativeLibDir>/<mod id><ext> if it exists on disk, empty otherwise.
     [[nodiscard]] std::filesystem::path external_native_lib_path(const LoadedMod& mod) const;
     void unload_native(LoadedMod& mod);

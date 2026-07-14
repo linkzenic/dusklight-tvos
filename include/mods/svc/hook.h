@@ -121,5 +121,6 @@ template <>
 struct dusk::mods::ServiceTraits<HookService> {
     static constexpr const char* id = HOOK_SERVICE_ID;
     static constexpr uint16_t major_version = HOOK_SERVICE_MAJOR;
+    static constexpr uint16_t minor_version = HOOK_SERVICE_MINOR;
 };
 #endif

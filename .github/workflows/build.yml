@@ -205,6 +205,9 @@ jobs:
       - name: Build native library
         run: cmake --build --preset ${{matrix.preset}} --target dusklight
 
+      - name: Build bundled mods
+        run: cmake --build --preset ${{matrix.preset}} --target dusklight_mods
+
       - name: Stage stripped JNI library
         run: ANDROID_STAGE_ABIS="${{matrix.abi}}" platforms/android/scripts/stage-jni-libs.sh
 
@@ -289,5 +292,6 @@ jobs:
             build/install/*.dll
             build/install/*.symdb
             build/install/res/
+            build/install/mods/
             build/install/debug.7z
             build/install/sdk/

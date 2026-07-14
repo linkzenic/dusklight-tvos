@@ -122,4 +122,7 @@ function(setup_symbol_manifest target)
             COMMAND "${SYMGEN_EXE}" manifest ${_input} --out "${_out}"
             COMMENT "Generating symbol manifest"
             VERBATIM)
+    if (NOT APPLE)
+        install(FILES "${_out}" DESTINATION .)
+    endif ()
 endfunction()

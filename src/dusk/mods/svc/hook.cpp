@@ -181,6 +181,18 @@ void* resolve_import_thunk(void* addr) {
     return addr;
 }
 
+// Resolve thunks recursively (max of 8 steps) until we find our target.
+void* resolve_target(void* addr) {
+    for (int i = 0; i < 8; ++i) {
+        void* next = resolve_import_thunk(addr);
+        if (next == addr) {
+            break;
+        }
+        addr = next;
+    }
+    return addr;
+}
+
 funchook_t* install_trampoline(void* fnAddr, void* trampoline, void** outOriginal) {
     funchook_t* fh = funchook_create();
     if (fh == nullptr) {
@@ -222,7 +234,7 @@ ModResult hook_install(ModContext* context, void* fnAddr, void* trampolineFn, vo
         return MOD_INVALID_ARGUMENT;
     }
 
-    fnAddr = resolve_import_thunk(fnAddr);
+    fnAddr = resolve_target(fnAddr);
     if (!declared_target(context, fnAddr)) {
         return reject_undeclared(context, fnAddr);
     }
@@ -268,7 +280,7 @@ ModResult hook_add_pre(
     if (fnAddr == nullptr || context == nullptr || callback == nullptr) {
         return MOD_INVALID_ARGUMENT;
     }
-    fnAddr = resolve_import_thunk(fnAddr);
+    fnAddr = resolve_target(fnAddr);
     if (!declared_target(context, fnAddr)) {
         return reject_undeclared(context, fnAddr);
     }
@@ -283,7 +295,7 @@ ModResult hook_add_post(
     if (fnAddr == nullptr || context == nullptr || callback == nullptr) {
         return MOD_INVALID_ARGUMENT;
     }
-    fnAddr = resolve_import_thunk(fnAddr);
+    fnAddr = resolve_target(fnAddr);
     if (!declared_target(context, fnAddr)) {
         return reject_undeclared(context, fnAddr);
     }
@@ -300,7 +312,7 @@ ModResult hook_replace(
     }
 
     const HookOptions normalized = normalize_options(options);
-    fnAddr = resolve_import_thunk(fnAddr);
+    fnAddr = resolve_target(fnAddr);
     if (!declared_target(context, fnAddr)) {
         return reject_undeclared(context, fnAddr);
     }
@@ -337,7 +349,7 @@ ModResult hook_dispatch_pre(
         return MOD_INVALID_ARGUMENT;
     }
 
-    fnAddr = resolve_import_thunk(fnAddr);
+    fnAddr = resolve_target(fnAddr);
     const auto it = s_registry.find(reinterpret_cast<uintptr_t>(fnAddr));
     if (it == s_registry.end()) {
         return MOD_OK;
@@ -387,7 +399,7 @@ ModResult hook_dispatch_post(ModContext*, void* fnAddr, void* args, void* retval
         return MOD_INVALID_ARGUMENT;
     }
 
-    fnAddr = resolve_import_thunk(fnAddr);
+    fnAddr = resolve_target(fnAddr);
     const auto it = s_registry.find(reinterpret_cast<uintptr_t>(fnAddr));
     if (it == s_registry.end()) {
         return MOD_OK;
@@ -731,7 +743,7 @@ void hook_resolve_mod_records(LoadedMod& mod) {
     }
 
     const auto resolved = [&](void* target, void** slot) {
-        target = resolve_import_thunk(target);
+        target = resolve_target(target);
         *slot = target;
         declared.push_back(reinterpret_cast<uintptr_t>(target));
     };

@@ -55,13 +55,13 @@ static constexpr std::string_view k_nativePlatform = "ios-arm64"sv;
 #elif TARGET_OS_TV
 static constexpr std::string_view k_nativePlatform = "tvos-arm64"sv;
 #elif defined(__aarch64__)
-static constexpr std::string_view k_nativePlatform = "darwin-arm64"sv;
+static constexpr std::string_view k_nativePlatform = "macos-arm64"sv;
 #elif defined(__x86_64__)
-static constexpr std::string_view k_nativePlatform = "darwin-x86_64"sv;
+static constexpr std::string_view k_nativePlatform = "macos-x86_64"sv;
 #else
 static constexpr std::string_view k_nativePlatform = ""sv;
 #endif
-static constexpr std::string_view k_nativeLibName = "mod.dylib"sv;
+static constexpr std::string_view k_nativeLibName = "mod.so"sv;
 #elif defined(__linux__)
 #if defined(__aarch64__)
 static constexpr std::string_view k_nativePlatform = "linux-aarch64"sv;
@@ -130,7 +130,7 @@ NativeLocateResult locate_native_runtime(ModBundle& bundle) {
         if (platformEnd != std::string_view::npos) {
             const auto entryName = libPath.substr(platformEnd + 1);
             if (entryName.find('/') == std::string_view::npos &&
-                (entryName == "mod.dll"sv || entryName == "mod.dylib"sv || entryName == "mod.so"sv))
+                (entryName == "mod.dll"sv || entryName == "mod.so"sv))
             {
                 result.anyLibs = true;
             }

@@ -13,14 +13,15 @@ function(_mod_lib_info out_platform_var out_name_var)
         set(_arch "${CMAKE_OSX_ARCHITECTURES}")
     endif ()
     string(TOLOWER "${CMAKE_SYSTEM_NAME}" _platform)
+    if (_platform STREQUAL "darwin")
+        set(_platform "macos")
+    endif ()
     string(TOLOWER "${_arch}" _arch)
     if (_arch MATCHES "^(i[3-6]86|x86)$")
         set(_arch "x86")
     endif ()
     if (WIN32)
         set(_ext ".dll")
-    elseif (APPLE)
-        set(_ext ".dylib")
     else ()
         set(_ext ".so")
     endif ()
@@ -62,7 +63,7 @@ function(add_mod target_name)
     set(_lib_name "")
     if (ARG_SOURCES)
         set(_has_lib TRUE)
-        add_library(${target_name} SHARED ${ARG_SOURCES})
+        add_library(${target_name} MODULE ${ARG_SOURCES})
         _mod_lib_info(_lib_platform _lib_name)
         set_target_properties(${target_name} PROPERTIES
                 PREFIX ""
@@ -94,18 +95,28 @@ function(add_mod target_name)
         endif ()
 
         if (APPLE)
-            # Game symbols resolve against the host executable at dlopen time.
-            target_link_options(${target_name} PRIVATE -undefined dynamic_lookup)
+            if (TARGET dusklight)
+                set(_game_exe "$<TARGET_FILE:dusklight>")
+                add_dependencies(${target_name} dusklight)
+            elseif (DUSK_GAME_EXE)
+                _mod_resolve_source_path(_game_exe "${DUSK_GAME_EXE}")
+            else ()
+                message(FATAL_ERROR "add_mod: DUSK_GAME_EXE is not set (game executable)")
+            endif ()
+            target_link_options(${target_name} PRIVATE
+                    -Xlinker -bundle_loader -Xlinker "${_game_exe}")
+            set_property(TARGET ${target_name} APPEND PROPERTY LINK_DEPENDS "${_game_exe}")
             set_target_properties(${target_name} PROPERTIES
                     BUILD_RPATH "@loader_path"
                     INSTALL_RPATH "@loader_path")
         elseif (ANDROID)
             if (TARGET dusklight)
                 target_link_libraries(${target_name} PRIVATE dusklight)
-            elseif (DUSK_GAME_SOLIB)
-                target_link_libraries(${target_name} PRIVATE "${DUSK_GAME_SOLIB}")
+            elseif (DUSK_GAME_EXE)
+                _mod_resolve_source_path(_game_lib "${DUSK_GAME_EXE}")
+                target_link_libraries(${target_name} PRIVATE "${_game_lib}")
             else ()
-                message(FATAL_ERROR "add_mod: DUSK_GAME_SOLIB is not set (libmain.so)")
+                message(FATAL_ERROR "add_mod: DUSK_GAME_EXE is not set (libmain.so or stub)")
             endif ()
             set_target_properties(${target_name} PROPERTIES
                     BUILD_RPATH "$ORIGIN"
@@ -116,16 +127,33 @@ function(add_mod target_name)
                     BUILD_RPATH "$ORIGIN"
                     INSTALL_RPATH "$ORIGIN")
         elseif (WIN32)
-            # Link against the generated import library (game ABI surface). Function calls
-            # resolve through import thunks. Data is toolchain dependent:
-            # - clang-cl: lld's mingw mode auto-imports data references, fixed up at load by
-            #   the mod SDK's pseudo-relocation runtime (pseudo_reloc.cpp).
-            # - cl (MSVC): only DUSK_GAME_DATA-annotated data is reachable. Un-annotated
+            # Function calls resolve through import thunks. Data is toolchain dependent:
+            # - clang-cl: lld's mingw driver synthesizes imports straight from the game
+            #   executable's export table (no import library needed) and auto-imports data
+            #   references, fixed up at load by the mod SDK's pseudo-relocation runtime
+            #   (pseudo_reloc.cpp).
+            # - cl (MSVC): link.exe only imports through an import library, so
+            #   DUSK_GAME_EXE must point at one (sdk/windows-<arch>.lib or `symgen stub`
+            #   output); only DUSK_GAME_DATA-annotated data is reachable. Un-annotated
             #   references fail to link.
-            if (NOT DUSK_GAME_IMPLIB)
-                message(FATAL_ERROR "add_mod: DUSK_GAME_IMPLIB is not set.")
+            if (TARGET dusklight)
+                if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+                    set(_game_lib "$<TARGET_FILE:dusklight>")
+                    add_dependencies(${target_name} dusklight)
+                elseif (DUSK_GAME_IMPLIB)
+                    set(_game_lib "${DUSK_GAME_IMPLIB}")
+                else ()
+                    message(FATAL_ERROR "add_mod: DUSK_GAME_IMPLIB is not set (see setup_windows_exports)")
+                endif ()
+            elseif (DUSK_GAME_EXE)
+                _mod_resolve_source_path(_game_lib "${DUSK_GAME_EXE}")
+                if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT _game_lib MATCHES "\\.lib$")
+                    message(FATAL_ERROR "add_mod: cl must use an import library for DUSK_GAME_EXE")
+                endif ()
+            else ()
+                message(FATAL_ERROR "add_mod: DUSK_GAME_EXE is not set (game executable or import library)")
             endif ()
-            target_link_libraries(${target_name} PRIVATE "${DUSK_GAME_IMPLIB}")
+            target_link_libraries(${target_name} PRIVATE "${_game_lib}")
             set_target_properties(${target_name} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
             target_compile_definitions(${target_name} PRIVATE _ITERATOR_DEBUG_LEVEL=0)
             if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -266,9 +294,9 @@ endfunction()
 #   user cache).
 # - Linux: pre-extracted stage dirs into <install>/mods so native libs dlopen in place from
 #   read-only installs.
-# - macOS: pre-extracted stage dirs into the installed app's Contents/Resources/mods, dylibs
-#   ad-hoc signed in place, then the whole bundle re-signed.
-# - iOS/tvOS: assets into <app>/mods/<id>, the mod dylib into Frameworks/<id>.dylib,
+# - macOS: pre-extracted stage dirs into the installed app's Contents/Resources/mods, native
+#   libs ad-hoc signed in place, then the whole bundle re-signed.
+# - iOS/tvOS: assets into <app>/mods/<id>, the mod library into Frameworks/<id>.so,
 #   and runtime libraries alongside it.
 # - Android: nothing here; gradle packs ${CMAKE_BINARY_DIR}/bundled_mods into APK assets.
 function(install_bundled_mods)
@@ -299,7 +327,7 @@ function(install_bundled_mods)
                 install(DIRECTORY "${_stage}/" DESTINATION "${_bundle_dir}/mods/${_id}"
                         PATTERN "lib" EXCLUDE)
                 install(PROGRAMS "$<TARGET_FILE:${_target}>"
-                        DESTINATION "${_bundle_dir}/Frameworks" RENAME "${_id}.dylib")
+                        DESTINATION "${_bundle_dir}/Frameworks" RENAME "${_id}.so")
                 install(DIRECTORY "${_stage}/lib/${_lib_platform}/"
                         DESTINATION "${_bundle_dir}/Frameworks"
                         PATTERN "${_lib_name}" EXCLUDE)

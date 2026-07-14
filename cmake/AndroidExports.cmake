@@ -36,7 +36,7 @@ function(setup_android_exports target)
             # TODO: src/dusk/ is NOT excluded: inline code in game headers
             # currently call into it (e.g. dusk::frame_interp::lookup_replacement).
             COMMAND "${SYMGEN_EXE}" exports
-            --rsp "${_rsp}"
+            "@${_rsp}"
             --out "${_vscript}"
             --format version-script
             --exclude cmake_pch
@@ -53,16 +53,10 @@ function(setup_android_exports target)
     target_link_options(${target} PRIVATE "-Wl,--version-script=${_vscript}")
 
     string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _arch)
-    if (_arch STREQUAL "aarch64")
-        set(_machine "arm64")
-    else ()
-        set(_machine "amd64")
-    endif ()
-
     set(_stub "${CMAKE_BINARY_DIR}/stub-android-${_arch}.so")
     add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${SYMGEN_EXE}" stub -f elf "$<TARGET_FILE:${target}>" -o "${_stub}"
-            --soname "$<TARGET_FILE_NAME:${target}>" --machine "${_machine}"
+            --soname "$<TARGET_FILE_NAME:${target}>" --arch "${_arch}"
             BYPRODUCTS "${_stub}"
             COMMENT "Generating dusklight link stub"
             VERBATIM)

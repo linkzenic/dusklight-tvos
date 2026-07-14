@@ -53,7 +53,7 @@ function(setup_windows_exports target)
             # TODO: src/dusk/ is NOT excluded: inline code in game headers
             # currently call into it (e.g. dusk::frame_interp::lookup_replacement).
             COMMAND "${_symgen}" def
-            --rsp "${_rsp}"
+            "@${_rsp}"
             --out "${_def}"
             --exclude cmake_pch
             --exclude miniz
@@ -82,9 +82,7 @@ function(setup_windows_exports target)
             COMMENT "Generating dusklight import library"
             VERBATIM)
     set(DUSK_GAME_IMPLIB "${_implib}" CACHE INTERNAL "Import library for Windows mod linking")
-    set(DUSK_GAME_DEF "${_def}" CACHE INTERNAL "Curated export .def for the game executable")
 
-    # Ship the import library as sdk/dusklight.lib in the install tree: mods may use it to
-    # compile against Dusklight without having to build the whole game. (See DUSK_GAME_IMPLIB)
-    install(FILES "${_implib}" DESTINATION sdk RENAME dusklight.lib)
+    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _implib_arch)
+    install(FILES "${_implib}" DESTINATION sdk RENAME "windows-${_implib_arch}.lib")
 endfunction()

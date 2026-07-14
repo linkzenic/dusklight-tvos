@@ -2,7 +2,7 @@ include_guard(GLOBAL)
 
 get_filename_component(_SYMBOL_MANIFEST_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
 
-set(_SYMGEN_VERSION "1.1.1")
+set(_SYMGEN_VERSION "1.2.0")
 set(_SYMGEN_RELEASE_BASE_URL "https://github.com/encounter/symgen/releases/download/v${_SYMGEN_VERSION}")
 set(SYMGEN_PATH "" CACHE FILEPATH "Path to a symgen executable; empty downloads the pinned release")
 mark_as_advanced(SYMGEN_PATH)

@@ -44,7 +44,7 @@ function(setup_apple_exports target)
             # TODO: src/dusk/ is NOT excluded: inline code in game headers
             # currently call into it (e.g. dusk::frame_interp::lookup_replacement).
             COMMAND "${_symgen}" exports
-            --rsp "${_rsp}"
+            "@${_rsp}"
             --out "${_exp}"
             --exclude cmake_pch
             --exclude miniz

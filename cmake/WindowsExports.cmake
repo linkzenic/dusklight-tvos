@@ -6,9 +6,16 @@ get_filename_component(_DUSK_WINDOWS_EXPORTS_CMAKE_DIR "${CMAKE_CURRENT_LIST_FIL
 # import library mods link against. symgen scans the built objects, filters by source, and
 # writes a .def used by the main link and import library generation.
 function(setup_windows_exports target)
-    if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-        message(WARNING "dusklight: Windows code-mod exports are x64-only for now; skipping")
-        return()
+    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _implib_arch)
+    if (_implib_arch STREQUAL "arm64")
+        set(_dlltool_machine "arm64")
+        set(_lib_machine "arm64")
+    elseif (_implib_arch MATCHES "^(amd64|x86_64)$")
+        set(_dlltool_machine "i386:x86-64")
+        set(_lib_machine "x64")
+    else ()
+        message(FATAL_ERROR
+                "dusklight: no Windows mod linking support for ${CMAKE_SYSTEM_PROCESSOR}")
     endif ()
 
     include("${_DUSK_WINDOWS_EXPORTS_CMAKE_DIR}/SymbolManifest.cmake")
@@ -70,11 +77,11 @@ function(setup_windows_exports target)
     get_filename_component(_compiler_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
     find_program(DUSK_LLVM_DLLTOOL llvm-dlltool HINTS "${_compiler_dir}")
     if (DUSK_LLVM_DLLTOOL)
-        set(_implib_cmd "${DUSK_LLVM_DLLTOOL}" -d "${_def}" -D dusklight.exe -m i386:x86-64
-                -l "${_implib}")
+        set(_implib_cmd "${DUSK_LLVM_DLLTOOL}" -d "${_def}" -D dusklight.exe
+                -m "${_dlltool_machine}" -l "${_implib}")
     else ()
-        set(_implib_cmd "${CMAKE_AR}" /nologo "/def:${_def}" /machine:x64 /name:dusklight.exe
-                "/out:${_implib}")
+        set(_implib_cmd "${CMAKE_AR}" /nologo "/def:${_def}" "/machine:${_lib_machine}"
+                /name:dusklight.exe "/out:${_implib}")
     endif ()
     add_custom_command(TARGET ${target} POST_BUILD
             COMMAND ${_implib_cmd}
@@ -83,6 +90,5 @@ function(setup_windows_exports target)
             VERBATIM)
     set(DUSK_GAME_IMPLIB "${_implib}" CACHE INTERNAL "Import library for Windows mod linking")
 
-    string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _implib_arch)
     install(FILES "${_implib}" DESTINATION sdk RENAME "windows-${_implib_arch}.lib")
 endfunction()

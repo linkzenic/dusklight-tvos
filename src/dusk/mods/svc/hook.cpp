@@ -118,10 +118,19 @@ void sort_hooks(std::vector<T>& hooks) {
     });
 }
 
+// Once a hook is installed, funchook has patched the target's entry: its bytes lead to the
+// detour, not the function, so canonicalization must stop there.
+[[maybe_unused]] bool installed_target(void* addr) {
+    return s_installed.contains(reinterpret_cast<uintptr_t>(addr));
+}
+
 // Follow E9/FF25 chains to skip MSVC incremental-link and import stubs.
 void* resolve_import_thunk(void* addr) {
 #if defined(_WIN32) && (defined(_M_X64) || defined(__x86_64__))
     for (int i = 0; i < 8; ++i) {
+        if (installed_target(addr)) {
+            break;
+        }
         const auto* p = static_cast<const uint8_t*>(addr);
         if (p[0] == 0x48 && p[1] == 0xFF && p[2] == 0x25) {  // lld emits a REX.W prefix
             ++p;
@@ -145,6 +154,9 @@ void* resolve_import_thunk(void* addr) {
     // incremental-link stubs are a plain `b`, or `adrp x16; add x16, x16, #off; br x16`
     // range-extension thunks when the target is out of B range.
     for (int i = 0; i < 8; ++i) {
+        if (installed_target(addr)) {
+            break;
+        }
         const auto* p = static_cast<const uint8_t*>(addr);
         uint32_t insn0, insn1, insn2;
         std::memcpy(&insn0, p, 4);

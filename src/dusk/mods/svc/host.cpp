@@ -60,12 +60,12 @@ const char* host_mod_version(ModContext* context) {
 
 const char* host_mod_dir(ModContext* context) {
     const auto* mod = mod_from_context(context);
-    return mod != nullptr ? mod->dir.c_str() : "";
+    return mod != nullptr ? mod->dirUtf8.c_str() : "";
 }
 
 const char* host_native_dir(ModContext* context) {
     const auto* mod = mod_from_context(context);
-    return mod != nullptr ? mod->nativeDir.c_str() : "";
+    return mod != nullptr ? mod->nativeDirUtf8.c_str() : "";
 }
 
 struct LifecycleWatcher {

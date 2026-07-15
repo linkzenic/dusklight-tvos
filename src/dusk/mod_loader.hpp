@@ -140,6 +140,11 @@ enum class NativeModStatus : u8 {
     InvalidMetadata,
 
     /**
+     * Mod bundle contains files in an invalid location.
+     */
+    InvalidBundle,
+
+    /**
      * Unknown error loading the native mod.
      */
     Unknown,
@@ -147,8 +152,10 @@ enum class NativeModStatus : u8 {
 
 struct LoadedMod {
     ModMetadata metadata;
-    std::string modPath;
-    std::string dir;
+    std::filesystem::path modPath;
+    std::filesystem::path dir;
+    // Stable UTF-8 storage for HostService::mod_dir.
+    std::string dirUtf8;
 
     uint32_t searchDirIndex = 0;
     // Native lib is dlopen'd in place and stays resident for the session. Reload is unsupported.
@@ -175,9 +182,11 @@ struct LoadedMod {
     // asset-only reloads, so it doubles as a generation for anything caching per-mod content.
     uint32_t cacheGeneration = 0;
     // Currently extracted native library, empty if none.
-    std::string nativePath;
+    std::filesystem::path nativePath;
     // Read-only directory containing the current platform's main module and runtime libraries.
-    std::string nativeDir;
+    std::filesystem::path nativeDir;
+    // Stable UTF-8 storage for HostService::native_dir.
+    std::string nativeDirUtf8;
 
     NativeModStatus nativeStatus = NativeModStatus::None;
     std::unique_ptr<NativeMod> native;
@@ -227,7 +236,7 @@ private:
     // the next tick, by which point every per-frame entry into the mod should have returned.
     struct RetiredNative {
         std::unique_ptr<NativeMod> native;
-        std::string directory;
+        std::filesystem::path directory;
     };
 
     std::vector<std::unique_ptr<LoadedMod>> m_mods;
@@ -242,6 +251,7 @@ private:
     void try_load_mod(const std::filesystem::path& modPath, bool fromDir, uint32_t searchDirIndex);
     void load_native(LoadedMod& mod, const std::string& dllEntry,
         const std::vector<std::string>& runtimeEntries);
+    bool load_native_if_present(LoadedMod& mod);
     // Resolved <nativeLibDir>/<mod id><ext> if it exists on disk, empty otherwise.
     [[nodiscard]] std::filesystem::path external_native_lib_path(const LoadedMod& mod) const;
     void unload_native(LoadedMod& mod);

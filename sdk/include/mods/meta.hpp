@@ -52,7 +52,7 @@ extern "C" const unsigned char __stop_modmeta[];
 #define MOD_META_BOUNDS_END (__stop_modmeta)
 #endif
 
-namespace dusk::mods {
+namespace mods {
 
 /* A string usable as a template argument: carries a symbol/target name into record builders
  * and makes each hook declaration's static state unique. */
@@ -254,8 +254,7 @@ struct HookFnHolder {
         {sizeof(HookFnRecord<F>), MOD_META_HOOK_FN, 0}, 0, Target, nullptr};
 };
 
-template <auto Target, FixedString Disp,
-    bool = std::is_member_function_pointer_v<decltype(Target)>>
+template <auto Target, FixedString Disp, bool = std::is_member_function_pointer_v<decltype(Target)>>
 struct HookRecordFor {
     using Holder = HookFnHolder<Target>;
 };
@@ -268,8 +267,7 @@ struct HookRecordFor<Target, Disp, true> {
     struct Bind<std::index_sequence<Is...>> {
         using Type = HookMemHolder<Target, make_hook_mem_names<Target, Disp>().chars[Is]...>;
     };
-    using Holder =
-        Bind<std::make_index_sequence<make_hook_mem_names<Target, Disp>().len>>::Type;
+    using Holder = Bind<std::make_index_sequence<make_hook_mem_names<Target, Disp>().len>>::Type;
 };
 
 template <FixedString Name>
@@ -284,4 +282,4 @@ consteval auto make_hook_name_record() {
 }
 
 }  // namespace detail
-}  // namespace dusk::mods
+}  // namespace mods

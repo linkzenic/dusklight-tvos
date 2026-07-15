@@ -519,6 +519,8 @@ endif ()
 if (CMAKE_SYSTEM_NAME STREQUAL Linux)
     target_link_options(dusklight PRIVATE "-Wl,--build-id=sha1")
     target_link_libraries(dusklight PRIVATE dl)
+elseif (ANDROID)
+    target_link_options(dusklight PRIVATE "-Wl,--build-id=sha1")
 endif ()
 
 if (NOT APPLE)

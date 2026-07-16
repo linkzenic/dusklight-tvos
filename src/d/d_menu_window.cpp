@@ -219,7 +219,7 @@ static BOOL dMw_isMenuRing() {
 }
 
 typedef void (dMw_c::*initFunc)(u8);
-initFunc init_proc[] = {
+DUSK_GAME_DATA initFunc init_proc[] = {
     &dMw_c::key_wait_init,
     &dMw_c::ring_open_init,
     &dMw_c::ring_move_init,
@@ -258,7 +258,7 @@ initFunc init_proc[] = {
 };
 
 typedef void (dMw_c::*procFunc)();
-procFunc move_proc[] = {
+DUSK_GAME_DATA procFunc move_proc[] = {
     &dMw_c::key_wait_proc,
     &dMw_c::ring_open_proc,
     &dMw_c::ring_move_proc,
@@ -1771,7 +1771,7 @@ static leafdraw_method_class l_dMw_Method = {
     (process_method_func)dMw_Draw,
 };
 
-msg_process_profile_definition g_profile_MENUWINDOW = {
+DUSK_PROFILE msg_process_profile_definition DUSK_CONST g_profile_MENUWINDOW = {
     /* Layer ID    */ fpcLy_CURRENT_e,
     /* List ID     */ 12,
     /* List Prio   */ fpcPi_CURRENT_e,

@@ -4,6 +4,7 @@ import android.app.ActionBar;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ClipData;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -12,25 +13,37 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
+import android.provider.Settings;
 import android.util.Log;
+import android.view.Display;
+import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 
 import org.libsdl.app.SDLActivity;
+import org.libsdl.app.SDLSurface;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 public class DuskActivity extends SDLActivity {
     private static final String TAG = "DuskActivity";
+    private static final float DEFAULT_SURFACE_FRAME_RATE = 60.0f;
     private static final int FOLDER_DIALOG_REQUEST_CODE = 0x4455;
+    private static final int MANAGE_STORAGE_REQUEST_CODE = 0x4456;
     private static final String EXTERNAL_STORAGE_AUTHORITY =
         "com.android.externalstorage.documents";
 
     private long folderDialogUserdata = 0;
+    private boolean awaitingManageStoragePermission = false;
 
     private static native void nativeFolderDialogResult(long userdata, String path, String error);
 
@@ -81,14 +94,67 @@ public class DuskActivity extends SDLActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        extractBundledMods();
         super.onCreate(savedInstanceState);
         hideSystemBars();
+    }
+
+    // Bundled mod packages ship as APK assets, which the native loader cannot read directly;
+    // mirror them into internal storage (the loader's CachePath/bundled_mods search dir)
+    // before SDL_main starts.
+    private void extractBundledMods() {
+        File outDir = new File(getFilesDir(), "bundled_mods");
+        try {
+            deleteRecursively(outDir); // drop packages removed by an app update
+            String[] names = getAssets().list("mods");
+            if (names == null || names.length == 0) {
+                return;
+            }
+            if (!outDir.mkdirs()) {
+                Log.w(TAG, "Unable to create " + outDir);
+                return;
+            }
+            byte[] buffer = new byte[65536];
+            for (String name : names) {
+                if (!name.endsWith(".dusk")) {
+                    continue;
+                }
+                try (InputStream in = getAssets().open("mods/" + name);
+                     OutputStream out = new FileOutputStream(new File(outDir, name)))
+                {
+                    int count;
+                    while ((count = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, count);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            Log.w(TAG, "Failed to extract bundled mods", e);
+        }
+    }
+
+    private static void deleteRecursively(File file) {
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                deleteRecursively(child);
+            }
+        }
+        file.delete();
+    }
+
+    @Override
+    protected SDLSurface createSDLSurface(Context context) {
+        return new DuskSurface(context);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         hideSystemBars();
+        if (awaitingManageStoragePermission) {
+            resumeFolderDialogAfterPermissionGrant();
+        }
     }
 
     @Override
@@ -133,6 +199,77 @@ public class DuskActivity extends SDLActivity {
         };
     }
 
+    public void setPreferredSurfaceFrameRate(float frameRate) {
+        runOnUiThread(() -> {
+            if (mSurface instanceof DuskSurface) {
+                ((DuskSurface)mSurface).setPreferredFrameRate(frameRate);
+            }
+        });
+    }
+
+    private static final class DuskSurface extends SDLSurface {
+        private float preferredFrameRate = DEFAULT_SURFACE_FRAME_RATE;
+
+        DuskSurface(Context context) {
+            super(context);
+        }
+
+        @Override
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            super.surfaceChanged(holder, format, width, height);
+            setTargetFrameRate(holder);
+        }
+
+        void setPreferredFrameRate(float frameRate) {
+            preferredFrameRate = frameRate;
+            setTargetFrameRate(getHolder());
+        }
+
+        private void setTargetFrameRate(SurfaceHolder holder) {
+            if (!mIsSurfaceReady || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                return;
+            }
+
+            Surface surface = holder != null ? holder.getSurface() : getHolder().getSurface();
+            if (surface == null || !surface.isValid()) {
+                return;
+            }
+
+            float targetFrameRate = getMaxSupportedFrameRate();
+            if (preferredFrameRate > 0.0f) {
+                targetFrameRate = preferredFrameRate;
+            }
+            if (targetFrameRate <= 0.0f) {
+                return;
+            }
+
+            try {
+                surface.setFrameRate(
+                    targetFrameRate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+                Log.v(TAG, "Requested surface frame rate " + targetFrameRate + " fps");
+            } catch (RuntimeException e) {
+                Log.w(TAG, "Failed to request surface frame rate", e);
+            }
+        }
+
+        private float getMaxSupportedFrameRate() {
+            if (mDisplay == null) {
+                return 0.0f;
+            }
+
+            float maxFrameRate = mDisplay.getRefreshRate();
+            Display.Mode[] modes = mDisplay.getSupportedModes();
+            if (modes == null) {
+                return maxFrameRate;
+            }
+
+            for (Display.Mode mode : modes) {
+                maxFrameRate = Math.max(maxFrameRate, mode.getRefreshRate());
+            }
+            return maxFrameRate;
+        }
+    }
+
     @Override
     protected String[] getArguments() {
         Intent intent = getIntent();
@@ -171,6 +308,19 @@ public class DuskActivity extends SDLActivity {
         }
 
         folderDialogUserdata = userdata;
+        if (requiresManageStoragePermission() && !hasManageStoragePermission()) {
+            if (!requestManageStoragePermission()) {
+                finishFolderDialogWithError("Unable to request Android file access permission");
+                return false;
+            }
+            return true;
+        }
+
+        openFolderDialog();
+        return true;
+    }
+
+    private void openFolderDialog() {
         runOnUiThread(() -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
@@ -185,7 +335,69 @@ public class DuskActivity extends SDLActivity {
                 finishFolderDialog(Activity.RESULT_CANCELED, null);
             }
         });
+    }
+
+    private boolean requiresManageStoragePermission() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R;
+    }
+
+    private boolean hasManageStoragePermission() {
+        return !requiresManageStoragePermission() || Environment.isExternalStorageManager();
+    }
+
+    private boolean requestManageStoragePermission() {
+        if (!requiresManageStoragePermission()) {
+            return true;
+        }
+
+        awaitingManageStoragePermission = true;
+        runOnUiThread(() -> {
+            if (tryStartManageStorageIntent(
+                    new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                        .setData(Uri.parse("package:" + getPackageName()))) ||
+                tryStartManageStorageIntent(
+                    new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)))
+            {
+                return;
+            }
+
+            finishFolderDialogWithError("Unable to request Android file access permission");
+        });
         return true;
+    }
+
+    private boolean tryStartManageStorageIntent(Intent intent) {
+        try {
+            startActivityForResult(intent, MANAGE_STORAGE_REQUEST_CODE);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Unable to open all-files access settings.", e);
+            return false;
+        }
+    }
+
+    private void resumeFolderDialogAfterPermissionGrant() {
+        awaitingManageStoragePermission = false;
+        if (folderDialogUserdata == 0) {
+            return;
+        }
+
+        if (hasManageStoragePermission()) {
+            openFolderDialog();
+            return;
+        }
+
+        finishFolderDialogWithError(
+            "Allow \"All files access\" for Dusklight before choosing a custom data folder");
+    }
+
+    private void finishFolderDialogWithError(String error) {
+        long userdata = folderDialogUserdata;
+        folderDialogUserdata = 0;
+        awaitingManageStoragePermission = false;
+        if (userdata != 0) {
+            nativeFolderDialogResult(userdata, null, error);
+        }
     }
 
     private void finishFolderDialog(int resultCode, Intent data) {

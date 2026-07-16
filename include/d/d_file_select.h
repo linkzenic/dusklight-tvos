@@ -12,6 +12,39 @@
 class dFile_info_c;
 class J2DPicture;
 
+#if TARGET_PC
+static PaneCache mSelDtPanes[] = {
+    {MULTI_CHAR('tate_n0'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('tate_n1'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('ken_n0'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('ken_n1'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('fuku_n0'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('fuku_n1'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('fuku_n2'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('gray_n'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('b_base'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('b_base1'), 0.0f, 0.0f, false},
+};
+
+static PaneCache fileSelPanes[] = {
+    {MULTI_CHAR('w_uzu00'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu01'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu02'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu03'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu04'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu05'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu06'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu07'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu08'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_uzu09'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_er_msg'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_er_msE'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('w_er_msR'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('er_for0'), 0.0f, 0.0f, false},
+    {MULTI_CHAR('er_for1'), 0.0f, 0.0f, false},
+};
+#endif
+
 class dDlst_FileSel_c : public dDlst_base_c {
 public:
     void draw();
@@ -254,6 +287,11 @@ public:
         MEMCARDCHECKPROC_ERR_YESNO_CURSOR_MOVE_ANM,
         MEMCARDCHECKPROC_SAVEDATA_CLEAR,
 
+#if TARGET_PC
+        MEMCARDCHECKPROC_AUTO_MAKE_GAMEFILE,
+        MEMCARDCHECKPROC_AUTO_MAKE_GAMEFILE_ERR_WAIT,
+#endif
+
         #if PLATFORM_WII || PLATFORM_SHIELD
         MEMCARDCHECKPROC_NAND_STAT_CHECK,
         MEMCARDCHECKPROC_GAMEFILE_INIT_SEL,
@@ -378,6 +416,10 @@ public:
     bool yesnoWakuAlpahAnm(u8);
     #if TARGET_PC
     void fileSelectWide();
+    bool pointerDataSelect();
+    bool pointerMenuSelect();
+    bool pointerCopyDataToSelect();
+    bool pointerYesNoSelect(bool errorSelect);
     #endif
     void _draw();
     void errorMoveAnmInitSet(int, int);
@@ -412,6 +454,10 @@ public:
     void MemCardMakeGameFile();
     void MemCardMakeGameFileWait();
     void MemCardMakeGameFileCheck();
+#if TARGET_PC
+    void MemCardAutoMakeGameFile();
+    void MemCardAutoMakeGameFileErrWait();
+#endif
     void MemCardMsgWindowInitOpen();
     void MemCardMsgWindowOpen();
     void MemCardMsgWindowClose();
@@ -530,7 +576,7 @@ public:
     /* 0x0130 */ int field_0x0130;
     /* 0x0134 */ int field_0x0134;
     /* 0x0138 */ CPaneMgrAlpha* mErrorMsgTxtPane[2];
-    /* 0x0140 */ char* mErrorMsgStringPtr[2];
+    /* 0x0140 */ TEXT_SPAN mErrorMsgStringPtr[2];
     /* 0x0148 */ u8 mErrorTxtDispIdx;
     /* 0x0149 */ u8 field_0x0149;
     /* 0x014A */ bool field_0x014a;
@@ -574,7 +620,7 @@ public:
     /* 0x020A */ u8 mFadeTimer;
     /* 0x020B */ u8 field_0x020b;
     /* 0x020C */ CPaneMgrAlpha* mHeaderTxtPane[2];
-    /* 0x0214 */ char* mHeaderStringPtr[2];
+    /* 0x0214 */ TEXT_SPAN mHeaderStringPtr[2];
     /* 0x021C */ u8 mHeaderTxtDispIdx;
     /* 0x021D */ u8 field_0x021d;
     /* 0x021E */ u8 field_0x021e;
@@ -591,7 +637,7 @@ public:
     /* 0x024B */ u8 field_0x024b;
     /* 0x024C */ u8 field_0x024c;
     /* 0x024B */ u8 field_0x024d[3];
-    /* 0x0250 */ char* mModoruStringPtr;
+    /* 0x0250 */ TEXT_SPAN mModoruStringPtr;
     /* 0x0254 */ STControl* stick;
     /* 0x0258 */ u8 mIsDataNew[3];
     /* 0x025B */ u8 mIsNoData[3];

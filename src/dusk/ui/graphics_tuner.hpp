@@ -42,8 +42,11 @@ private:
 enum class GraphicsOption {
     InternalResolution,
     ShadowResolution,
+    Resampler,
     BloomMode,
     BloomMultiplier,
+    DepthOfFieldMode,
+    TextureReplacements,
 };
 
 Rml::String format_graphics_setting_value(GraphicsOption option, int value);
@@ -55,11 +58,12 @@ struct GraphicsTunerProps {
     int valueMin = 0;
     int valueMax = 0;
     int defaultValue = 0;
+    int step = 1;
 };
 
 class GraphicsTuner : public Document {
 public:
-    explicit GraphicsTuner(GraphicsTunerProps props, bool prelaunch);
+    explicit GraphicsTuner(GraphicsTunerProps props);
 
     void show() override;
     void hide(bool close) override;
@@ -88,7 +92,6 @@ private:
     std::vector<std::unique_ptr<Component> > mComponents;
     SteppedCarousel* mCarousel;
     Rml::Element* mRoot;
-    bool mPrelaunch;
 };
 
 }  // namespace dusk::ui

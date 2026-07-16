@@ -91,7 +91,7 @@ const char* daShopItem_c::getShopArcname() {
     return mData[mShopItemID].get_arcName();
 }
 
-const f32 daShopItem_c::m_cullfar_max = 5000.0f;
+DUSK_GAME_DATA const f32 daShopItem_c::m_cullfar_max = 5000.0f;
 
 u16 daShopItem_c::getHeapSize() {
     static const u16 HeapSizeTbl[] = {
@@ -269,13 +269,13 @@ static int daShopItem_IsDelete(void* i_this) {
     return 1;
 }
 
-static actor_method_class daShopItemMethodTable = {
+static DUSK_CONST actor_method_class daShopItemMethodTable = {
     (process_method_func)daShopItem_Create,  (process_method_func)daShopItem_Delete,
     (process_method_func)daShopItem_Execute, (process_method_func)daShopItem_IsDelete,
     (process_method_func)daShopItem_Draw,
 };
 
-actor_process_profile_definition g_profile_ShopItem = {
+DUSK_PROFILE actor_process_profile_definition DUSK_CONST g_profile_ShopItem = {
     /* Layer ID     */ fpcLy_CURRENT_e,
     /* List ID      */ 7,
     /* List Prio    */ fpcPi_CURRENT_e,

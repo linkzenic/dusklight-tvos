@@ -15,7 +15,7 @@ class daObj_Pleaf_Param_c {
 public:
     virtual ~daObj_Pleaf_Param_c() {}
 
-    static daObj_Pleaf_HIOParam const m;
+    static DUSK_GAME_DATA daObj_Pleaf_HIOParam const m;
 };
 
 #if DEBUG
@@ -65,7 +65,7 @@ public:
     int Execute();
     int Draw();
     static int createHeapCallBack(fopAc_ac_c*);
-    char* getResName();
+    char DUSK_CONST* getResName();
     int isDelete();
     void setEnvTevColor();
     void setRoomNo();

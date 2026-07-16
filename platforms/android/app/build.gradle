@@ -2,12 +2,20 @@ plugins {
     id 'com.android.application'
 }
 
+def versionNameStr = (System.getenv("DUSK_VERSION") ?: "v0.1.0").replaceFirst("^v", "")
+def versionCodeInt = (System.getenv("DUSK_VERSION_CODE") ?: "100000").toInteger()
+
 def duskRepoDir = rootProject.projectDir.parentFile.parentFile
 def duskGeneratedAssetsDir = layout.buildDirectory.dir('generated/assets/dusklight').get().asFile
 def syncDuskAssets = tasks.register('syncDuskAssets', Sync) {
     from(new File(duskRepoDir, 'res')) {
         into 'res'
         exclude '**/.DS_Store'
+    }
+    // Staged by platforms/android/scripts/stage-jni-libs.sh
+    from(new File(projectDir, 'src/main/bundled_mods')) {
+        into 'mods'
+        include '*.dusk'
     }
     into duskGeneratedAssetsDir
 }
@@ -20,8 +28,8 @@ android {
         applicationId 'dev.twilitrealm.dusk'
         minSdk 26
         targetSdk 36
-        versionCode 1
-        versionName '0.1.0'
+        versionCode versionCodeInt
+        versionName versionNameStr
     }
 
     buildTypes {

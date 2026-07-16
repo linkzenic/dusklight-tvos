@@ -7,15 +7,17 @@
 
 #include "achievements.hpp"
 #include "aurora/rmlui.hpp"
-#include "dusk/speedrun.h"
 #include "dusk/livesplit.h"
 #include "dusk/main.h"
+#include "dusk/mods/svc/ui.hpp"
 #include "dusk/settings.h"
+#include "dusk/speedrun.h"
 #include "editor.hpp"
 #include "f_pc/f_pc_manager.h"
 #include "f_pc/f_pc_name.h"
 #include "imgui.h"
 #include "modal.hpp"
+#include "mods_window.hpp"
 #include "settings.hpp"
 #include "ui.hpp"
 #include "warp.hpp"
@@ -41,11 +43,12 @@ const Rml::String kDocumentSource = R"RML(
 
 }
 
-MenuBar::MenuBar() : Document(kDocumentSource), mRoot(mDocument->GetElementById("popup")) {
+MenuBar::MenuBar()
+    : Document(kDocumentSource, false, DocumentScope::MenuBar),
+      mRoot(mDocument->GetElementById("popup")) {
     mTabBar = std::make_unique<TabBar>(mRoot, TabBar::Props{
                                                   .onClose =
                                                       [this] {
-                                                          toggle_cursor_if_gyro(false);
                                                           mDoAud_seStartMenu(kSoundMenuClose);
                                                           hide(false);
                                                       },
@@ -59,7 +62,10 @@ MenuBar::MenuBar() : Document(kDocumentSource), mRoot(mDocument->GetElementById(
     }
 
     mTabBar->add_tab("Achievements", [this] { push(std::make_unique<AchievementsWindow>()); });
-
+    mTabBar->add_tab("Mods", [this] { push(std::make_unique<ModsWindow>()); });
+    for (auto& tab : mods::svc::ui_mod_menu_tabs()) {
+        mTabBar->add_tab(tab.label, std::move(tab.onSelected));
+    }
 
     mTabBar->add_tab("Reset", [this] {
         mTabBar->set_active_tab(-1);
@@ -219,7 +225,6 @@ bool MenuBar::handle_nav_command(Rml::Event& event, NavCommand cmd) {
         return true;
     }
     if (cmd == NavCommand::Cancel && visible()) {
-        toggle_cursor_if_gyro(false);
         mDoAud_seStartMenu(kSoundMenuClose);
         hide(false);
         return true;
@@ -229,6 +234,22 @@ bool MenuBar::handle_nav_command(Rml::Event& event, NavCommand cmd) {
 
 bool MenuBar::focus() {
     return mTabBar->focus();
+}
+
+void MenuBar::rebuild() {
+    for (auto& doc : get_document_stack()) {
+        if (auto* menuBar = dynamic_cast<MenuBar*>(doc.get())) {
+            const bool wasVisible = menuBar->visible();
+            auto next = std::make_unique<MenuBar>();
+            next->mFocusedTabIndex = menuBar->mFocusedTabIndex;
+            next->mWasVisible = menuBar->mWasVisible;
+            doc = std::move(next);
+            if (wasVisible) {
+                doc->show();
+            }
+            break;
+        }
+    }
 }
 
 }  // namespace dusk::ui

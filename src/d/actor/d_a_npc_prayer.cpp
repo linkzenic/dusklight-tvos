@@ -10,7 +10,7 @@
 
 static NPC_PRAY_HIO_CLASS l_HIO;
 
-static struct {
+static DUSK_CONSTEXPR struct {
     int resIdx;
     int anmMode;
     int arcnameIdx;
@@ -30,24 +30,24 @@ enum daNpcPray_MOTION_e {
     MOTION_WOLF_e,
 };
 
-static char* l_arcNames[2] = {
+static DUSK_CONSTEXPR char DUSK_CONST* l_arcNames[2] = {
     "Prayer",
     "Wgeneral",
 };
 
-static char* l_evtNames[2] = {
+static DUSK_CONSTEXPR char DUSK_CONST* l_evtNames[2] = {
     NULL,
     "GET_HEART",
 };
 
-static char* l_myName = "Prayer";
+static DUSK_CONSTEXPR char DUSK_CONST* l_myName = "Prayer";
 
-daNpcPray_c::EvtSeq daNpcPray_c::mEvtSeqList[] = {
+DUSK_GAME_DATA daNpcPray_c::EvtSeq DUSK_CONST daNpcPray_c::mEvtSeqList[] = {
     NULL,
     &daNpcPray_c::_Evt_GetHeart,
 };
 
-const daNpcPray_HIOParam daNpcPray_Param_c::m = {
+DUSK_GAME_DATA const daNpcPray_HIOParam daNpcPray_Param_c::m = {
     55.0f,
     -3.0f,
     1.0f,
@@ -837,7 +837,7 @@ static int daNpcPray_IsDelete(void* i_this) {
     return 1;
 }
 
-static actor_method_class daNpcPray_MethodTable = {
+static DUSK_CONST actor_method_class daNpcPray_MethodTable = {
     (process_method_func)daNpcPray_Create,
     (process_method_func)daNpcPray_Delete,
     (process_method_func)daNpcPray_Execute,
@@ -845,7 +845,7 @@ static actor_method_class daNpcPray_MethodTable = {
     (process_method_func)daNpcPray_Draw,
 };
 
-actor_process_profile_definition g_profile_NPC_PRAYER = {
+DUSK_PROFILE actor_process_profile_definition DUSK_CONST g_profile_NPC_PRAYER = {
     /* Layer ID     */ fpcLy_CURRENT_e,
     /* List ID      */ 7,
     /* List Prio    */ fpcPi_CURRENT_e,

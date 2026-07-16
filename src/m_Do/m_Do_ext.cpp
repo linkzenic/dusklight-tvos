@@ -28,9 +28,9 @@
 #include "dusk/frame_interpolation.h"
 #include "dusk/version.hpp"
 
-u8 mDoExt::CurrentHeapAdjustVerbose;
-u8 mDoExt::HeapAdjustVerbose;
-u8 mDoExt::HeapAdjustQuiet;
+DUSK_GAME_DATA u8 mDoExt::CurrentHeapAdjustVerbose;
+DUSK_GAME_DATA u8 mDoExt::HeapAdjustVerbose;
+DUSK_GAME_DATA u8 mDoExt::HeapAdjustQuiet;
 
 static void mDoExt_setJ3DData(Mtx mtx, const J3DTransformInfo* transformInfo, u16 param_2) {
     bool local_28;
@@ -692,7 +692,7 @@ JKRExpHeap* mDoExt_getDbPrintHeap() {
     return DbPrintHeap;
 }
 
-JKRExpHeap* gameHeap;
+DUSK_GAME_DATA JKRExpHeap* gameHeap;
 static intptr_t safeGameHeapSize = -1;
 
 JKRExpHeap* mDoExt_createGameHeap(u32 heapSize, JKRHeap* parentHeap) {
@@ -725,8 +725,8 @@ size_t mDoExt_getSafeGameHeapSize() {
     return safeGameHeapSize;
 }
 
-JKRExpHeap* zeldaHeap;
-intptr_t safeZeldaHeapSize = -1;
+DUSK_GAME_DATA JKRExpHeap* zeldaHeap;
+DUSK_GAME_DATA intptr_t safeZeldaHeapSize = -1;
 
 JKRExpHeap* mDoExt_createZeldaHeap(u32 heapSize, JKRHeap* parentHeap) {
     JUT_ASSERT(1815, zeldaHeap == NULL || heapSize == 0);
@@ -759,8 +759,8 @@ intptr_t mDoExt_getSafeZeldaHeapSize() {
     return safeZeldaHeapSize;
 }
 
-JKRExpHeap* commandHeap;
-intptr_t safeCommandHeapSize = -1;
+DUSK_GAME_DATA JKRExpHeap* commandHeap;
+DUSK_GAME_DATA intptr_t safeCommandHeapSize = -1;
 
 JKRExpHeap* mDoExt_createCommandHeap(u32 heapSize, JKRHeap* parentHeap) {
     JUT_ASSERT(1894, commandHeap == 0 || heapSize == 0);
@@ -786,8 +786,8 @@ intptr_t mDoExt_getSafeCommandHeapSize() {
     return safeCommandHeapSize;
 }
 
-JKRExpHeap* archiveHeap;
-intptr_t safeArchiveHeapSize = -1;
+DUSK_GAME_DATA JKRExpHeap* archiveHeap;
+DUSK_GAME_DATA intptr_t safeArchiveHeapSize = -1;
 
 JKRExpHeap* mDoExt_createArchiveHeap(u32 heapSize, JKRHeap* parentHeap) {
     JUT_ASSERT(1966, archiveHeap == 0 || heapSize == 0);
@@ -825,7 +825,7 @@ JKRExpHeap* mDoExt_getArchiveHeapPtr() {
 }
 
 static JKRExpHeap* j2dHeap;
-intptr_t safeJ2dHeapSize = -1;
+DUSK_GAME_DATA intptr_t safeJ2dHeapSize = -1;
 
 JKRExpHeap* mDoExt_createJ2dHeap(u32 heapSize, JKRHeap* parentHeap) {
     JUT_ASSERT(2059, j2dHeap == 0 || heapSize == 0);
@@ -2370,6 +2370,7 @@ static u8 l_matDL[132] ATTRIBUTE_ALIGN(32) = {
 };
 
 void mDoExt_3DlineMat0_c::setMaterial() {
+    ZoneScoped;
     j3dSys.reinitGX();
     GXSetNumIndStages(0);
     dKy_setLight_again();
@@ -2385,6 +2386,7 @@ void mDoExt_3DlineMat0_c::setMaterial() {
 }
 
 void mDoExt_3DlineMat0_c::draw() {
+    ZoneScoped;
     GXSetTevColor(GX_TEVREG2, field_0x8);
 
     if (field_0xc != NULL) {
@@ -2411,7 +2413,7 @@ void mDoExt_3DlineMat0_c::draw() {
     }
 
 #if TARGET_PC
-    if (!dusk::getSettings().game.enableFrameInterpolation)
+    if (!dusk::frame_interp::is_enabled())
 #endif
     {
         field_0x16 ^= (u8)1;
@@ -2693,6 +2695,7 @@ static u8 l_mat1DL[141] ATTRIBUTE_ALIGN(32) = {
 };
 
 void mDoExt_3DlineMat1_c::setMaterial() {
+    ZoneScoped;
     j3dSys.reinitGX();
     GXSetNumIndStages(0);
     dKy_setLight_again();
@@ -2710,6 +2713,7 @@ void mDoExt_3DlineMat1_c::setMaterial() {
 }
 
 void mDoExt_3DlineMat1_c::draw() {
+    ZoneScoped;
     GXLoadTexObj(&mTextureObject, GX_TEXMAP0);
     GXSetTexCoordScaleManually(GX_TEXCOORD0, 1, GXGetTexObjWidth(&mTextureObject), GXGetTexObjHeight(&mTextureObject));
     GXSetTevColor(GX_TEVREG2, mColor);
@@ -2741,7 +2745,7 @@ void mDoExt_3DlineMat1_c::draw() {
     }
     GXSetTexCoordScaleManually(GX_TEXCOORD0, 0, 0, 0);
 #if TARGET_PC
-    if (!dusk::getSettings().game.enableFrameInterpolation)
+    if (!dusk::frame_interp::is_enabled())
 #endif
     {
         mIsDrawn ^= (u8)1;
@@ -2823,7 +2827,7 @@ void mDoExt_3DlineMat1_c::update(int param_0, f32 param_1, GXColor& param_2, u16
         }
 
 #if TARGET_PC
-        const cXyz& lineEye = (presentationEye != nullptr && dusk::getSettings().game.enableFrameInterpolation) ? *presentationEye : sp_3c->lookat.eye;
+        const cXyz& lineEye = (presentationEye != nullptr && dusk::frame_interp::is_enabled()) ? *presentationEye : sp_3c->lookat.eye;
         sp_13c = *local_r27 - lineEye;
 #else
         sp_13c = *local_r27 - sp_3c->lookat.eye;
@@ -2923,6 +2927,7 @@ void mDoExt_3DlineMat1_c::update(int param_0, f32 param_1, GXColor& param_2, u16
 #endif
 
 void mDoExt_3DlineMat2_c::setMaterial() {
+    ZoneScoped;
     j3dSys.reinitGX();
     GXSetNumIndStages(0);
     GXClearVtxDesc();
@@ -2983,7 +2988,7 @@ void mDoExt_3DlineMat1_c::update(int param_0, GXColor& param_2, dKy_tevstr_c* pa
         local_r27 = sp_38[0].field_0x0;
         size_p = sp_38->field_0x4;
 #if TARGET_PC
-        if (presentationEye != nullptr && dusk::getSettings().game.enableFrameInterpolation && size_p == NULL) {
+        if (presentationEye != nullptr && dusk::frame_interp::is_enabled() && size_p == NULL) {
             sp_38 += 1;
             continue;
         }
@@ -3002,7 +3007,7 @@ void mDoExt_3DlineMat1_c::update(int param_0, GXColor& param_2, dKy_tevstr_c* pa
         local_f30 = sp_130.abs();
         local_f31 += local_f30 * 0.1f;
 #if TARGET_PC
-        const cXyz& lineEye = (presentationEye != nullptr && dusk::getSettings().game.enableFrameInterpolation) ? *presentationEye : stack_3c->lookat.eye;
+        const cXyz& lineEye = (presentationEye != nullptr && dusk::frame_interp::is_enabled()) ? *presentationEye : stack_3c->lookat.eye;
         sp_13c = local_r27[0] - lineEye;
 #else
         sp_13c = local_r27[0] - stack_3c->lookat.eye;
@@ -3078,7 +3083,7 @@ void mDoExt_3DlineMat1_c::update(int param_0, GXColor& param_2, dKy_tevstr_c* pa
 
 #if TARGET_PC
 void mDoExt_3DlineMat1_c::refreshGeometryForPresentationEye(const cXyz& eye) {
-    if (!dusk::getSettings().game.enableFrameInterpolation) {
+    if (!dusk::frame_interp::is_enabled()) {
         return;
     }
     if (mInterpLineKind == 1) {
@@ -3120,6 +3125,7 @@ mDoExt_cube8pPacket::mDoExt_cube8pPacket(cXyz* i_points, const GXColor& i_color)
 }
 
 void drawCube(MtxP mtx, cXyz* pos, const GXColor& color) {
+    ZoneScoped;
     GXSETARRAY(GX_VA_POS, pos, sizeof(cXyz) * 8, sizeof(cXyz), true);
     GXSetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
     GXClearVtxDesc();
@@ -3199,6 +3205,7 @@ mDoExt_quadPacket::mDoExt_quadPacket(cXyz* i_points, const GXColor& i_color, u8 
 }
 
 void mDoExt_quadPacket::draw() {
+    ZoneScoped;
     GXSETARRAY(GX_VA_POS, mPoints, sizeof(mPoints), sizeof(cXyz), true);
     GXSetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
     GXClearVtxDesc();
@@ -3249,6 +3256,7 @@ mDoExt_trianglePacket::mDoExt_trianglePacket(cXyz* i_points, const GXColor& i_co
 }
 
 void mDoExt_trianglePacket::draw() {
+    ZoneScoped;
     j3dSys.reinitGX();
 
     GXSETARRAY(GX_VA_POS, mPoints, sizeof(mPoints), sizeof(cXyz), true);
@@ -3302,6 +3310,7 @@ mDoExt_linePacket::mDoExt_linePacket(cXyz& i_start, cXyz& i_end, const GXColor& 
 }
 
 void mDoExt_linePacket::draw() {
+    ZoneScoped;
     j3dSys.reinitGX();
 
     GXSetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
@@ -3419,6 +3428,7 @@ mDoExt_pointPacket::mDoExt_pointPacket(cXyz& i_position, const GXColor& i_color,
 }
 
 void mDoExt_pointPacket::draw() {
+    ZoneScoped;
     j3dSys.reinitGX();
 
     GXSetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
@@ -3855,7 +3865,7 @@ J3DModel* mDoExt_J3DModel__create(J3DModelData* i_modelData, u32 i_modelFlag, u3
     return NULL;
 }
 
-DummyCheckHeap* dch;
+DUSK_GAME_DATA DummyCheckHeap* dch;
 
 DummyCheckHeap::DummyCheckHeap() {
     mAlloc = NULL;
@@ -3963,7 +3973,7 @@ void DummyCheckHeap_check() {
     }
 }
 
-u32 aram_cache_size;
+DUSK_GAME_DATA u32 aram_cache_size;
 
 u32 mDoExt_getAraCacheSize() {
     return aram_cache_size;

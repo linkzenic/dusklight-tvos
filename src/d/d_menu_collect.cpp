@@ -36,8 +36,12 @@
 #include "d/d_menu_window.h"
 #include "JSystem/J3DGraphBase/J3DMaterial.h"
 
+#if TARGET_PC
+#include "dusk/menu_pointer.h"
+#endif
+
 typedef void (dMenu_Collect2D_c::*initFunc)();
-static initFunc init[] = {
+static DUSK_CONSTEXPR initFunc init[] = {
     &dMenu_Collect2D_c::wait_init,          &dMenu_Collect2D_c::save_open_init,
     &dMenu_Collect2D_c::save_move_init,     &dMenu_Collect2D_c::save_close_init,
     &dMenu_Collect2D_c::option_open_init,   &dMenu_Collect2D_c::option_move_init,
@@ -50,7 +54,7 @@ static initFunc init[] = {
     &dMenu_Collect2D_c::insect_close_init};
 
 typedef void (dMenu_Collect2D_c::*processFunc)();
-static processFunc process[] = {
+static DUSK_CONSTEXPR processFunc process[] = {
     &dMenu_Collect2D_c::wait_proc,          &dMenu_Collect2D_c::save_open_proc,
     &dMenu_Collect2D_c::save_move_proc,     &dMenu_Collect2D_c::save_close_proc,
     &dMenu_Collect2D_c::option_open_proc,   &dMenu_Collect2D_c::option_move_proc,
@@ -97,79 +101,158 @@ dMenu_Collect2D_c::~dMenu_Collect2D_c() {
 
 #if TARGET_PC
 void dMenu_Collect2D_c::menuCollectWide() {
-    // Main Canvas
-    mpScreen->scale(mDoGph_gInf_c::hudAspectScaleUp, 1.0f);
-    mpScreen->translate(mDoGph_gInf_c::getSafeMinXF(), 0.0f);
-
-    // Pieces of Heart
-    mpScreen->search(MULTI_CHAR('heart_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Scents
-    mpScreen->search(MULTI_CHAR('wolf_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Quiver
-    mpScreen->search(MULTI_CHAR('item_0_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Wallet
-    mpScreen->search(MULTI_CHAR('item_1_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Poes
-    mpScreen->search(MULTI_CHAR('item_2_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Fish Bestiary
-    mpScreen->search(MULTI_CHAR('fish_3_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Letters
-    mpScreen->search(MULTI_CHAR('lett_4_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Hidden Skills
-    mpScreen->search(MULTI_CHAR('maki_5_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Green Tunic
-    mpScreen->search(MULTI_CHAR('fuku_n0'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Zora Armor
-    mpScreen->search(MULTI_CHAR('fuku_n1'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Magic Armor
-    mpScreen->search(MULTI_CHAR('fuku_n2'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Ordon Shield
-    mpScreen->search(MULTI_CHAR('tate_n0'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Hylian Shield
-    mpScreen->search(MULTI_CHAR('tate_n1'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Ordon Sword
-    mpScreen->search(MULTI_CHAR('ken_n0'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Master Sword
-    mpScreen->search(MULTI_CHAR('ken_n1'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Bugs
-    mpScreen->search(MULTI_CHAR('kabu_6n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // "Collection" Text
-    mpScreen->search(MULTI_CHAR('t_t00'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-    mpScreen->search(MULTI_CHAR('f_t00'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // "Save" Text
-    mpScreen->search(MULTI_CHAR('sa_tex_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // "Options" Text
-    mpScreen->search(MULTI_CHAR('op_tex_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Item Name Text
-    mpScreen->search(MULTI_CHAR('itemn_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    // Item Description Text
-    mpScreen->search(MULTI_CHAR('infotxtn'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
-
-    #if TARGET_PC
-    if (mpDrawCursor) {
-        mpDrawCursor->refreshAspectScale();
+    static bool cachedPanes = false;
+    // Get pre-scale values for each pane
+    if (!cachedPanes) {
+        for (PaneCache& entry : mpScreenPanes) {
+            J2DPane* pane = mpScreen->search(entry.tag);
+            if (!entry.cached) {
+                entry.origTransX = pane->getTranslateX();
+                entry.origTransY = pane->getTranslateY();
+                entry.cached = true;
+            }
+        }
+        cachedPanes = true;
     }
-    #endif
+
+    // Reset all panes
+    mpScreen->scale(1.0f, 1.0f);
+    mpScreen->translate(0.0f, 0.0f);
+    for (PaneCache& entry : mpScreenPanes) {
+        J2DPane* pane = mpScreen->search(entry.tag);
+        pane->scale(1.0f, 1.0f);
+        pane->translate(entry.origTransX, entry.origTransY);
+    }
+
+    // Reset button overlay
+    mpScreenIcon->translate(0.0f, 0.0f);
+
+    switch (dusk::getSettings().game.menuScalingMode) {
+    case dusk::MenuScaling::GameCube:
+        // Selection Cursor
+        if (mpDrawCursor) {
+            mpDrawCursor->refreshAspectScale(1.0f);
+        }
+        break;
+    case dusk::MenuScaling::Wii:
+        // Main Canvas
+        mpScreen->scale(mDoGph_gInf_c::hudAspectScaleUp, 1.0f);
+        mpScreen->translate(mDoGph_gInf_c::getSafeMinXF(), 0.0f);
+
+        // Button Overlay
+        mpScreenIcon->translate(-mDoGph_gInf_c::getSafeMinXF(), 0.0f);
+
+        // "Save" Text
+        mpScreen->search(MULTI_CHAR('sa_tex_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // "Options" Text
+        mpScreen->search(MULTI_CHAR('op_tex_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Pieces of Heart
+        mpScreen->search(MULTI_CHAR('heart_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Scents
+        mpScreen->search(MULTI_CHAR('wolf_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Quiver
+        mpScreen->search(MULTI_CHAR('item_0_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Wallet
+        mpScreen->search(MULTI_CHAR('item_1_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Poes
+        mpScreen->search(MULTI_CHAR('item_2_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Fish Bestiary
+        mpScreen->search(MULTI_CHAR('fish_3_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Letters
+        mpScreen->search(MULTI_CHAR('lett_4_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Hidden Skills
+        mpScreen->search(MULTI_CHAR('maki_5_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Green Tunic
+        mpScreen->search(MULTI_CHAR('fuku_n0'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Zora Armor
+        mpScreen->search(MULTI_CHAR('fuku_n1'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Magic Armor
+        mpScreen->search(MULTI_CHAR('fuku_n2'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Ordon Shield
+        mpScreen->search(MULTI_CHAR('tate_n0'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Hylian Shield
+        mpScreen->search(MULTI_CHAR('tate_n1'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Ordon Sword
+        mpScreen->search(MULTI_CHAR('ken_n0'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Master Sword
+        mpScreen->search(MULTI_CHAR('ken_n1'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Bugs
+        mpScreen->search(MULTI_CHAR('kabu_6n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // "Collection" Text
+        mpScreen->search(MULTI_CHAR('t_t00'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+        mpScreen->search(MULTI_CHAR('f_t00'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Item Name Text
+        mpScreen->search(MULTI_CHAR('itemn_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Item Description Text
+        mpScreen->search(MULTI_CHAR('infotxtn'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Selection Cursor
+        if (mpDrawCursor) {
+            mpDrawCursor->refreshAspectScale(mDoGph_gInf_c::hudAspectScaleUp);
+        }
+        break;
+    case dusk::MenuScaling::Dusklight:
+        // Main Canvas
+        mpScreen->scale(mDoGph_gInf_c::hudAspectScaleUp, 1.0f);
+        mpScreen->translate(mDoGph_gInf_c::getSafeMinXF(), 0.0f);
+
+        // Save/Options Buttons
+        mpScreen->search(MULTI_CHAR('sa_op_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // "Collection" Title Bar
+        mpScreen->search(MULTI_CHAR('title_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        // Main Central Elements
+        mpScreen->search(MULTI_CHAR('menu_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+        mpScreen->search(MULTI_CHAR('w_er_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+        mpScreen->search(MULTI_CHAR('center_n'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
+
+        const f32 leftShift = 48.0f * (mDoGph_gInf_c::hudAspectScaleUp - 1.0f);  // Shifting certain items left to keep center (> 4:3 only)
+
+        // Item Name/Description Text
+        J2DPane* info_n = mpScreen->search(MULTI_CHAR('info_n'));
+        static f32 infoTransX_orig = info_n->getTranslateX();
+        info_n->translate(infoTransX_orig - leftShift, info_n->getTranslateY());
+
+        // Designs
+        J2DPane* lavel_n = mpScreen->search(MULTI_CHAR('lavel_n'));
+        static f32 lavelTransX_orig = lavel_n->getTranslateX();
+        lavel_n->translate(lavelTransX_orig - leftShift, lavel_n->getTranslateY());
+
+        // Fused Shadow/Mirror Background
+        J2DPane* modelbgn = mpScreen->search(MULTI_CHAR('modelbgn'));
+        static f32 modelbgnTransX_orig = modelbgn->getTranslateX();
+        modelbgn->setBasePosition(J2DBasePosition_0);
+        modelbgn->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.3f);
+        f32 modelbgn_scaleFactor = 1.0f + 0.16f * (mDoGph_gInf_c::hudAspectScaleDown - 1.0f);
+        modelbgn->translate((modelbgnTransX_orig - 12.0f) * modelbgn_scaleFactor, modelbgn->getTranslateY());
+
+        // Selection Cursor
+        if (mpDrawCursor) {
+            mpDrawCursor->refreshAspectScale(1.0f);
+        }
+        break;
+    }
 }
 #endif
 
@@ -1707,6 +1790,12 @@ void dMenu_Collect2D_c::wait_init() {
 }
 
 void dMenu_Collect2D_c::wait_proc() {
+#if TARGET_PC
+    if (pointerWait()) {
+        return;
+    }
+#endif
+
     if (dMw_A_TRIGGER()) {
         if (mCursorX == 0 && mCursorY == 5) {
             if (mDoGph_gInf_c::getFader()->mStatus == 1) {
@@ -1807,6 +1896,88 @@ void dMenu_Collect2D_c::wait_proc() {
         setBButtonString(0x3F9);
     }
 }
+
+#if TARGET_PC
+void dMenu_Collect2D_c::pointerActivateCurrent() {
+    if (mCursorX == 0 && mCursorY == 5) {
+        if (mDoGph_gInf_c::getFader()->mStatus == 1) {
+            mSubWindowOpenCheck = 1;
+            Z2GetAudioMgr()->seStart(Z2SE_SY_MENU_CHANGE_WINDOW, NULL, 0, 0, 1.0f, 1.0f, -1.0f,
+                                     -1.0f, 0);
+            dMeter2Info_set2DVibrationM();
+        }
+    } else if (mCursorX == 1 && mCursorY == 5) {
+        if (mDoGph_gInf_c::getFader()->mStatus == 1) {
+            mSubWindowOpenCheck = 2;
+            Z2GetAudioMgr()->seStart(Z2SE_SY_MENU_CHANGE_WINDOW, NULL, 0, 0, 1.0f, 1.0f, -1.0f,
+                                     -1.0f, 0);
+            dMeter2Info_set2DVibrationM();
+        }
+    } else if (mCursorX == 3 && mCursorY == 4) {
+        if (field_0x22d[3][4] != 0 && mDoGph_gInf_c::getFader()->mStatus == 1) {
+            mSubWindowOpenCheck = 3;
+            dMeter2Info_set2DVibration();
+        }
+    } else if (mCursorX == 2 && mCursorY == 4) {
+        if (isFishIconVisible() && mDoGph_gInf_c::getFader()->mStatus == 1) {
+            mSubWindowOpenCheck = 4;
+            dMeter2Info_set2DVibration();
+        }
+    } else if (mCursorX == 3 && mCursorY == 3) {
+        if (isSkillIconVisible() && mDoGph_gInf_c::getFader()->mStatus == 1) {
+            mSubWindowOpenCheck = 5;
+            dMeter2Info_set2DVibration();
+        }
+    } else if (mCursorX == 2 && mCursorY == 3) {
+        if (isInsectIconVisible() && mDoGph_gInf_c::getFader()->mStatus == 1) {
+            mSubWindowOpenCheck = 6;
+            dMeter2Info_set2DVibration();
+        }
+    } else if (field_0x22d[mCursorX][mCursorY] != 0 && !mIsWolf) {
+        if ((mCursorX >= 3 && mCursorX <= 4) || (mCursorX == 5 && mCursorY == 2)) {
+            u8 cursorY = mCursorY;
+            if (cursorY == 0) {
+                if (daPy_getPlayerActorClass()->getSwordChangeWaitTimer() == 0) {
+                    changeSword();
+                }
+            } else if (cursorY == 1) {
+                if (daPy_getPlayerActorClass()->getShieldChangeWaitTimer() == 0) {
+                    changeShield();
+                }
+            } else if (cursorY == 2 &&
+                       daPy_getPlayerActorClass()->getClothesChangeWaitTimer() == 0)
+            {
+                changeClothe();
+            }
+        }
+    }
+}
+
+bool dMenu_Collect2D_c::pointerWait() {
+    dusk::menu_pointer::begin_context(dusk::menu_pointer::Context::Collection);
+    for (u8 y = 0; y < 6; ++y) {
+        for (u8 x = 0; x < 7; ++x) {
+            if (getItemTag(x, y, true) == 0 || !dusk::menu_pointer::hit_pane(mpSelPm[x][y], 8.0f)) {
+                continue;
+            }
+            dusk::menu_pointer::set_hover_target(static_cast<dusk::menu_pointer::TargetId>(x + y * 7));
+            if (mCursorX != x || mCursorY != y) {
+                mDoAud_seStart(Z2SE_SY_MENU_CURSOR_COMMON, NULL, 0, 0);
+                mCursorX = x;
+                mCursorY = y;
+                cursorPosSet();
+                setItemNameString(mCursorX, mCursorY);
+            }
+            if (dusk::menu_pointer::consume_click()) {
+                pointerActivateCurrent();
+                return true;
+            }
+            return false;
+        }
+    }
+    return false;
+}
+#endif
 
 
 void dMenu_Collect2D_c::save_open_init() {
@@ -2167,18 +2338,18 @@ void dMenu_Collect2D_c::_draw() {
 
     if (mItemNameString == 0) {
 #if REGION_JPN
-        char* stringPtr1 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('i_text1')))->getStringPtr();
+        TEXT_SPAN stringPtr1 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('i_text1')))->getStringPtr();
 #else
-        char* stringPtr1 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('f_text1')))->getStringPtr();
+        TEXT_SPAN stringPtr1 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('f_text1')))->getStringPtr();
 #endif
-        strcpy(stringPtr1, "");
+        SAFE_STRCPY(stringPtr1, "");
 
 #if REGION_JPN
-        char* stringPtr0 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('i_text0')))->getStringPtr();
+        TEXT_SPAN stringPtr0 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('i_text0')))->getStringPtr();
 #else
-        char* stringPtr0 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('f_text0')))->getStringPtr();
+        TEXT_SPAN stringPtr0 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('f_text0')))->getStringPtr();
 #endif
-        strcpy(stringPtr0, "");
+        SAFE_STRCPY(stringPtr0, "");
     } else {
 #if REGION_JPN
         J2DTextBox* textBox1 = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('i_text1')));
@@ -2229,13 +2400,13 @@ void dMenu_Collect2D_c::setAButtonString(u16 i_stringID) {
 
         if (i_stringID == 0) {
             for (int i = 0; i < 5; i++) {
-                char* stringPtr =
+                TEXT_SPAN stringPtr =
                     static_cast<J2DTextBox*>(mpScreenIcon->search(text_a_tag[i]))->getStringPtr();
-                strcpy(stringPtr, "");
+                SAFE_STRCPY(stringPtr, "");
             }
         } else {
             for (int i = 0; i < 5; i++) {
-                char* stringPtr =
+                TEXT_SPAN stringPtr =
                     static_cast<J2DTextBox*>(mpScreenIcon->search(text_a_tag[i]))->getStringPtr();
                 dMeter2Info_getStringKanji(i_stringID, stringPtr, NULL);
             }
@@ -2253,13 +2424,13 @@ void dMenu_Collect2D_c::setBButtonString(u16 i_stringID) {
 
         if (i_stringID == 0) {
             for (int i = 0; i < 5; i++) {
-                char* stringPtr =
+                TEXT_SPAN stringPtr =
                     static_cast<J2DTextBox*>(mpScreenIcon->search(text_b_tag[i]))->getStringPtr();
-                strcpy(stringPtr, "");
+                SAFE_STRCPY(stringPtr, "");
             }
         } else {
             for (int i = 0; i < 5; i++) {
-                char* stringPtr =
+                TEXT_SPAN stringPtr =
                     static_cast<J2DTextBox*>(mpScreenIcon->search(text_b_tag[i]))->getStringPtr();
                 dMeter2Info_getStringKanji(i_stringID, stringPtr, NULL);
             }
@@ -2278,7 +2449,7 @@ void dMenu_Collect2D_c::setItemNameString(u8 param_0, u8 param_1) {
             setItemNameStringNull();
         } else {
 #if REGION_JPN
-            char* stringPtr =
+            TEXT_SPAN stringPtr =
                 static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('item_n00')))->getStringPtr();
             dMeter2Info_getStringKanji(uVar6, stringPtr, NULL);
             stringPtr = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('item_n01')))->getStringPtr();
@@ -2288,7 +2459,7 @@ void dMenu_Collect2D_c::setItemNameString(u8 param_0, u8 param_1) {
             stringPtr = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('item_n03')))->getStringPtr();
             dMeter2Info_getStringKanji(uVar6, stringPtr, NULL);
 #else
-            char* stringPtr =
+            TEXT_SPAN stringPtr =
                 static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('item_n04')))->getStringPtr();
             dMeter2Info_getStringKanji(uVar6, stringPtr, NULL);
             stringPtr = static_cast<J2DTextBox*>(mpScreen->search(MULTI_CHAR('item_n05')))->getStringPtr();
@@ -2306,22 +2477,22 @@ void dMenu_Collect2D_c::setItemNameStringNull() {
     mItemNameString = 0;
 #if REGION_JPN
     J2DTextBox* textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n00'));
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
     textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n01'));
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
     textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n02'));
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
     textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n03'));
 #else
     J2DTextBox* textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n04'));
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
     textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n05'));
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
     textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n06'));
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
     textBox = (J2DTextBox*)mpScreen->search(MULTI_CHAR('item_n07'));
 #endif
-    strcpy(textBox->getStringPtr(), "");
+    SAFE_STRCPY(textBox->getStringPtr(), "");
 }
 
 dMenu_Collect3D_c::dMenu_Collect3D_c(JKRExpHeap* param_0, dMenu_Collect2D_c* param_1,
@@ -2566,13 +2737,13 @@ void dMenu_Collect3D_c::createMaskModel() {
     static const f32 m_kamen_offset_x[5] = {-14.0f, -14.0f, -14.0f, 1.3f, 6.5f};
     static const f32 m_kamen_offset_y[5] = {0.0f, 0.0f, 0.0f, 22.0f, 30.0f};
     static const f32 m_kamen_scale[5] = {2.6f, 2.6f, 2.2f, 1.8f, 1.8f};
-    static char* bck_name[4] = {
+    static DUSK_CONSTEXPR char DUSK_CONST* bck_name[4] = {
         "md_mask_parts_spin_1.bck",
         "md_mask_parts_spin_2.bck",
         "md_mask_parts_spin_3.bck",
         "md_mask_parts_spin_4.bck",
     };
-    static char* brk_name[4] = {
+    static DUSK_CONSTEXPR char DUSK_CONST* brk_name[4] = {
         "md_mask_parts_spin_1.brk",
         "md_mask_parts_spin_2_3.brk",
         "md_mask_parts_spin_2_3.brk",
@@ -2609,13 +2780,13 @@ void dMenu_Collect3D_c::createMirrorModel() {
     static const f32 m_mirror_offset_x[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     static const f32 m_mirror_offset_y[5] = {4.0f, 4.0f, 4.0f, 4.0f, 4.0f};
     static const f32 m_mirror_scale[5] = {0.6f, 0.6f, 0.6f, 0.6f, 0.6f};
-    static char* bck_name[4] = {
+    static DUSK_CONSTEXPR char DUSK_CONST* bck_name[4] = {
         "kageri_mirrer_spin_1.bck",
         "kageri_mirrer_spin_2.bck",
         "kageri_mirrer_spin_3.bck",
         "kageri_mirrer_spin_4.bck",
     };
-    static char* brk_name[4] = {
+    static DUSK_CONSTEXPR char DUSK_CONST* brk_name[4] = {
         "kageri_mirrer_spin_1.brk",
         "kageri_mirrer_spin_2_3_4.brk",
         "kageri_mirrer_spin_2_3_4.brk",
@@ -2691,7 +2862,7 @@ u8 dMenu_Collect3D_c::getMaskMdlVisible() {
     return 2;
 }
 
-f32 dMenu_Collect3D_c::mViewOffsetY = -100.0f;
+DUSK_GAME_DATA f32 dMenu_Collect3D_c::mViewOffsetY = -100.0f;
 
 void dMenu_Collect3D_c::setupItem3D(Mtx param_0) {
     GXSetViewport(0.0f, mViewOffsetY, FB_WIDTH, FB_HEIGHT, 0.0f, 1.0f);

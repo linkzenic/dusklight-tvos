@@ -268,6 +268,11 @@ int daItem_c::_daItem_create() {
     }
 
     m_itemNo = daItem_prm::getItemNo(this);
+#if TARGET_PC
+    if (dusk::getSettings().game.noHeartDrops && isHeart(m_itemNo)) {
+        return cPhs_ERROR_e;
+    }
+#endif
     BOOL flag = dItem_data::chkFlag(m_itemNo, 2);
 
 #if DEBUG
@@ -1081,7 +1086,7 @@ void daItem_c::set_bound_se() {
     }
 }
 
-s32 daItem_c::m_timer_max = 10000;
+DUSK_GAME_DATA s32 daItem_c::m_timer_max = 10000;
 
 int daItem_c::CountTimer() {
     m_timer++;
@@ -1193,7 +1198,7 @@ void daItem_c::initScale() {
     }
 }
 
-procFunc daItem_c::mFuncPtr[] = {
+DUSK_GAME_DATA procFunc daItem_c::mFuncPtr[] = {
     &daItem_c::procMainNormal,        &daItem_c::procMainEnemyCarry,
     &daItem_c::procMainSimpleGetDemo, &daItem_c::procWaitGetDemoEvent,
     &daItem_c::procMainGetDemoEvent,  &daItem_c::procMainBoomerangCarry,
@@ -1201,7 +1206,7 @@ procFunc daItem_c::mFuncPtr[] = {
     &daItem_c::procMainForceGet,      NULL,
 };
 
-const dCcD_SrcCyl daItem_c::m_cyl_src = {
+DUSK_GAME_DATA const dCcD_SrcCyl daItem_c::m_cyl_src = {
     {
         {0, {{0, 0, 0}, {0xFFFFFFFF, 17}, 0x59}},
         {dCcD_SE_NONE, 0, 0, 0, {0}},
@@ -1275,13 +1280,13 @@ static int daItem_Create(fopAc_ac_c* i_this) {
     return static_cast<daItem_c*>(i_this)->_daItem_create();
 }
 
-static actor_method_class l_daItem_Method = {
+static DUSK_CONST actor_method_class l_daItem_Method = {
     (process_method_func)daItem_Create,  (process_method_func)daItem_Delete,
     (process_method_func)daItem_Execute, (process_method_func)NULL,
     (process_method_func)daItem_Draw,
 };
 
-actor_process_profile_definition g_profile_ITEM = {
+DUSK_PROFILE actor_process_profile_definition DUSK_CONST g_profile_ITEM = {
     /* Layer ID     */ fpcLy_CURRENT_e,
     /* List ID      */ 7,
     /* List Prio    */ fpcPi_CURRENT_e,

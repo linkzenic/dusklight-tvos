@@ -64,11 +64,11 @@ void daPy_boomerangMove_c::initOffset(const cXyz* i_pos) {
     field_0x0 = 0;
 }
 
-daMidna_c* daPy_py_c::m_midnaActor;
+DUSK_GAME_DATA daMidna_c* daPy_py_c::m_midnaActor;
 
-s16 daPy_boomerangMove_c::m_dropAngleY;
+DUSK_GAME_DATA s16 daPy_boomerangMove_c::m_dropAngleY;
 
-s16 daPy_boomerangMove_c::m_eventKeepFlg;
+DUSK_GAME_DATA s16 daPy_boomerangMove_c::m_eventKeepFlg;
 
 int daPy_boomerangMove_c::posMove(cXyz* o_pos, s16* o_rotY, fopAc_ac_c* i_objActor, s16 i_rotStep) {
     daBoomerang_c* boomerang_p = daPy_py_c::getThrowBoomerangActor();
@@ -392,7 +392,10 @@ static const u8* l_sightDL_get() {
 #endif
 
 void daPy_sightPacket_c::draw() {
+    ZoneScoped;
+#if !TARGET_PC
     TGXTexObj texObj;
+#endif
 
     j3dSys.reinitGX();
     GXSetNumIndStages(0);
@@ -407,10 +410,24 @@ void daPy_sightPacket_c::draw() {
 
     GXSetTevColor(GX_TEVREG0, reg0);
     GXSetTevColor(GX_TEVREG1, reg1);
+#if TARGET_PC
+    if (mpCachedImg != mpImg) {
+        mTexObj.reset();
+        GXInitTexObj(&mTexObj, mpData, mpImg->width, mpImg->height,
+            static_cast<GXTexFmt>(mpImg->format), static_cast<GXTexWrapMode>(mpImg->wrapS),
+            static_cast<GXTexWrapMode>(mpImg->wrapT),
+            mpImg->mipmapCount > 1 ? GX_ENABLE : GX_DISABLE);
+        GXInitTexObjLOD(
+            &mTexObj, GX_LINEAR, GX_LINEAR, 0.0, 0.0, 0.0, GX_FALSE, GX_FALSE, GX_ANISO_1);
+        mpCachedImg = mpImg;
+    }
+    GXLoadTexObj(&mTexObj, GX_TEXMAP0);
+#else
     GXInitTexObj(&texObj, mpData, mpImg->width, mpImg->height, (GXTexFmt)mpImg->format,
                  (GXTexWrapMode)mpImg->wrapS, (GXTexWrapMode)mpImg->wrapT, mpImg->mipmapCount > 1 ? GX_ENABLE : GX_DISABLE);
     GXInitTexObjLOD(&texObj, GX_LINEAR, GX_LINEAR, 0.0, 0.0, 0.0, GX_FALSE, GX_FALSE, GX_ANISO_1);
     GXLoadTexObj(&texObj, GX_TEXMAP0);
+#endif
     GXLoadPosMtxImm(mProjMtx, GX_PNMTX0);
     GXSetCurrentMtx(0);
     GXSetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR_NULL);

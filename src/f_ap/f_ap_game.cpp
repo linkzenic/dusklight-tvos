@@ -18,6 +18,7 @@
 #include "dusk/frame_interpolation.h"
 #include "dusk/livesplit.h"
 #include "dusk/logging.h"
+#include "dusk/mod_loader.hpp"
 #include "f_op/f_op_camera_mng.h"
 #include "f_op/f_op_draw_tag.h"
 #include "f_op/f_op_overlap_mng.h"
@@ -29,6 +30,7 @@
 #include "tracy/Tracy.hpp"
 #include <dusk/gamepad_color.h>
 #include <dusk/autosave.h>
+#include "dusk/menu_pointer.h"
 #endif
 
 fapGm_HIO_c::fapGm_HIO_c() {
@@ -203,7 +205,7 @@ char fapGm_dataMem::mCsv[0x8000];
 int dumpTagObject(void* i_object, void*) {
     char profname_str[64];
     s16 profname = fopAcM_GetProfName(i_object);
-    sprintf(profname_str, "%d", profname);
+    SAFE_SPRINTF(profname_str, "%d", profname);
 
     if (fopAcM_IsActor(i_object)) {
         fopAc_ac_c* a_actor = (fopAc_ac_c*)i_object;
@@ -740,10 +742,11 @@ static void fapGm_AfterRecord() {
     fapGm_After();
 }
 
-BOOL isRecording = false;
+DUSK_GAME_DATA BOOL isRecording = false;
 
 static void duskExecute() {
-    handleGamepadColor();
+    dusk::menu_pointer::begin_game_frame();
+    dusk::input::handleGamepadColor();
     updateAutoSave();
 
     if (dusk::getSettings().game.recordingMode) {
@@ -813,6 +816,8 @@ static void duskExecute() {
     if (dusk::getSettings().game.infiniteOxygen) {
         dComIfGp_setOxygen(dComIfGp_getMaxOxygen());
     }
+
+    dusk::mods::ModLoader::instance().tick();
 }
 #endif
 
@@ -842,10 +847,11 @@ void fapGm_Execute() {
 #ifdef TARGET_PC
     dusk::speedrun::onGameFrame();
     dusk::AchievementSystem::get().tick();
+    dusk::menu_pointer::end_game_frame();
 #endif
 }
 
-fapGm_HIO_c g_HIO;
+DUSK_GAME_DATA fapGm_HIO_c g_HIO;
 
 void fapGm_Create() {
     // unused, unknown purpose

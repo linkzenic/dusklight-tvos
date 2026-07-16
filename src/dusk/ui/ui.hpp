@@ -15,6 +15,16 @@ class Document;
 
 using clock = std::chrono::steady_clock;
 
+enum class DocumentScope : u8 {
+    None,
+    Prelaunch,
+    Window,
+    MenuBar,
+    Overlay,
+    TouchControls,
+    GraphicsTuner,
+};
+
 struct Toast {
     Rml::String type;
     Rml::String title;
@@ -26,6 +36,8 @@ struct Toast {
 constexpr u32 kSoundClick = Z2SE_SY_CURSOR_OK;
 // "Play" button clicked/pressed
 constexpr u32 kSoundPlay = Z2SE_SY_ITEM_COMBINE_ON;
+// Input binding changed
+constexpr u32 kSoundBindingChanged = Z2SE_SY_ITEM_SET_X;
 
 // Menu button pressed (open/close menu bar or hide/show the active window)
 constexpr u32 kSoundMenuOpen = Z2SE_SY_MENU_SUB_IN;
@@ -49,6 +61,8 @@ constexpr u32 kSoundItemDisable = Z2SE_SUBJ_VIEW_OUT;
 
 // Achievement unlocked
 constexpr u32 kSoundAchievementUnlock = Z2SE_NAVI_FLY;
+// Warning prompt
+constexpr u32 kSoundWarning = Z2SE_SY_COW_GET_IN;
 
 struct Insets {
     float top = 0.0f;
@@ -70,19 +84,24 @@ void update() noexcept;
 
 Document& push_document(
     std::unique_ptr<Document> doc, bool show = true, bool passive = false) noexcept;
-void show_top_document() noexcept;
+bool register_scoped_styles(DocumentScope scope, std::string id, const std::string& rcss) noexcept;
+void unregister_scoped_styles(DocumentScope scope, std::string_view id) noexcept;
+void apply_scoped_styles(Document& doc) noexcept;
+void uncover_top_document() noexcept;
 bool any_document_visible() noexcept;
 bool is_prelaunch_open() noexcept;
+bool game_obscured_below(const Document& doc) noexcept;
 Document* top_document() noexcept;
 
 std::filesystem::path resource_path(const std::filesystem::path& filename) noexcept;
 std::string escape(std::string_view str) noexcept;
 Rml::Element* append(Rml::Element* parent, const Rml::String& tag) noexcept;
+Rml::Element* append_text(Rml::Element* parent, const Rml::String& text) noexcept;
 
 NavCommand map_nav_event(const Rml::Event& event) noexcept;
 Insets safe_area_insets(Rml::Context* context) noexcept;
 
-std::vector<std::unique_ptr<Document> >& get_document_stack() noexcept;
+std::vector<std::unique_ptr<Document>>& get_document_stack() noexcept;
 
 void push_toast(Toast toast) noexcept;
 std::deque<Toast>& get_toasts() noexcept;

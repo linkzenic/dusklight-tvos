@@ -26,6 +26,12 @@
 #include "m_Do/m_Do_graphic.h"
 #include <cstring>
 
+#include "helpers/string.hpp"
+
+#if TARGET_PC
+#include "dusk/frame_interpolation.h"
+#endif
+
 #if (PLATFORM_WII || PLATFORM_SHIELD)
 #define POINTER_OPT dComIfGs_getOptPointer()
 #else
@@ -116,9 +122,9 @@ dMenu_DmapBg_c::dMenu_DmapBg_c(JKRExpHeap* i_heap, STControl* i_stick) {
     mapScreenInit();
 
     char archive_path[32];
-    strcpy(archive_path, "/res/FieldMap/D_MN10.arc");
+    SAFE_STRCPY(archive_path, "/res/FieldMap/D_MN10.arc");
     char stage_name[8];
-    strcpy(stage_name, dComIfGp_getStartStageName());
+    SAFE_STRCPY(stage_name, dComIfGp_getStartStageName());
     archive_path[18] = stage_name[4];
     archive_path[19] = stage_name[5];
 
@@ -135,6 +141,16 @@ dMenu_DmapBg_c::dMenu_DmapBg_c(JKRExpHeap* i_heap, STControl* i_stick) {
     memset(&field_0xd80, 0, 20);
     buttonIconScreenInit();
     field_0xdd0 = 0;
+
+#if TARGET_PC
+    mpPoeCountIcon = JKR_NEW J2DPicture((ResTIMG*)JKRGetNameResource("ni_item_icon_pou.bti", dComIfGp_getItemIconArchive()));
+
+    mpPoeCountPane = JKR_NEW J2DTextBox();
+    if (mpPoeCountPane != nullptr) {
+        mpPoeCountPane->setFontSize(15.0f, 15.0f);
+        mpPoeCountPane->setFont(mDoExt_getMesgFont());
+    }
+#endif
 }
 
 void dMenu_DmapBg_c::mapScreenInit() {
@@ -382,7 +398,7 @@ void dMenu_DmapBg_c::setAButtonString(u32 i_msgNo) {
     };
     for (int i = 0; i < 5; i++) {
         if (i_msgNo == 0) {
-            strcpy(((J2DTextBox*)mButtonScreen->search(cont_at[i]))->getStringPtr(), "");
+            SAFE_STRCPY(((J2DTextBox*)mButtonScreen->search(cont_at[i]))->getStringPtr(), "");
         } else {
             dMeter2Info_getStringKanji(i_msgNo, ((J2DTextBox*)mButtonScreen->search(cont_at[i]))->getStringPtr(), NULL);
         }
@@ -399,7 +415,7 @@ void dMenu_DmapBg_c::setBButtonString(u32 i_msgNo) {
     };
     for (int i = 0; i < 5; i++) {
         if (i_msgNo == 0) {
-            strcpy(((J2DTextBox*)mButtonScreen->search(cont_bt[i]))->getStringPtr(), "");
+            SAFE_STRCPY(((J2DTextBox*)mButtonScreen->search(cont_bt[i]))->getStringPtr(), "");
         } else {
             dMeter2Info_getStringKanji(i_msgNo, ((J2DTextBox*)mButtonScreen->search(cont_bt[i]))->getStringPtr(), NULL);
         }
@@ -410,7 +426,7 @@ static f32 player_px;
 
 static f32 player_py;
 
-dMenu_Dmap_c* dMenu_Dmap_c::myclass;
+DUSK_GAME_DATA dMenu_Dmap_c* dMenu_Dmap_c::myclass;
 
 void dMenu_DmapBg_c::setCButtonString(u32 i_msgNo) {
     static u64 const c_tag[2] = {
@@ -431,7 +447,7 @@ void dMenu_DmapBg_c::setCButtonString(u32 i_msgNo) {
 
     if (msgNo == 0) {
         for (i = 0; i < 2; i++) {
-            strcpy(((J2DTextBox*)mButtonScreen->search(c_tag[i]))->getStringPtr(), "");
+            SAFE_STRCPY(((J2DTextBox*)mButtonScreen->search(c_tag[i]))->getStringPtr(), "");
         }
         mpCButton->setAlphaRate(0.5f);
     } else {
@@ -762,6 +778,14 @@ dMenu_DmapBg_c::~dMenu_DmapBg_c() {
         mDoExt_destroyExpHeap(mpTalkHeap);
         mpTalkHeap = NULL;
     }
+
+#if TARGET_PC
+    JKR_DELETE(mpPoeCountIcon);
+    mpPoeCountIcon = NULL;
+
+    JKR_DELETE(mpPoeCountPane);
+    mpPoeCountPane = NULL;
+#endif
 }
 
 void dMenu_DmapBg_c::setAllAlphaRate(f32 i_rate, bool param_2) {
@@ -894,6 +918,20 @@ void dMenu_DmapBg_c::dMapBgWide() {
 void dMenu_DmapBg_c::draw() {
     #if TARGET_PC
     dMapBgWide();
+
+    static bool prevMirror = false; // default state of panes is not mirrored
+    if(prevMirror != dusk::getSettings().game.enableMirrorMode) {
+        if(dusk::getSettings().game.enableMirrorMode) {
+            static_cast<J2DPicture*>(mFloorScreen->search(MULTI_CHAR('rink')))->setMirror(J2DMirror_X);
+            static_cast<J2DPicture*>(mBaseScreen->search(MULTI_CHAR('map000')))->setMirror(J2DMirror_X);
+        }
+        else {
+            static_cast<J2DPicture*>(mFloorScreen->search(MULTI_CHAR('rink')))->setMirror(MIRROR0);
+            static_cast<J2DPicture*>(mBaseScreen->search(MULTI_CHAR('map000')))->setMirror(MIRROR0);
+        }
+
+        prevMirror = dusk::getSettings().game.enableMirrorMode;
+    }
     #endif
 
     u32 scissor_left;
@@ -940,6 +978,15 @@ void dMenu_DmapBg_c::draw() {
         mpBackTexture->setAlpha(dVar17 * (field_0xdbc * field_0xd9c));
 
         f32 local_28c = mpBackTexture->getBounds().i.x;
+
+        #if TARGET_PC
+            if(dusk::getSettings().game.enableMirrorMode) {
+                CPaneMgr mgr;
+                Vec local_94 = mgr.getGlobalVtxCenter(mMapPane, true, 0);
+                local_28c = (local_94.x * 2.0f) - (local_28c + 0.5f * mpBackTexture->getWidth()) - 0.5f * mpBackTexture->getWidth();
+            }
+        #endif
+
         mpBackTexture->setBlackWhite(color_black, color_white);
         mpBackTexture->draw(local_28c, field_0xd94 + mpBackTexture->getBounds().i.y, mpBackTexture->getWidth(),
                             mpBackTexture->getHeight(),
@@ -991,7 +1038,7 @@ void dMenu_DmapBg_c::draw() {
             -35.0f + (local_224.x - local_218.x),
             -35.0f + (local_224.y - local_218.y));
 #if TARGET_PC
-        if (!dusk::getSettings().game.enableFrameInterpolation) {
+        if (!dusk::frame_interp::is_enabled()) {
             field_0xdda = 0;
         }
 #else
@@ -1014,6 +1061,35 @@ void dMenu_DmapBg_c::draw() {
     }
 
     mButtonScreen->draw(field_0xd94, field_0xd98, grafContext);
+
+#if TARGET_PC
+    if (dusk::getSettings().game.enhancedMapMenus) {
+        int nowPoeCount = 0;
+        int totalPoeCount = 0;
+        dMenuMapCommon_c::getDmapPoeCount(dComIfGp_getStartStageName(), nowPoeCount, totalPoeCount);
+        if (dComIfGs_isEventBit(dSv_event_flag_c::F_0456) && totalPoeCount > 0) {
+            const f32 x = field_0xd94 + mDoGph_gInf_c::ScaleHUDXLeft(80.0f);
+            const f32 y = 410.0f;
+            constexpr f32 iconsize = 48.0f * 0.8f;
+
+            if (mpPoeCountIcon != nullptr)
+                mpPoeCountIcon->draw(x - 35.0f, y - 25.0f, iconsize, iconsize, false, false, false);
+
+            char counter_text[6];
+            snprintf(counter_text, sizeof(counter_text), "%d/%d", nowPoeCount, totalPoeCount);
+            mpPoeCountPane->setString(counter_text);
+
+            mpPoeCountPane->setCharColor(0x000000FF);
+            mpPoeCountPane->setGradColor(0x000000FF);
+            mpPoeCountPane->draw(x + 1, y + 1, FB_WIDTH, HBIND_LEFT);
+
+            mpPoeCountPane->setCharColor(0xC8C8C8FF);
+            mpPoeCountPane->setGradColor(0xC8C8C8FF);
+            mpPoeCountPane->draw(x, y, FB_WIDTH, HBIND_LEFT);
+        }
+    }
+#endif
+
     grafContext->scissor(scissor_left, scissor_top, scissor_width, scissor_height);
     grafContext->setScissor();
     grafContext->setup2D();
@@ -1932,7 +2008,7 @@ void dMenu_Dmap_c::mapControl() {
         f32 temp_f28 = (var_f29 / 100.0f) * var_f31;
         f32 sp18 = temp_f28 * cM_ssin(stick_angle);
         f32 sp14 = temp_f28 * cM_scos(stick_angle);
-        mMapCtrl->setPlusZoomCenterX(sp18);
+        mMapCtrl->setPlusZoomCenterX(IF_DUSK(dusk::getSettings().game.enableMirrorMode ? -sp18 :) sp18);
         mMapCtrl->setPlusZoomCenterZ(sp14);
     }
 
@@ -2624,7 +2700,7 @@ void dMenu_Dmap_c::zoomIn_proc() {
 
 void dMenu_Dmap_c::zoomOut_init_proc() {
 #if TARGET_PC
-    if (dusk::getSettings().game.enableFrameInterpolation) {
+    if (dusk::frame_interp::is_enabled()) {
         mpDrawBg->resetScrollArrowMask();
     }
 #endif

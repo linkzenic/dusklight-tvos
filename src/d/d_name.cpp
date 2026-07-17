@@ -18,6 +18,12 @@ static bool isPalOrJpn() {
 }
 
 #if TARGET_PC
+#define SJIS_MOJI(wmoji) ((static_cast<u16>(static_cast<u8>((wmoji)[0])) << 8) | static_cast<u8>((wmoji)[1]))
+#else
+#define SJIS_MOJI(wmoji) *(u16*)wmoji
+#endif
+
+#if TARGET_PC
 static const char* l_mojiHira[65] = {
     "\x82\xA0", "\x82\xA2", "\x82\xA4", "\x82\xA6", "\x82\xA8", "\x82\xA9", "\x82\xAB", "\x82\xAD", "\x82\xAF", "\x82\xB1", "\x82\xB3", "\x82\xB5", "\x82\xB7",
     "\x82\xB9", "\x82\xBB", "\x82\xBD", "\x82\xBF", "\x82\xC2", "\x82\xC4", "\x82\xC6", "\x82\xC8", "\x82\xC9", "\x82\xCA", "\x82\xCB", "\x82\xCC", "\x82\xCD",
@@ -46,7 +52,7 @@ static const char* l_mojikata[65] = {
     "\x83\x41", "\x83\x43", "\x83\x45", "\x83\x47", "\x83\x49", "\x83\x4A", "\x83\x4C", "\x83\x4E", "\x83\x50", "\x83\x52", "\x83\x54", "\x83\x56", "\x83\x58",
     "\x83\x5A", "\x83\x5C", "\x83\x5E", "\x83\x60", "\x83\x63", "\x83\x65", "\x83\x67", "\x83\x69", "\x83\x6A", "\x83\x6B", "\x83\x6C", "\x83\x6D", "\x83\x6E",
     "\x83\x71", "\x83\x74", "\x83\x77", "\x83\x7A", "\x83\x7D", "\x83\x7E", "\x83\x80", "\x83\x81", "\x83\x82", "\x83\x84", "\x81\x40", "\x83\x86", "\x81\x40",
-    "\x83\x88", "\x83\x89", "\x83\x8A", "\x83\x8B", "\x83\x8C", "\x83\x8D", "\x83\x8F", "\x81\x40", "\x83\x93", "\x81\x40", "\x83\x93", "\x83\x40", "\x83\x42"
+    "\x83\x88", "\x83\x89", "\x83\x8A", "\x83\x8B", "\x83\x8C", "\x83\x8D", "\x83\x8F", "\x81\x40", "\x83\x93", "\x81\x40", "\x83\x93", "\x83\x40", "\x83\x42",
     "\x83\x44", "\x83\x46", "\x83\x48", "\x83\x83", "\x81\x40", "\x83\x85", "\x81\x40", "\x83\x87", "\x83\x62", "\x81\x40", "\x81\x5B", "\x81\x4A", "\x81\x4B",
 };
 
@@ -163,7 +169,7 @@ static const char* l_mojiEisuPal_2[65] = {
 
 #if TARGET_PC
 // '　' (full-width space)
-#define SPACE_MAYBE_FULL (dusk::version::isRegionJpn() ? '\x81\x40' : ' ')
+#define SPACE_MAYBE_FULL (dusk::version::isRegionJpn() ? 0x8140U : ' ')
 #elif REGION_JPN
 // '　' (full-width space)
 #define SPACE_MAYBE_FULL '\x81\x40'
@@ -430,7 +436,7 @@ int dName_c::nameCheck() {
         #if REGION_JPN
         if (mChrInfo[len].mCharacter != ' ' && mChrInfo[len].mCharacter != '\x81\x40') {
         #else
-        if (mChrInfo[len].mCharacter != ' ' IF_DUSK(&& (!dusk::version::isRegionJpn() || mChrInfo[len].mCharacter != '\x81\x40'))) {
+        if (mChrInfo[len].mCharacter != ' ' IF_DUSK(&& (!dusk::version::isRegionJpn() || mChrInfo[len].mCharacter != 0x8140U))) {
         #endif
             return len + 1;
         }
@@ -449,7 +455,12 @@ void dName_c::playNameSet(int nameLength) {
             *str = mChrInfo[i].mCharacter;
             str += 1;
         } else {
+            #if TARGET_PC
+            str[0] = mChrInfo[i].mCharacter >> 8;
+            str[1] = mChrInfo[i].mCharacter & 0xFF;
+            #else
             *(u16*)str = mChrInfo[i].mCharacter;
+            #endif
             str += 2;
         }
         #else
@@ -682,30 +693,41 @@ int dName_c::mojiChange(u8 idx) {
 }
 
 void dName_c::selectMojiSet() {
-    #if REGION_JPN
-    int moji = getMoji();
-    if (moji != -1) {
-        if (moji == '゛' || moji == '゜') {
-            if (mCurPos != 0) {
-                if (checkDakuon(moji, mCurPos - 1) == 1) {
-                    mDoAud_seStart(Z2SE_SY_NAME_INPUT, NULL, 0, 0);
-                    setDakuon(moji, mCurPos - 1);
-                } else {
-                    mDoAud_seStart(Z2SE_SYS_ERROR, NULL, 0, 0);
+#if TARGET_PC || REGION_JPN
+    #if TARGET_PC
+    if (dusk::version::isRegionJpn())
+    #endif
+    {
+        int moji = getMoji();
+        if (moji != -1) {
+            if (moji == SJIS('゛', 0x814AU) || moji == SJIS('゜', 0x814BU)) {
+                if (mCurPos != 0) {
+                    if (checkDakuon(moji, mCurPos - 1) == 1) {
+                        mDoAud_seStart(Z2SE_SY_NAME_INPUT, NULL, 0, 0);
+                        setDakuon(moji, mCurPos - 1);
+                    } else {
+                        mDoAud_seStart(Z2SE_SYS_ERROR, NULL, 0, 0);
+                    }
                 }
+            } else {
+                setMoji(moji);
             }
-        } else {
-            setMoji(moji);
         }
     }
+    #if TARGET_PC
+    else {
+        setMoji(getMoji());
+    }
+    #endif
+
     setNameText();
-    #else
+#else
     setMoji(getMoji());
     setNameText();
-    #endif
+#endif
 }
 
-#if REGION_JPN
+#if TARGET_PC || REGION_JPN
 int dName_c::checkDakuon(int param_0, u8 param_1) {
     if (mChrInfo[param_1].mMojiSet == MOJI_EIGO) {
         return 0;
@@ -715,17 +737,17 @@ int dName_c::checkDakuon(int param_0, u8 param_1) {
         return 0;
     }
 
-    if (param_0 == '゜' && mChrInfo[param_1].mColumn != 5) {
+    if (param_0 == SJIS('゜', 0x814BU) && mChrInfo[param_1].mColumn != 5) {
         return 0;
     }
 
-    if (param_0 == '゛' &&
-        (mChrInfo[param_1].mCharacter == 'ウ' || mChrInfo[param_1].mCharacter == 'ヴ'))
+    if (param_0 == SJIS('゛', 0x814AU) &&
+        (mChrInfo[param_1].mCharacter == SJIS('ウ', 0x8345U) || mChrInfo[param_1].mCharacter == SJIS('ヴ', 0x8394U)))
     {
         return 1;
     }
 
-    if (param_0 == '゛' && mChrInfo[param_1].mColumn != 1 && mChrInfo[param_1].mColumn != 2 &&
+    if (param_0 == SJIS('゛', 0x814AU) && mChrInfo[param_1].mColumn != 1 && mChrInfo[param_1].mColumn != 2 &&
         mChrInfo[param_1].mColumn != 3 && mChrInfo[param_1].mColumn != 5)
     {
         return 0;
@@ -737,46 +759,46 @@ int dName_c::checkDakuon(int param_0, u8 param_1) {
 int dName_c::setDakuon(int param_1, u8 param_2) {
     int c;
 
-    if (param_1 == '゛') {
+    if (param_1 == SJIS('゛', 0x814AU)) {
         switch (mChrInfo[param_2].mColumn) {
         case 0: {
             c = -1;
-            if (mChrInfo[param_2].mCharacter == 'ウ' || mChrInfo[param_2].mCharacter == 'ヴ') {
+            if (mChrInfo[param_2].mCharacter == SJIS('ウ', 0x8345U) || mChrInfo[param_2].mCharacter == SJIS('ヴ', 0x8394U)) {
                 c = 4;
-                mChrInfo[param_2].mCharacter = 'ヴ';
+                mChrInfo[param_2].mCharacter = SJIS('ヴ', 0x8394U);
             }
             break;
         }
         case 1: {
-            int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'カ' : 'か';
+            int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('カ', 0x834AU) : SJIS('か', 0x82A9U);
             c = (mChrInfo[param_2].mCharacter - c2) % 2;
             break;
         }
         case 2: {
-            int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'サ' : 'さ';
+            int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('サ', 0x8354U) : SJIS('さ', 0x82B3U);
             c = (mChrInfo[param_2].mCharacter - c2) % 2;
             break;
         }
         case 3: {
             int c2;
             if (mChrInfo[param_2].mCharacter <=
-                ((mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'ヂ' : 'ぢ')))
+                ((mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('ヂ', 0x8361U) : SJIS('ぢ', 0x82C0U))))
             {
-                c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'タ' : 'た';
+                c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('タ', 0x835EU) : SJIS('た', 0x82BDU);
                 c = (mChrInfo[param_2].mCharacter - c2) % 2;
             } else {
-                if (mChrInfo[param_2].mCharacter <= (mChrInfo[param_2].mMojiSet != 0 ? 'ド' : 'ど'))
+                if (mChrInfo[param_2].mCharacter <= (mChrInfo[param_2].mMojiSet != 0 ? SJIS('ド', 0x8368U) : SJIS('ど', 0x82C7U)))
                 {
                     if (mChrInfo[param_2].mCharacter >=
-                        (mChrInfo[param_2].mMojiSet != 0 ? 'テ' : 'て'))
+                        (mChrInfo[param_2].mMojiSet != 0 ? SJIS('テ', 0x8365U) : SJIS('て', 0x82C4U)))
                     {
-                        c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'テ' : 'て';
+                        c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('テ', 0x8365U) : SJIS('て', 0x82C4U);
                         c = (mChrInfo[param_2].mCharacter - c2) % 2;
                         break;
                     }
                 }
 
-                c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'ッ' : 'っ';
+                c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('ッ', 0x8362U) : SJIS('っ', 0x82C1U);
                 c = (mChrInfo[param_2].mCharacter - c2) % 3;
                 if (c == 2) {
                     c = 1;
@@ -789,7 +811,7 @@ int dName_c::setDakuon(int param_1, u8 param_2) {
             break;
         }
         case 5: {
-            int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'ハ' : 'は';
+            int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('ハ', 0x836EU) : SJIS('は', 0x82CDU);
             c = (mChrInfo[param_2].mCharacter - c2) % 3;
             break;
         }
@@ -808,8 +830,8 @@ int dName_c::setDakuon(int param_1, u8 param_2) {
 
             return 1;
         }
-    } else if (param_1 == '゜') {
-        int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? 'ハ' : 'は';
+    } else if (param_1 == SJIS('゜', 0x814BU)) {
+        int c2 = mChrInfo[param_2].mMojiSet != MOJI_HIRA ? SJIS('ハ', 0x836EU) : SJIS('は', 0x82CDU);
         c = (mChrInfo[param_2].mCharacter - c2) % 3;
         if (c != 2) {
             mChrInfo[param_2].mCharacter = mChrInfo[param_2].mCharacter + (2 - c);
@@ -880,7 +902,7 @@ int dName_c::getMoji() {
     #if TARGET_PC
     if (dusk::version::isRegionJpn()) {
         if (*(u8*)moji >> 4 == 0x8 || *(u8*)moji >> 4 == 0x9) {
-            result = *(u16*)moji;
+            result = SJIS_MOJI(moji);
         } else {
             result = *moji;
         }
@@ -962,8 +984,8 @@ void dName_c::setNameText() {
         //"\x1bCD\x1bCR\x1bCC[000000]\x1bGM[0]%c\x1bHM\x1bCC[ffffff]\x1bGM[0]%c"
         //"\x1bCD\x1bCR\x1bCC[000000]\x1bGM[0]%c%c\x1bHM\x1bCC[ffffff]\x1bGM[0]%c%c"
         if (mChrInfo[i].field_0x3 != 0) {
-            #if REGION_JPN
-            if (mChrInfo[i].mMojiSet == 2) {
+            #if TARGET_PC || REGION_JPN
+            if (IF_DUSK(!dusk::version::isRegionJpn() ||) mChrInfo[i].mMojiSet == 2) {
             #endif
                 SAFE_SPRINTF(mNameText[i],
                         "\x1b"
@@ -974,7 +996,7 @@ void dName_c::setNameText() {
                         CHAR_TRUNC((u8)mChrInfo[i].mCharacter),
                         CHAR_TRUNC((u8)mChrInfo[i].mCharacter)
                 );
-            #if REGION_JPN
+            #if TARGET_PC || REGION_JPN
             } else {
                 SAFE_SPRINTF(mNameText[i],
                         "\x1b"
@@ -1062,7 +1084,7 @@ void dName_c::selectCursorMove() {
                                                                g_nmHIO.mSelCharScale);
     ((J2DTextBox*)mMojiIcon[mCharRow + mCharColumn * 5]->getPanePtr())
         ->setWhite(JUtility::TColor(0xC8, 0xC8, 0xC8, 0xFF));
-    
+
     #if TARGET_PC
     nameWide();
     #endif
@@ -1493,7 +1515,7 @@ void dName_c::nameWide() {
         for (PaneCache& entry : l_tagName) {
             J2DPane* pane = nameIn.NameInScr->search(entry.tag);
             if (!entry.cached) {
-                entry.origTransX = pane->getTranslateX(); 
+                entry.origTransX = pane->getTranslateX();
                 entry.origTransY = pane->getTranslateY();
                 entry.cached = true;
             }
@@ -1501,7 +1523,7 @@ void dName_c::nameWide() {
         for (PaneCache& entry : l_nameTagName) {
             J2DPane* pane = nameIn.NameInScr->search(entry.tag);
             if (!entry.cached) {
-                entry.origTransX = pane->getTranslateX(); 
+                entry.origTransX = pane->getTranslateX();
                 entry.origTransY = pane->getTranslateY();
                 entry.cached = true;
             }
@@ -1509,7 +1531,7 @@ void dName_c::nameWide() {
         for (PaneCache& entry : l_nameCurTagName) {
             J2DPane* pane = nameIn.NameInScr->search(entry.tag);
             if (!entry.cached) {
-                entry.origTransX = pane->getTranslateX(); 
+                entry.origTransX = pane->getTranslateX();
                 entry.origTransY = pane->getTranslateY();
                 entry.cached = true;
             }
@@ -1587,7 +1609,42 @@ void dName_c::screenSet() {
     static u64 l_cur1TagName[8] = {
         's_0r', MULTI_CHAR('s_01r'), MULTI_CHAR('s_02r'), MULTI_CHAR('s_03r'), MULTI_CHAR('s_04r'), MULTI_CHAR('s_05r'), MULTI_CHAR('s_06r'), MULTI_CHAR('s_07r'),
     };
-#if REGION_JPN
+
+#if TARGET_PC
+    static u64 l_menu_icon_tag_jpn[4] = {
+        MULTI_CHAR('j_hira_n'),
+        MULTI_CHAR('j_kata_n'),
+        MULTI_CHAR('j_eigo_n'),
+        MULTI_CHAR('j_end_n'),
+    };
+    static u64 l_menu_tag_jpn[5][3] = {
+        MULTI_CHAR('m_hira_0'),  MULTI_CHAR('m_hira_1'),  MULTI_CHAR('m_hira_s'),  MULTI_CHAR('m_kata_0'), MULTI_CHAR('m_kata_1'), MULTI_CHAR('m_kata_s'),
+        MULTI_CHAR('m_eigo_0'), MULTI_CHAR('m_eigo_1'), MULTI_CHAR('m_eigo_s'), MULTI_CHAR('j_end_0'), MULTI_CHAR('j_end_1'), MULTI_CHAR('j_end_s'),
+    };
+    static u32 l_menu_msg_jpn[4] = {
+        0x386,
+        0x387,
+        0x388,
+        0x38A,
+    };
+
+    static u64 l_menu_icon_tag[4] = {
+        MULTI_CHAR('p_ABC_n'),
+        MULTI_CHAR('p_abc_n'),
+        MULTI_CHAR('j_eigo_n'),
+        MULTI_CHAR('p_end_n'),
+    };
+    static u64 l_menu_tag[5][3] = {
+        MULTI_CHAR('p_ABC_0'),  MULTI_CHAR('p_ABC_1'),  MULTI_CHAR('p_ABC_2'),  MULTI_CHAR('p_abc_0'), MULTI_CHAR('p_abc_1'), MULTI_CHAR('p_abc_2'),
+        MULTI_CHAR('m_eigo_0'), MULTI_CHAR('m_eigo_1'), MULTI_CHAR('m_eigo_2'), MULTI_CHAR('p_end_0'), MULTI_CHAR('p_end_1'), MULTI_CHAR('p_end_2'),
+    };
+    static u32 l_menu_msg[4] = {
+        0x38B,
+        0x38C,
+        0x388,
+        0x38E,
+    };
+#elif REGION_JPN
     static u64 l_menu_icon_tag[4] = {
         MULTI_CHAR('j_hira_n'),
         MULTI_CHAR('j_kata_n'),
@@ -1669,7 +1726,26 @@ void dName_c::screenSet() {
         panes1[i]->setAnimation(mCursorColorKey);
     }
 
-    #if REGION_JPN
+    #if TARGET_PC
+    if (dusk::version::isRegionJpn()) {
+        nameIn.NameInScr->search(MULTI_CHAR('pal_n'))->hide();
+        mMenuPane = nameIn.NameInScr->search(MULTI_CHAR('jpn_n'));
+        mMenuPane->show();
+
+        nameIn.NameInScr->search(MULTI_CHAR('p_ABC_n'))->scale(0.0f, 0.0f);
+        nameIn.NameInScr->search(MULTI_CHAR('p_abc_n'))->scale(0.0f, 0.0f);
+        nameIn.NameInScr->search(MULTI_CHAR('p_end_n'))->scale(0.0f, 0.0f);
+    } else {
+        nameIn.NameInScr->search(MULTI_CHAR('jpn_n'))->hide();
+        mMenuPane = nameIn.NameInScr->search(MULTI_CHAR('pal_n'));
+        mMenuPane->show();
+
+        nameIn.NameInScr->search(MULTI_CHAR('j_hira_n'))->scale(0.0f, 0.0f);
+        nameIn.NameInScr->search(MULTI_CHAR('j_kata_n'))->scale(0.0f, 0.0f);
+        nameIn.NameInScr->search(MULTI_CHAR('j_eigo_n'))->scale(0.0f, 0.0f);
+        nameIn.NameInScr->search(MULTI_CHAR('j_end_n'))->scale(0.0f, 0.0f);
+    }
+    #elif REGION_JPN
     nameIn.NameInScr->search(MULTI_CHAR('pal_n'))->hide();
     mMenuPane = nameIn.NameInScr->search(MULTI_CHAR('jpn_n'));
     mMenuPane->show();
@@ -1690,19 +1766,31 @@ void dName_c::screenSet() {
 
     J2DTextBox* menuPane[3];
     for (int i = 0; i < 4; i++) {
-        #if !REGION_JPN
-        if (i == 2) {
+        #if TARGET_PC || !REGION_JPN
+        if (IF_DUSK(!dusk::version::isRegionJpn() &&) i == 2) {
             mMenuIcon[i] = NULL;
             mMenuText[i] = NULL;
         } else {
         #endif
+            #if TARGET_PC
+            mMenuIcon[i] = JKR_NEW CPaneMgr(nameIn.NameInScr, dusk::version::isRegionJpn() ? l_menu_icon_tag_jpn[i] : l_menu_icon_tag[i], 1, NULL);
+            #else
             mMenuIcon[i] = JKR_NEW CPaneMgr(nameIn.NameInScr, l_menu_icon_tag[i], 1, NULL);
+            #endif
 
             char buf[16];
+            #if TARGET_PC
+            fopMsgM_messageGet(buf, dusk::version::isRegionJpn() ? l_menu_msg_jpn[i] : l_menu_msg[i]);
+            #else
             fopMsgM_messageGet(buf, l_menu_msg[i]);
+            #endif
 
             for (int j = 0; j < 3; j++) {
+                #if TARGET_PC
+                menuPane[j] = (J2DTextBox*)nameIn.NameInScr->search(dusk::version::isRegionJpn() ? l_menu_tag_jpn[i][j] : l_menu_tag[i][j]);
+                #else
                 menuPane[j] = (J2DTextBox*)nameIn.NameInScr->search(l_menu_tag[i][j]);
+                #endif
 
                 if (j == 0) {
                     mMenuText[i] = menuPane[j];
@@ -1711,7 +1799,7 @@ void dName_c::screenSet() {
                 menuPane[j]->setFont(nameIn.font);
                 menuPane[j]->setString(buf);
             }
-        #if !REGION_JPN
+        #if TARGET_PC || !REGION_JPN
         }
         #endif
     }
@@ -1852,20 +1940,20 @@ void dName_c::NameStrSet() {
             i++;
         } else {
             if (*(u8*)moji >> 4 == 8 || *(u8*)moji >> 4 == 9) {
-                mChrInfo[i].mCharacter = *(u16*)moji;
+                mChrInfo[i].mCharacter = SJIS_MOJI(moji);
 
                 for (int j = 0; j < 65; j++) {
-                    if (mChrInfo[i].mCharacter == *(u16*)l_mojiHira[j] ||
-                        mChrInfo[i].mCharacter == *(u16*)l_mojiHira2[j] ||
-                        mChrInfo[i].mCharacter == *(u16*)l_mojiHira3[j])
+                    if (mChrInfo[i].mCharacter == SJIS_MOJI(l_mojiHira[j]) ||
+                        mChrInfo[i].mCharacter == SJIS_MOJI(l_mojiHira2[j]) ||
+                        mChrInfo[i].mCharacter == SJIS_MOJI(l_mojiHira3[j]))
                     {
                         mChrInfo[i].mColumn = j / 5;
                         mChrInfo[i].mRow = j % 5;
                         mChrInfo[i].mMojiSet = MOJI_HIRA;
                         break;
-                    } else if (mChrInfo[i].mCharacter == *(u16*)l_mojikata[j] ||
-                               mChrInfo[i].mCharacter == *(u16*)l_mojikata2[j] ||
-                               mChrInfo[i].mCharacter == *(u16*)l_mojikata3[j])
+                    } else if (mChrInfo[i].mCharacter == SJIS_MOJI(l_mojikata[j]) ||
+                               mChrInfo[i].mCharacter == SJIS_MOJI(l_mojikata2[j]) ||
+                               mChrInfo[i].mCharacter == SJIS_MOJI(l_mojikata3[j]))
                     {
                         mChrInfo[i].mColumn = j / 5;
                         mChrInfo[i].mRow = j % 5;

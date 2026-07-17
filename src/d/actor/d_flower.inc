@@ -142,7 +142,7 @@ const u16 l_J_Ohana01_64128_0419TEX__height = 127;
 
 #if TARGET_PC
 using GameVersion = dusk::version::GameVersion;
-static u8* l_J_Ohana01_64128_0419TEX_get() { static u8 buf[0x1000]; static bool _ = (dusk::LoadArchivedRelAsset(buf, 'AMEM', "d_a_grass.rel", {{GameVersion::GcnUsa, 0xA0A0}, {GameVersion::GcnPal, 0xA0A0}}, 0x1000), true); return buf; }
+static u8* l_J_Ohana01_64128_0419TEX_get() { static u8 buf[0x1000]; static bool _ = (dusk::LoadArchivedRelAsset(buf, 'AMEM', "d_a_grass.rel", {{GameVersion::GcnUsa, 0xA0A0}, {GameVersion::GcnPal, 0xA0A0}, {GameVersion::GcnJpn, 0xA0A0}}, 0x1000), true); return buf; }
 #define l_J_Ohana01_64128_0419TEX (l_J_Ohana01_64128_0419TEX_get())
 #else
 #include "assets/l_J_Ohana01_64128_0419TEX.h"

@@ -23,6 +23,8 @@
 #include "dusk/frame_interpolation.h"
 #include <cstring>
 
+#include "dusk/version.hpp"
+
 #if TARGET_PC
 #include "dusk/settings.h"
 #include "dusk/ui/icon_provider.hpp"
@@ -59,6 +61,14 @@ void dAnchorHudScale(CPaneMgr* i_pane, HudCorner i_corner, f32* io_x, f32* io_y,
 #endif
 
 dMeter2Draw_c::dMeter2Draw_c(JKRExpHeap* mp_heap) {
+#if TARGET_PC
+    if (dusk::version::isRegionJpn()) {
+        g_drawHIO.mButtonATextSpacing = -2.0f;
+    } else {
+        g_drawHIO.mButtonATextSpacing = 1.0f;
+    }
+#endif
+
     OS_REPORT("enter dMeter2Draw_c::dMeter2Draw_c(JKRExpHeap *mp_heap)\n");
 
     heap = mp_heap;
@@ -161,7 +171,8 @@ dMeter2Draw_c::dMeter2Draw_c(JKRExpHeap* mp_heap) {
     }
 
     J2DTextBox::TFontSize font_size;
-#if VERSION != VERSION_GCN_JPN
+#if TARGET_PC || VERSION != VERSION_GCN_JPN
+    IF_DUSK_BLOCK(!dusk::version::isRegionJpn())
     font_size.mSizeX = 17.0f;
     font_size.mSizeY = 20.0f;
     for (int i = 0; i < 5; i++) {
@@ -171,6 +182,7 @@ dMeter2Draw_c::dMeter2Draw_c(JKRExpHeap* mp_heap) {
         static_cast<J2DTextBox*>(mpXYText[i][1]->getPanePtr())->setFontSize(font_size);
         static_cast<J2DTextBox*>(mpXYText[i][2]->getPanePtr())->setFontSize(font_size);
     }
+    IF_DUSK_BLOCK_END
 #endif
 
     init();

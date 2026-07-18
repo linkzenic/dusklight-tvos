@@ -56,8 +56,7 @@ typedef struct dMsgUnit_inf1_entry_JPN {
     BE(u16) field_0x14;
     BE(u16) field_0x16;
     BE(u16) field_0x18;
-    BE(u16) startFrame;
-    BE(u16) endFrame;
+    BE(u16) field_0x1A;
 } dMsgUnit_inf1_entry_JPN;
 
 typedef struct dMsgUnit_inf1_section_JPN {
@@ -117,7 +116,7 @@ void dMsgUnit_c::setTag_jpn(int i_type, int i_value, TEXT_SPAN o_buffer, bool pa
         }
     }
 
-    if ((i_type == 3 && param_4 == true) || i_type == 4 && param_4 == false) {
+    if ((i_type == 3 && param_4 == true) || (i_type == 4 && param_4 == false)) {
         f32 dayTime = g_env_light.getDaytime();
         f32 hour = dayTime / 15.0f;
 
@@ -141,65 +140,64 @@ void dMsgUnit_c::setTag_jpn(int i_type, int i_value, TEXT_SPAN o_buffer, bool pa
 
     if (!stack9) {
         bmg_header_t* pHeader = (bmg_header_t*)dMeter2Info_getMsgUnitResource();
-        dMsgUnit_inf1_section_JPN* pInfoBlock = NULL;
+        bmg_section_t* pInfoBlock = NULL;
         const void* pMsgDataBlock = NULL;
         str1_section_t* pStrAttributeBlock = NULL;
         int filepos = sizeof(bmg_header_t);
         u32 filesize = pHeader->size;
-        bmg_section_t* pSection = (bmg_section_t*)(((u8*)pHeader) + filepos);
+        u8* pSection = ((u8*)pHeader) + filepos;
 
-        for (; filepos < filesize; filepos += pSection->size) {
-            switch(pSection->magic) {
-                case 'FLW1':
-                    break;
-                case 'FLI1':
-                    break;
-                case 'INF1':
-                    pInfoBlock = (dMsgUnit_inf1_section_JPN*)pSection;
-                    break;
-                case 'DAT1':
-                    pMsgDataBlock = pSection;
-                    break;
-                case 'STR1':
-                    pStrAttributeBlock = (str1_section_t*)pSection;
-                    break;
+        while (filepos < filesize) {
+            switch(((bmg_section_t*)pSection)->magic) {
+            case 'FLW1':
+                break;
+            case 'FLI1':
+                break;
+            case 'INF1':
+                pInfoBlock = (bmg_section_t*)pSection;
+                break;
+            case 'DAT1':
+                pMsgDataBlock = pSection;
+                break;
+            case 'STR1':
+                pStrAttributeBlock = (str1_section_t*)pSection;
+                break;
             }
-            pSection = (bmg_section_t*)((u8*)pSection + pSection->size);
+            filepos += ((bmg_section_t*)pSection)->size;
+            pSection += ((bmg_section_t*)pSection)->size;
         }
 
         u16 vals[12];
-        vals[0] = pInfoBlock->entries[i_type].field_0x04;
-        vals[1] = pInfoBlock->entries[i_type].field_0x06;
-        vals[2] = pInfoBlock->entries[i_type].field_0x08;
-        vals[3] = pInfoBlock->entries[i_type].field_0x0a;
-        vals[4] = pInfoBlock->entries[i_type].field_0x0c;
-        vals[5] = pInfoBlock->entries[i_type].field_0x0e;
-        vals[6] = pInfoBlock->entries[i_type].field_0x10;
-        vals[7] = pInfoBlock->entries[i_type].field_0x12;
-        vals[8] = pInfoBlock->entries[i_type].field_0x14;
-        vals[9] = pInfoBlock->entries[i_type].field_0x16;
-        vals[10] = pInfoBlock->entries[i_type].field_0x18;
-        int entryOff = pInfoBlock->entries[i_type].dat1EntryOffset;
+        vals[0] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x04;
+        vals[1] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x06;
+        vals[2] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x08;
+        vals[3] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x0a;
+        vals[4] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x0c;
+        vals[5] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x0e;
+        vals[6] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x10;
+        vals[7] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x12;
+        vals[8] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x14;
+        vals[9] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x16;
+        vals[10] = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].field_0x18;
+        u32 dat1EntryOffset = ((dMsgUnit_inf1_section_JPN*)pInfoBlock)->entries[i_type].dat1EntryOffset;
 
-        char* value2 = (char*)((uintptr_t)pMsgDataBlock + entryOff + 8);
+        char* dat1Entry = (char*)((u8*)pMsgDataBlock + dat1EntryOffset + 8);
 
         const char* uVar5;
         if (i_value == 0) {
             uVar5 = pStrAttributeBlock->entries->str + vals[0];
+        } else if ((i_value % 10) == 0) {
+            uVar5 = pStrAttributeBlock->entries->str + (vals[10]);
         } else {
-            if ((i_value % 10) == 0) {
-                uVar5 = pStrAttributeBlock->entries->str + (vals[10]);
-            } else {
-                uVar5 = pStrAttributeBlock->entries->str + vals[i_value % 10];
-            }
+            uVar5 = pStrAttributeBlock->entries->str + vals[i_value % 10];
         }
 
         int uVar5Len = strlen(uVar5);
         if (uVar5Len == 0) {
             if (stack8) {
-                SAFE_STRCAT(o_buffer, value2);
+                SAFE_STRCAT(o_buffer, dat1Entry);
             } else {
-                SAFE_SPRINTF(o_buffer, "%d%s", i_value, value2);
+                SAFE_SPRINTF(o_buffer, "%d%s", i_value, dat1Entry);
             }
         } else {
             char unkCharArr[7];
@@ -208,15 +206,15 @@ void dMsgUnit_c::setTag_jpn(int i_type, int i_value, TEXT_SPAN o_buffer, bool pa
             unkCharArr[2] = -1;
             unkCharArr[3] = -1;
             unkCharArr[4] = 2;
-            unkCharArr[5] = strlen(value2) / 2;
+            unkCharArr[5] = strlen(dat1Entry) / 2;
             unkCharArr[6] = 0;
 
             if (stack8) {
                 SAFE_STRCAT(o_buffer, unkCharArr);
                 SAFE_STRCAT(o_buffer, uVar5);
-                SAFE_STRCAT(o_buffer, value2);
+                SAFE_STRCAT(o_buffer, dat1Entry);
             } else {
-                SAFE_SPRINTF(o_buffer, "%d%s%s%s", i_value, unkCharArr, uVar5, value2);
+                SAFE_SPRINTF(o_buffer, "%d%s%s%s", i_value, unkCharArr, uVar5, dat1Entry);
             }
         }
     }

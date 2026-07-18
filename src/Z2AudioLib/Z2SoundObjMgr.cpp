@@ -6,6 +6,8 @@
 #include "Z2AudioLib/Z2LinkMgr.h"
 #include <cstring>
 
+#include "dusk/version.hpp"
+
 Z2SoundObjMgr::Z2SoundObjMgr() : JASGlobalInstance<Z2SoundObjMgr>(true) {
     ghostEnemyState_ = 0;
     twilightBattle_ = 0;
@@ -207,6 +209,10 @@ void Z2SoundObjMgr::searchEnemy() {
         case Z2_ENEMY_RD:
         case Z2_ENEMY_SH:
         case Z2_ENEMY_HP:
+#elif TARGET_PC
+        case Z2_ENEMY_SH:
+            if (enemyId == Z2_ENEMY_SH && !dusk::version::isRegionJpn())
+                continue;
 #endif
             if (!Z2GetLink()->isRiding())
                 break;

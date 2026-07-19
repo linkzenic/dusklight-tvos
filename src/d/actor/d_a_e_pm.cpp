@@ -2212,8 +2212,7 @@ void daE_PM_c::StartAction() {
         if (fopAcM_gc_c::gndCheck(&pos) && current.pos.absXZ(*s_LinkPos) < 1000.0f
             && mAnm == ANM_WAIT01 && s_LinkPos->y <= fopAcM_gc_c::getGroundY() + 100.0f)
         {
-#if TARGET_PC || VERSION != VERSION_GCN_JPN
-            IF_DUSK_BLOCK(!dusk::version::isRegionJpn())
+#if VERSION != VERSION_GCN_JPN
             if (!CameraSet()) {
                 break;
             }
@@ -2240,14 +2239,6 @@ void daE_PM_c::StartAction() {
                 player->changeOriginalDemo();
                 player->changeDemoMode(4, 0, 0, 0);
             }
-            IF_DUSK_BLOCK_END
-
-            IF_DUSK_BLOCK(dusk::version::isRegionJpn())
-            mPuppetNum = 4;
-            mAction = 6;
-            mMode = Mode0;
-            mDemoMode = 0;
-            IF_DUSK_BLOCK_END
 #else
             mPuppetNum = 4;
             mAction = 6;

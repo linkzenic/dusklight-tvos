@@ -3456,11 +3456,13 @@ void jmessage_tRenderingProcessor::do_heightcenter() {
         break;
     case 3: {
 #if TARGET_PC
-        if (!dusk::version::isRegionJpn() || (dusk::version::isRegionJpn() && field_0x142 == 1))
-#else
-        if (field_0x142 == 1)
+        if (!dusk::version::isRegionJpn()) {
+            field_0x138 = 0.5f * pReference->getLineSpace();
+            var_f31 += field_0x138;
+            break;
+        }
 #endif
-        {
+        if (field_0x142 == 1) {
             int nowPageLine = pReference->getNowPageLine();
             field_0x138 = pReference->getLineSpace() * (0.5f * (pReference->getLineMax() - (s16)nowPageLine));
             var_f31 += field_0x138;

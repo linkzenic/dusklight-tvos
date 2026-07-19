@@ -482,7 +482,7 @@ void dMenu_DmapBg_c::setCButtonString(u32 i_msgNo) {
         MULTI_CHAR('c_text_s'), MULTI_CHAR('c_text')
     };
     static u64 const c_tag[2] = {
-        MULTI_CHAR('c_text_s'), MULTI_CHAR('c_text')
+        MULTI_CHAR('f_text_s'), MULTI_CHAR('f_text')
     };
 #else
     static u64 const c_tag[2] = {

@@ -19,6 +19,7 @@
 #include "d/actor/d_a_obj_smw_stone.h"
 #include "f_op/f_op_actor_enemy.h"
 #include "f_op/f_op_camera_mng.h"
+#include "dusk/version.hpp"
 
 class daE_PM_HIO_c {
 public:
@@ -115,7 +116,7 @@ enum Joint {
 };
 
 enum Mode {
-#if VERSION == VERSION_GCN_JPN
+#if TARGET_PC || VERSION == VERSION_GCN_JPN
     /* 0x00 */ Mode0_JPN,
 #endif
     /* 0x00 */ Mode0,
@@ -470,26 +471,31 @@ void daE_PM_c::Ap_StartAction() {
     bool bVar3 = false;
 
     switch (mMode) {
-#if VERSION == VERSION_GCN_JPN
+#if TARGET_PC || VERSION == VERSION_GCN_JPN
     case Mode0_JPN:
-        if (mAppear) {
-            bVar3 = true;
-            mMode++;
-        } else if (mSecondEncounter && fopAcM_searchPlayerDistanceXZ(this) < 800.0f) {
-            bVar3 = true;
-            mMode++;
-        }
+        IF_DUSK_BLOCK(dusk::version::isRegionJpn())
+            if (mAppear) {
+                bVar3 = true;
+                mMode++;
+            } else if (mSecondEncounter && fopAcM_searchPlayerDistanceXZ(this) < 800.0f) {
+                bVar3 = true;
+                mMode++;
+            }
+        IF_DUSK_BLOCK_END
         break;
-    case Mode0:
-        bVar3 = true;
-#else
-    case Mode0:
-        if (mAppear) {
-            bVar3 = true;
-        } else if (mSecondEncounter && fopAcM_searchPlayerDistanceXZ(this) < 800.0f) {
-            bVar3 = true;
-        }
 #endif
+    case Mode0:
+        IF_DUSK_BLOCK(dusk::version::isRegionJpn())
+        bVar3 = true;
+        IF_DUSK_BLOCK_END
+
+        IF_DUSK_BLOCK(!dusk::version::isRegionJpn())
+            if (mAppear) {
+                bVar3 = true;
+            } else if (mSecondEncounter && fopAcM_searchPlayerDistanceXZ(this) < 800.0f) {
+                bVar3 = true;
+            }
+        IF_DUSK_BLOCK_END
         if (bVar3 && CameraSet()) {
             if (dComIfG_play_c::getLayerNo(0) == 2) {
                 player_pos.set(-10477.0f, mAcch.GetGroundH(), 17710.0f);
@@ -816,10 +822,12 @@ void daE_PM_c::DemoBeforeEscape() {
             for (int i = 0; i < 4; i++) {
                 e_fs_class* puppet;
                 if (fopAcM_SearchByID(mPuppetID[i], (fopAc_ac_c**)&puppet)) {
-#if VERSION == VERSION_GCN_JPN
+#if TARGET_PC || VERSION == VERSION_GCN_JPN
+                    IF_DUSK_BLOCK(dusk::version::isRegionJpn())
                     if (puppet == NULL) {
                         continue;
                     }
+                    IF_DUSK_BLOCK_END
 #endif
                     puppet->mAction = e_fs_class::ACT_END;
                     puppet->mMode = 0;
@@ -1271,11 +1279,14 @@ void daE_PM_c::DemoBossStart2() {
 
     player = (daPy_py_c*)dComIfGp_getPlayer(0);
 
-#if VERSION == VERSION_GCN_JPN
-    if (mDemoMode > Mode0) {
+#if TARGET_PC
+    if (dusk::version::isRegionJpn() ? (mDemoMode > Mode0) : (mDemoMode != Mode0))
+#elif VERSION == VERSION_GCN_JPN
+    if (mDemoMode > Mode0)
 #else
-    if (mDemoMode != Mode0) {
+    if (mDemoMode != Mode0)
 #endif
+    {
         SetMoveCam(0.1f, 50.0f);
     } else {
         SetMoveCam(0.03f, 50.0f);
@@ -1284,31 +1295,33 @@ void daE_PM_c::DemoBossStart2() {
     mTargetAngleY = s_TargetAngle;
 
     switch (mDemoMode) {
-#if VERSION == VERSION_GCN_JPN
+#if TARGET_PC || VERSION == VERSION_GCN_JPN
     case Mode0_JPN:
-        if (!CameraSet()) {
-            break;
-        }
+        IF_DUSK_BLOCK(dusk::version::isRegionJpn())
+            if (!CameraSet()) {
+                break;
+            }
 
-        mPuppetNum = 4;
-        gravity = -9.0f;
-        mTimer[0] = 130;
-        if (mSecondEncounter) {
-            mTimer[0] = 180;
-            vec1.set(current.pos.x, 1900.0f, current.pos.z);
-            SetStopCam(vec1, 500.0f, 0.0f, s_TargetAngle);
-            mCamEye.set(mCamEyeTarget);
-            actor_status &= ~fopAcStts_CULL_e;
-        }
-        if (mSecondEncounter) {
-            player->mDemo.setDemoType(daPy_demo_c::DEMO_TYPE_ORIGINAL_e);
-            player->mDemo.setParam0(0);
-            player->mDemo.setDemoMode(4);
-            player->mDemo.setParam0(0);
-            player->mDemo.setParam1(0);
-            player->mDemo.setParam2(0);
-        }
-        mDemoMode++;
+            mPuppetNum = 4;
+            gravity = -9.0f;
+            mTimer[0] = 130;
+            if (mSecondEncounter) {
+                mTimer[0] = 180;
+                vec1.set(current.pos.x, 1900.0f, current.pos.z);
+                SetStopCam(vec1, 500.0f, 0.0f, s_TargetAngle);
+                mCamEye.set(mCamEyeTarget);
+                actor_status &= ~fopAcStts_CULL_e;
+            }
+            if (mSecondEncounter) {
+                player->mDemo.setDemoType(daPy_demo_c::DEMO_TYPE_ORIGINAL_e);
+                player->mDemo.setParam0(0);
+                player->mDemo.setDemoMode(4);
+                player->mDemo.setParam0(0);
+                player->mDemo.setParam1(0);
+                player->mDemo.setParam2(0);
+            }
+            mDemoMode++;
+        IF_DUSK_BLOCK_END
         break;
 #endif
     case Mode0:
@@ -1443,20 +1456,21 @@ void daE_PM_c::DemoBossStart() {
     }
 
     switch (mDemoMode) {
-#if VERSION == VERSION_GCN_JPN
+#if TARGET_PC || VERSION == VERSION_GCN_JPN
     case Mode0_JPN:
-        if (!CameraSet()) {
-            break;
-        }
+        IF_DUSK_BLOCK(dusk::version::isRegionJpn())
+            if (!CameraSet()) {
+                break;
+            }
 
-        mPuppetNum = 4;
-        gravity = -9.0f;
-        mTimer[0] = 130;
-        vec1.set(current.pos.x, current.pos.y + 80.0f, current.pos.z);
-        mTargetAngleY = shape_angle.y;
-        SetStopCam(vec1, 500.0f, -150.0f, shape_angle.y);
-        mDemoMode++;
-
+            mPuppetNum = 4;
+            gravity = -9.0f;
+            mTimer[0] = 130;
+            vec1.set(current.pos.x, current.pos.y + 80.0f, current.pos.z);
+            mTargetAngleY = shape_angle.y;
+            SetStopCam(vec1, 500.0f, -150.0f, shape_angle.y);
+            mDemoMode++;
+        IF_DUSK_BLOCK_END
         break;
 #endif
     case Mode0:
@@ -2209,7 +2223,8 @@ void daE_PM_c::StartAction() {
         if (fopAcM_gc_c::gndCheck(&pos) && current.pos.absXZ(*s_LinkPos) < 1000.0f
             && mAnm == ANM_WAIT01 && s_LinkPos->y <= fopAcM_gc_c::getGroundY() + 100.0f)
         {
-#if VERSION != VERSION_GCN_JPN
+#if TARGET_PC || VERSION != VERSION_GCN_JPN
+            IF_DUSK_BLOCK(!dusk::version::isRegionJpn())
             if (!CameraSet()) {
                 break;
             }
@@ -2236,6 +2251,14 @@ void daE_PM_c::StartAction() {
                 player->changeOriginalDemo();
                 player->changeDemoMode(4, 0, 0, 0);
             }
+            IF_DUSK_BLOCK_END
+
+            IF_DUSK_BLOCK(dusk::version::isRegionJpn())
+            mPuppetNum = 4;
+            mAction = 6;
+            mMode = Mode0;
+            mDemoMode = 0;
+            IF_DUSK_BLOCK_END
 #else
             mPuppetNum = 4;
             mAction = 6;

@@ -337,11 +337,15 @@ void dName_c::_move() {
         mDoAud_seStart(Z2SE_SY_DUMMY, 0, 0, 0);
         mPrevMojiSet = mMojiSet;
         mMojiSet++;
-        #if REGION_JPN
-        if (mMojiSet > MOJI_EIGO) {
+
+        #if TARGET_PC
+        if ((dusk::version::isRegionJpn() && mMojiSet > MOJI_EIGO) || (!dusk::version::isRegionJpn() && mMojiSet > MOJI_KATA))
+        #elif REGION_JPN
+        if (mMojiSet > MOJI_EIGO)
         #else
-        if (mMojiSet > MOJI_KATA) {
+        if (mMojiSet > MOJI_KATA)
         #endif
+        {
             mMojiSet = MOJI_HIRA;
         }
         mojiListChange();

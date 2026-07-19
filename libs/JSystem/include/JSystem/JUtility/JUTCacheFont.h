@@ -64,7 +64,7 @@ public:
 
     void setPagingType(EPagingType type) { mPagingType = type; }
 
-    static u32 calcCacheSize(u32 param_0, int param_1) { return (ALIGN_NEXT(param_0, 0x20) + 0x40) * param_1; }
+    static u32 calcCacheSize(u32 param_0, int param_1) { return (ALIGN_NEXT(param_0, 0x20) + sizeof(TCachePage)) * param_1; }
     TGXTexObj* getTexObj(void* buffer) const { return &((TCachePage*)buffer)->mTexObj; }
     void delete_and_initialize() { deleteMemBlocks_CacheFont(); initialize_state(); }
 

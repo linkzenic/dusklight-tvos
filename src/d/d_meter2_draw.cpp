@@ -62,10 +62,23 @@ void dAnchorHudScale(CPaneMgr* i_pane, HudCorner i_corner, f32* io_x, f32* io_y,
 
 dMeter2Draw_c::dMeter2Draw_c(JKRExpHeap* mp_heap) {
 #if TARGET_PC
+    // correct hio data here because we can't do runtime disc checks in sinit data constructors
     if (dusk::version::isRegionJpn()) {
         g_drawHIO.mButtonATextSpacing = -2.0f;
+        for (int i = 0; i < 6; i++) {
+            static f32 const finfoPosX_jpn[6] = {-27.0f, 0.0f, -12.0f, 0.0f, -12.0f, -32.8f};
+            static f32 const fishnPosX_jpn[6] = {-27.0f, 0.0f, -12.0f, 0.0f, -12.0f, -32.8f};
+            g_drawHIO.mFishListScreen.mFishCountSizePosX[i] = finfoPosX_jpn[i];
+            g_drawHIO.mFishListScreen.mFishInfoPosX[i] = fishnPosX_jpn[i];
+        }
     } else {
         g_drawHIO.mButtonATextSpacing = 1.0f;
+        for (int i = 0; i < 6; i++) {
+            static f32 const finfoPosX[6] = {-17.0f, 0.0f, -14.0f, 0.0f, -12.0f, -32.8f};
+            static f32 const fishnPosX[6] = {-17.0f, 0.0f, -14.0f, 0.0f, -12.0f, -32.8f};
+            g_drawHIO.mFishListScreen.mFishCountSizePosX[i] = finfoPosX[i];
+            g_drawHIO.mFishListScreen.mFishInfoPosX[i] = fishnPosX[i];
+        }
     }
 #endif
 

@@ -56,6 +56,10 @@ void JUTCacheFont::initialize_state() {
     mCacheBuffer = NULL;
     field_0x9c = NULL;
     field_0xa0 = NULL;
+
+#if TARGET_PC
+    mJoinedTextureHeight = 0;
+#endif
 }
 
 int JUTCacheFont::getMemorySize(ResFONT const* p_font, u16* o_widCount, u32* o_widSize,

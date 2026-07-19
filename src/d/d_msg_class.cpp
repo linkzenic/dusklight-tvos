@@ -1630,8 +1630,35 @@ void jmessage_tMeasureProcessor::do_scale(f32 i_scale) {
         mPageLineMax--;
         JUT_ASSERT(0x930, mPageLineMax > 0);
 
-#if TARGET_PC || REGION_JPN
-        if (IF_DUSK(dusk::version::isRegionJpn() &&) field_0x3e == 0) {
+#if TARGET_PC
+        if (dusk::version::isRegionJpn()) {
+            if (field_0x3e == 0) {
+                pReference->setPageType(field_0x40, 2);
+            } else {
+                pReference->setPageType(field_0x40, 3);
+                if (field_0x3e == 1 && pReference->getPageType(field_0x40) == 2) {
+                    pReference->setPageType(field_0x40, 4);
+                }
+            }
+        } else {
+            if (field_0x3e == 0) {
+                pReference->setPageType(field_0x40, 2);
+            } else if (field_0x3e == 2 && mPageLineMax == 3) {
+                if (pReference->getPageType(field_0x40) == 4) {
+                    pReference->setPageType(field_0x40, 5);
+                } else {
+                    pReference->setPageType(field_0x40, 8);
+                }
+            } else {
+                pReference->setPageType(field_0x40, 3);
+                if (field_0x3e == 1 && pReference->getPageType(field_0x40) == 2) {
+                    pReference->setPageType(field_0x40, 4);
+                }
+            }
+        }
+#else
+#if REGION_JPN
+        if (field_0x3e == 0) {
             pReference->setPageType(field_0x40, 2);
         }
 #else
@@ -1651,6 +1678,7 @@ void jmessage_tMeasureProcessor::do_scale(f32 i_scale) {
                 pReference->setPageType(field_0x40, 4);
             }
         }
+#endif
     }
 }
 
@@ -2150,8 +2178,10 @@ bool jmessage_tSequenceProcessor::do_isReady() {
             }
 
             field_0xa6++;
-#if TARGET_PC || REGION_JPN
-            if (IF_DUSK(dusk::version::isRegionJpn() &&) field_0xa6 >= 1) {
+#if TARGET_PC
+            if ((dusk::version::isRegionJpn() && field_0xa6 >= 1) || (!dusk::version::isRegionJpn() && field_0xa6 >= 2)) {
+#elif REGION_JPN
+            if (field_0xa6 >= 1) {
 #else
             if (field_0xa6 >= 2) {
 #endif

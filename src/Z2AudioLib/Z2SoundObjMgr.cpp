@@ -182,6 +182,13 @@ void Z2SoundObjMgr::searchEnemy() {
         case Z2_ENEMY_PO:
         case Z2_ENEMY_HP:
             isGhostEnemy = true;
+#if TARGET_PC
+            if (enemyId == Z2_ENEMY_HP && dusk::version::isRegionJpn() &&
+                Z2GetLink()->isRiding() && Z2GetLink()->getMoveSpeed() > 38)
+            {
+                continue;
+            }
+#endif
             break;
         case Z2_ENEMY_RDB:
             if (subBgmType == 0)
@@ -212,7 +219,7 @@ void Z2SoundObjMgr::searchEnemy() {
 #elif TARGET_PC
         case Z2_ENEMY_SH:
             if (enemyId == Z2_ENEMY_SH && !dusk::version::isRegionJpn())
-                continue;
+                break;
 #endif
             if (!Z2GetLink()->isRiding())
                 break;

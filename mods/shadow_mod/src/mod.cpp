@@ -62,6 +62,7 @@ ConfigVarHandle g_cvarDebugView = 0;
 GfxDrawTypeHandle g_drawType = 0;
 GfxStageHookHandle g_sceneBeginHook = 0;
 GfxStageHookHandle g_sceneAfterTerrainHook = 0;
+GfxStageHookHandle g_sceneAfterOpaqueHook = 0;
 GfxStageHookHandle g_frameBeforeHudHook = 0;
 UiWindowHandle g_controlsWindow = 0;
 ResourceBuffer g_shaderSource = RESOURCE_BUFFER_INIT;
@@ -749,8 +750,8 @@ void render_shadow_map(
     g_mapPass.ready = true;
 }
 
-// Game thread, after the full 3D scene: deferred composite.
-void on_frame_before_hud(ModContext*, const GfxStageContext*, void*) {
+// Game thread, after opaque scene draws and before translucent/fog overlays: deferred composite.
+void on_scene_after_opaque(ModContext*, const GfxStageContext*, void*) {
     const int64_t debugMode = get_debug_mode();
     restore_actual_light_debug();
 
@@ -797,7 +798,7 @@ void on_frame_before_hud(ModContext*, const GfxStageContext*, void*) {
     uniforms.inv_size[0] = 1.0f / uniforms.size[0];
     uniforms.inv_size[1] = 1.0f / uniforms.size[1];
     uniforms.edge_fade_width =
-        static_cast<float>(std::clamp<int64_t>(get_int_option(g_cvarEdgeFadeWidth, 32), 0, 128));
+        static_cast<float>(std::clamp<int64_t>(get_int_option(g_cvarEdgeFadeWidth, 32), 0, 256));
     uniforms.strength =
         mapPass.fade *
         static_cast<float>(std::clamp<int64_t>(get_int_option(g_cvarStrength, 45), 0, 100)) /
@@ -815,6 +816,11 @@ void on_frame_before_hud(ModContext*, const GfxStageContext*, void*) {
     const DrawPayload payload{resolved.depth, mapPass.shadowMap, mapPass.lightColor,
         uniformRange.offset, uniformRange.size, static_cast<uint32_t>(debugMode)};
     svc_gfx->push_draw(mod_ctx, g_drawType, &payload, sizeof(payload));
+}
+
+// Frame tail hook: only needed to restore light-view debug camera state before HUD.
+void on_frame_before_hud(ModContext*, const GfxStageContext*, void*) {
+    restore_actual_light_debug();
 }
 
 void add_control(UiElementHandle pane, const UiControlDesc& desc) {
@@ -873,7 +879,7 @@ ModResult build_controls_tab(
         "dynamic shadows. This can be expensive.");
     add_number(left, "Coverage", g_cvarBoxRadius, 1000, 20000, 500, nullptr,
         "Radius of the shadowed area around the camera, in world units. Smaller is sharper.");
-    add_number(left, "Fade Out", g_cvarEdgeFadeWidth, 0, 128, 32, " texels",
+    add_number(left, "Fade Out", g_cvarEdgeFadeWidth, 0, 256, 32, " texels",
         "Fade out shadows gradually near the edge of the coverage area.");
 
     svc_ui->pane_add_section(mod_ctx, left, "Appearance");
@@ -1000,7 +1006,7 @@ MOD_EXPORT ModResult mod_initialize(ModError* error) {
     if (result != MOD_OK) {
         return result;
     }
-    result = register_int_option("edgeFadeWidth", 32, g_cvarEdgeFadeWidth, error);
+    result = register_int_option("edgeFadeWidth", 128, g_cvarEdgeFadeWidth, error);
     if (result != MOD_OK) {
         return result;
     }
@@ -1040,6 +1046,12 @@ MOD_EXPORT ModResult mod_initialize(ModError* error) {
             mod_ctx, GFX_STAGE_SCENE_AFTER_TERRAIN, &stageDesc, &g_sceneAfterTerrainHook) != MOD_OK)
     {
         return mods::set_error(error, MOD_ERROR, "failed to register stage hook");
+    }
+    stageDesc.callback = on_scene_after_opaque;
+    if (svc_gfx->register_stage_hook(
+            mod_ctx, GFX_STAGE_SCENE_AFTER_OPAQUE, &stageDesc, &g_sceneAfterOpaqueHook) != MOD_OK)
+    {
+        return dusk::mods::set_error(error, MOD_ERROR, "failed to register stage hook");
     }
     stageDesc.callback = on_frame_before_hud;
     if (svc_gfx->register_stage_hook(
@@ -1099,7 +1111,8 @@ MOD_EXPORT ModResult mod_shutdown(ModError*) {
     g_cvarStrength = 0;
     g_cvarPcf = g_cvarBias = g_cvarBoxRadius = g_cvarEdgeFadeWidth = g_cvarContactShadows =
         g_cvarDebugView = 0;
-    g_drawType = g_sceneBeginHook = g_sceneAfterTerrainHook = g_frameBeforeHudHook = 0;
+    g_drawType = g_sceneBeginHook = g_sceneAfterTerrainHook = g_sceneAfterOpaqueHook =
+        g_frameBeforeHudHook = 0;
     g_controlsWindow = 0;
     g_mapPass = {};
     g_sceneCamera.valid = false;

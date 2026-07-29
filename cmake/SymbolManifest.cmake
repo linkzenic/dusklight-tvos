@@ -2,7 +2,7 @@ include_guard(GLOBAL)
 
 get_filename_component(_SYMBOL_MANIFEST_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
 
-set(_SYMGEN_VERSION "1.3.1")
+set(_SYMGEN_VERSION "1.3.2")
 set(_SYMGEN_RELEASE_BASE_URL "https://github.com/encounter/symgen/releases/download/v${_SYMGEN_VERSION}")
 set(SYMGEN_PATH "" CACHE FILEPATH "Path to a symgen executable; empty downloads the pinned release")
 mark_as_advanced(SYMGEN_PATH)
@@ -105,6 +105,16 @@ function(setup_symbol_manifest target)
         return()
     endif ()
     add_dependencies(${target} symgen)
+
+    # Reserve an ELF program-header entry when the linker supports it (mold).
+    # symgen can replace the PT_NULL entry without relocating the table, keeping later post-link tools safe.
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        include(CheckLinkerFlag)
+        check_linker_flag(CXX "LINKER:--spare-program-headers=1" _linker_supports_spare_program_headers)
+        if (_linker_supports_spare_program_headers)
+            target_link_options(${target} PRIVATE "LINKER:--spare-program-headers=1")
+        endif ()
+    endif ()
 
     if (WIN32)
         set(_input --pdb "$<TARGET_PDB_FILE:${target}>")

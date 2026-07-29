@@ -139,6 +139,14 @@ struct NamedHook<Name, R(A...)> : HookImpl<detail::NameTag<Name>, R, A...> {};
  * leading underscore) or the demangled qualified display name; overloaded display names are
  * ambiguous and need the mangled form.
  */
+#if defined(__GNUC__) && !defined(__clang__) && defined(__ELF__)
+#define DEFINE_HOOK(target, alias)                                                                 \
+    MOD_META_RECORD static constinit auto mod_meta_hook_##alias =                                  \
+        ::mods::detail::make_local_hook_record<(target), ::mods::FixedString{#target}>();          \
+    struct alias : ::mods::Hook<(target)> {                                                        \
+        static void* resolved_target() { return mod_meta_hook_##alias.resolved; }                  \
+    }
+#else
 #define DEFINE_HOOK(target, alias)                                                                 \
     [[maybe_unused]] static const void* const mod_meta_hook_##alias =                              \
         &::mods::detail::HookRecordFor<(target), ::mods::FixedString{#target}>::Holder::record;    \
@@ -148,6 +156,7 @@ struct NamedHook<Name, R(A...)> : HookImpl<detail::NameTag<Name>, R, A...> {};
                 ::mods::FixedString{#target}>::Holder::record.resolved;                            \
         }                                                                                          \
     }
+#endif
 
 #define DEFINE_HOOK_SYMBOL(name, sig, alias)                                                       \
     MOD_META_RECORD static constinit auto mod_meta_hook_##alias =                                  \

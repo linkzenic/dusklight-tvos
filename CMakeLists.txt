@@ -20,6 +20,19 @@ if (APPLE AND NOT TVOS AND CMAKE_SYSTEM_NAME STREQUAL tvOS)
     set(IOS OFF)
 endif ()
 
+# Dawn generates Protocol Buffer sources during configuration. When
+# cross-compiling for Apple TV it cannot execute a target-built protoc, so use
+# a native compiler from the Mac host instead.
+if (TVOS AND NOT PROTOC_EXECUTABLE)
+    find_program(PROTOC_EXECUTABLE protoc NO_CMAKE_FIND_ROOT_PATH)
+    if (NOT PROTOC_EXECUTABLE)
+        message(FATAL_ERROR
+            "A host protoc executable is required for tvOS. "
+            "Install protobuf (for example, `brew install protobuf`).")
+    endif ()
+    message(STATUS "Using host protoc for tvOS: ${PROTOC_EXECUTABLE}")
+endif ()
+
 if(APPLE AND NOT CMAKE_OSX_SYSROOT)
     # If the Xcode SDK is lagging behind system version, CMake needs this done first
     execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
@@ -321,7 +334,8 @@ include(files.cmake)
 # TODO: version handling for res includes
 
 set(DUSK_BUNDLE_NAME Dusklight)
-set(DUSK_BUNDLE_IDENTIFIER dev.twilitrealm.dusk)
+set(DUSK_BUNDLE_IDENTIFIER dev.twilitrealm.dusk CACHE STRING
+    "Bundle identifier used for Apple platform builds")
 set(DUSK_COMPANY_NAME "Twilit Realm")
 set(DUSK_FILE_DESCRIPTION "Dusklight")
 set(DUSK_PRODUCT_NAME "Dusklight")
@@ -435,11 +449,24 @@ set(GAME_DEBUG_FILES
         src/dusk/audio/DspStub.cpp
         src/dusk/imgui/ImGuiAudio.cpp
 )
-set_source_files_properties(
-        ${GAME_DEBUG_FILES}
-        PROPERTIES
-        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>"
-)
+if (CMAKE_GENERATOR STREQUAL "Xcode")
+    # Xcode cannot represent per-source, per-configuration definitions.
+    # CMAKE_BUILD_TYPE is explicitly supplied by our Apple platform configure
+    # commands, so resolve this definition while generating the project.
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set_source_files_properties(
+                ${GAME_DEBUG_FILES}
+                PROPERTIES
+                COMPILE_DEFINITIONS "DEBUG=1"
+        )
+    endif ()
+else ()
+    set_source_files_properties(
+            ${GAME_DEBUG_FILES}
+            PROPERTIES
+            COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>"
+    )
+endif ()
 
 # game_base is for all other game code files
 set(GAME_BASE_FILES

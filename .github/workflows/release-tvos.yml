@@ -19,7 +19,7 @@ jobs:
           submodules: recursive
 
       - name: Install dependencies
-        run: brew install cmake ninja
+        run: brew install cmake ninja protobuf
 
       - name: Install Rust tvOS target
         run: |

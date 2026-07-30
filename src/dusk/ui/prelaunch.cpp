@@ -31,6 +31,13 @@
 #include <optional>
 #include <thread>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_TV
+#include "dusk/tvos/TVOSFileServer.h"
+#endif
+#endif
+
 #include "m_Do/m_Do_MemCard.h"
 
 namespace dusk::ui {
@@ -353,6 +360,9 @@ void apply_valid_disc_result(
     }
     persist_disc_choice(path, validation);
     apply_language_for_disc(info);
+#if defined(__APPLE__) && TARGET_OS_TV
+    DuskTVOSFileServer_Stop();
+#endif
 }
 
 void apply_disc_verification_result(const DiscVerificationResult& result) {
@@ -553,7 +563,11 @@ std::vector<const gamemode::GameMode*> carousel_game_modes() {
 
 std::string game_mode_button_text() {
     if (prelaunch_state().activeDiscPath.empty()) {
+#if defined(__APPLE__) && TARGET_OS_TV
+        return "Transfer Game Disc";
+#else
         return "Select Disc Image";
+#endif
     }
     const auto* currentGameMode = gamemode::getGameModeManager().getCurrentGameMode();
     if (currentGameMode == nullptr || currentGameMode->getId() == gamemode::kVanillaGameModeId) {
@@ -840,16 +854,29 @@ void ensure_initialized() noexcept {
     state.errorString.clear();
     state.initialized = true;
     refresh_configured_disc_state();
+#if defined(__APPLE__) && TARGET_OS_TV
+    if (state.activeDiscPath.empty()) {
+        const auto uploadDirectory = data::configured_data_path() / "disc_images";
+        const auto uploadDirectoryString = uploadDirectory.string();
+        DuskTVOSFileServer_Start(uploadDirectoryString.c_str());
+    }
+#endif
 }
 
 void open_iso_picker() noexcept {
     ensure_initialized();
+#if defined(__APPLE__) && TARGET_OS_TV
+    const auto uploadDirectory = data::configured_data_path() / "disc_images";
+    const auto uploadDirectoryString = uploadDirectory.string();
+    DuskTVOSFileServer_Start(uploadDirectoryString.c_str());
+#else
     borealis::file_select::open_file(
         {
             .parentWindow = aurora::window::get_sdl_window(),
             .filters = kDiscFileFilters,
         },
         &file_dialog_callback);
+#endif
 }
 
 bool is_restart_pending() noexcept {
@@ -1060,6 +1087,13 @@ void Prelaunch::update() {
     ensure_initialized();
     try_apply_mirrored_layout(mDocument);
 
+#if defined(__APPLE__) && TARGET_OS_TV
+    std::array<char, 4096> uploadedPath{};
+    if (DuskTVOSFileServer_TakeUploadedPath(uploadedPath.data(), uploadedPath.size())) {
+        begin_disc_verification(uploadedPath.data());
+    }
+#endif
+
     if (top_document() == this) {
         try_push_verification_modal(*this);
         try_push_language_unavailable_modal(*this);
@@ -1090,7 +1124,13 @@ void Prelaunch::update() {
     if (mDiscStatus != nullptr && discStatusLabel != nullptr) {
         if (!activeDiscLoaded) {
             mDiscStatus->RemoveAttribute("status");
+#if defined(__APPLE__) && TARGET_OS_TV
+            std::array<char, 512> transferStatus{};
+            DuskTVOSFileServer_GetStatus(transferStatus.data(), transferStatus.size());
+            discStatusLabel->SetInnerRML(escape(transferStatus.data()));
+#else
             discStatusLabel->SetInnerRML("No disc image found.");
+#endif
         } else if (discRestartPending) {
             mDiscStatus->SetAttribute("status", "pending");
             discStatusLabel->SetInnerRML("Pending restart.");

@@ -485,7 +485,11 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             leftPane.register_control(
                 leftPane
                     .add_select_button({
+#if defined(__APPLE__) && TARGET_OS_TV
+                        .key = "Game Disc Transfer",
+#else
                         .key = "Disc Image",
+#endif
                         .getValue =
                             [] {
                                 const auto& path = prelaunch_state().configuredDiscPath;
@@ -509,8 +513,16 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                     })
                     .on_pressed([] { open_iso_picker(); }),
                 rightPane, [](Pane& pane) {
+#if defined(__APPLE__) && TARGET_OS_TV
+                    pane.add_rml(
+                        "Transfer a Twilight Princess GameCube disc image from a phone or "
+                        "computer on the same network.<br/><br/>"
+                        "Dusklight verifies the upload automatically. A valid replacement "
+                        "requires an app restart.");
+#else
                     pane.add_rml("Set the disc image that Dusklight uses to launch the game.<br/><br/>"
                                  "Changes require a restart.");
+#endif
                 });
             if (data::manager().capabilities().canChangeLocation &&
                 borealis::file_select::capabilities().canOpenFolder)

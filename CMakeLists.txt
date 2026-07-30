@@ -665,6 +665,17 @@ if (APPLE)
     endif ()
 endif ()
 
+if (TVOS)
+    find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+    find_library(NETWORK_FRAMEWORK Network REQUIRED)
+    target_sources(dusklight PRIVATE
+        src/dusk/tvos/TVOSFileServer.h
+        src/dusk/tvos/TVOSFileServer.mm)
+    set_source_files_properties(
+        src/dusk/tvos/TVOSFileServer.mm
+        PROPERTIES COMPILE_FLAGS -fobjc-arc)
+    target_link_libraries(dusklight PRIVATE ${FOUNDATION_FRAMEWORK} ${NETWORK_FRAMEWORK})
+endif ()
 include(extern/aurora/cmake/AuroraCopyRuntimeDLLs.cmake)
 aurora_copy_runtime_dlls(dusklight)
 

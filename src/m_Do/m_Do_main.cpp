@@ -99,6 +99,12 @@
 #include <RmlUi/Core.h>
 #ifdef __APPLE__
 #include <TargetConditionals.h>
+#if TARGET_OS_IOS || TARGET_OS_TV
+#include "dusk/apple/ICloudSaveSync.h"
+#endif
+#if TARGET_OS_TV
+#include "dusk/tvos/TVOSLifecycle.h"
+#endif
 #endif
 
 #if DUSK_ENABLE_SENTRY_NATIVE
@@ -156,6 +162,15 @@ bool launchUILoop() {
         const AuroraEvent* event = aurora_update();
         while (event != nullptr && event->type != AURORA_NONE) {
             switch (event->type) {
+            case AURORA_PAUSED:
+                dusk::audio::SetPaused(true);
+                dusk::mouse::on_focus_lost();
+                break;
+            case AURORA_UNPAUSED:
+                dusk::audio::SetPaused(false);
+                dusk::game_clock::reset_frame_timer();
+                dusk::mouse::on_focus_gained();
+                break;
             case AURORA_SDL_EVENT:
                 dusk::mouse::handle_event(event->sdl);
                 dusk::ui::handle_event(event->sdl);
@@ -579,6 +594,14 @@ int game_main(int argc, char* argv[]) {
     log_build_info();
 
     dusk::config::load_from_user_preferences();
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV)
+    {
+        const auto cloudSaveRoot = dusk::ConfigPath.string();
+        DuskICloudSaveSync_Configure(cloudSaveRoot.c_str());
+        DuskICloudSaveSync_PrepareSaves();
+        DuskICloudSaveSync_StartMonitoring();
+    }
+#endif
     ApplyCVarOverrides(parsed_arg_options["cvar"]);
     dusk::android::update_surface_frame_rate();
     dusk::crash_reporting::initialize();
@@ -639,6 +662,9 @@ int game_main(int argc, char* argv[]) {
         config.pauseOnFocusLost = dusk::getSettings().game.pauseOnFocusLost;
         config.imGuiInitCallback = &aurora_imgui_init_callback;
         config.allowTextureDumps = false;
+#if defined(__APPLE__) && TARGET_OS_TV
+        DuskTVOSLifecycle_Configure();
+#endif
         auroraInfo = aurora_initialize(argc, argv, &config);
     }
 
@@ -913,6 +939,9 @@ int game_main(int argc, char* argv[]) {
 #endif
     dusk::ui::shutdown();
     dusk::texture_replacements::shutdown();
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV)
+    DuskICloudSaveSync_StopMonitoring();
+#endif
     dusk::config::shutdown();
     aurora_shutdown();
 

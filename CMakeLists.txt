@@ -640,6 +640,10 @@ if (DUSK_ENABLE_CODE_MODS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR
 endif ()
 
 if (APPLE)
+    if (IOS OR TVOS)
+        option(DUSK_APPLE_CODE_SIGNING
+            "Enable local iOS/tvOS code signing (off for public unsigned builds)" OFF)
+    endif ()
     if (IOS)
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios)
     elseif (TVOS)
@@ -647,6 +651,18 @@ if (APPLE)
     else ()
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/macos)
         set(DUSK_ENTITLEMENTS ${DUSK_RESOURCE_DIR}/Dusklight.entitlements)
+    endif ()
+    if (IOS OR TVOS)
+        set(DUSK_ICLOUD_CONTAINER_ID "iCloud.com.linkzenic.dusklight"
+            CACHE STRING "Shared CloudKit container for Dusklight Apple platforms")
+        set(DUSK_ICLOUD_CONTAINER_ENVIRONMENT "Development"
+            CACHE STRING "CloudKit environment requested by signed Apple builds")
+        set(DUSK_ENTITLEMENTS
+            ${CMAKE_CURRENT_BINARY_DIR}/Dusklight.entitlements)
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/Dusklight.entitlements.in
+            ${DUSK_ENTITLEMENTS}
+            @ONLY)
     endif ()
     set(DUSK_INFO_PLIST ${DUSK_RESOURCE_DIR}/Info.plist.in)
     file(GLOB_RECURSE DUSK_RESOURCE_FILES
@@ -674,10 +690,17 @@ if (APPLE)
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${DUSK_SHORT_VERSION_STRING}
         MACOSX_BUNDLE_INFO_PLIST ${DUSK_INFO_PLIST}
         OUTPUT_NAME Dusklight
-        XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
-        XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES"
     )
-    if (DUSK_ENTITLEMENTS)
+    if ((IOS OR TVOS) AND NOT DUSK_APPLE_CODE_SIGNING)
+        list(APPEND _apple_bundle_properties
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
+            XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+    else ()
+        list(APPEND _apple_bundle_properties
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
+            XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES")
+    endif ()
+    if (DUSK_ENTITLEMENTS AND (NOT (IOS OR TVOS) OR DUSK_APPLE_CODE_SIGNING))
         list(APPEND _apple_bundle_properties
             XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${DUSK_ENTITLEMENTS})
     endif ()
@@ -719,14 +742,35 @@ if (IOS)
     target_link_libraries(dusklight PRIVATE ${UIKIT_FRAMEWORK} ${UNIFORM_TYPE_IDENTIFIERS_FRAMEWORK})
 endif ()
 
+if (IOS OR TVOS)
+    find_library(CLOUDKIT_FRAMEWORK CloudKit REQUIRED)
+    find_library(MOBILE_UIKIT_FRAMEWORK UIKit REQUIRED)
+    target_sources(dusklight PRIVATE
+        src/dusk/apple/ICloudSaveSync.h
+        src/dusk/apple/ICloudSaveSync.mm)
+    set_source_files_properties(
+        src/dusk/apple/ICloudSaveSync.mm
+        PROPERTIES COMPILE_FLAGS -fobjc-arc)
+    target_compile_definitions(dusklight PRIVATE
+        DUSK_ICLOUD_CONTAINER_ID="${DUSK_ICLOUD_CONTAINER_ID}")
+    target_link_libraries(dusklight PRIVATE
+        ${CLOUDKIT_FRAMEWORK}
+        ${MOBILE_UIKIT_FRAMEWORK})
+endif ()
+
 if (TVOS)
     find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
     find_library(NETWORK_FRAMEWORK Network REQUIRED)
     target_sources(dusklight PRIVATE
         src/dusk/tvos/TVOSFileServer.h
-        src/dusk/tvos/TVOSFileServer.mm)
+        src/dusk/tvos/TVOSFileServer.mm
+        src/dusk/tvos/TVOSLifecycle.h
+        src/dusk/tvos/TVOSLifecycle.mm
+        src/dusk/tvos/TVOSTexturePack.h
+        src/dusk/tvos/TVOSTexturePack.cpp)
     set_source_files_properties(
         src/dusk/tvos/TVOSFileServer.mm
+        src/dusk/tvos/TVOSLifecycle.mm
         PROPERTIES COMPILE_FLAGS -fobjc-arc)
     target_link_libraries(dusklight PRIVATE ${FOUNDATION_FRAMEWORK} ${NETWORK_FRAMEWORK})
 endif ()

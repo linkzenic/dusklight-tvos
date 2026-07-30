@@ -26,6 +26,10 @@
 #include <chrono>
 #include <cmath>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 namespace dusk::ui {
 namespace {
 
@@ -103,6 +107,7 @@ MenuBar::MenuBar()
             .icon = "question-mark",
         }));
     });
+#if !defined(__APPLE__) || !TARGET_OS_TV
     mTabBar->add_tab("Quit", [this] {
         mTabBar->set_active_tab(-1);
         const auto dismiss = [](Modal& modal) { modal.pop(); };
@@ -133,6 +138,7 @@ MenuBar::MenuBar()
             .icon = "question-mark",
         }));
     });
+#endif
 
     if (getSettings().game.speedrunMode) {
         mTabBar->add_tab("Reset Timer", [this] {

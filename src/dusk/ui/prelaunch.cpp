@@ -218,6 +218,7 @@ void begin_disc_verification(std::string path) noexcept {
     if (path.empty()) {
         return;
     }
+    PrelaunchLog.info("Beginning disc verification: {}", path);
     if (sDiscVerificationTask != nullptr) {
         sDiscVerificationTask->status.shouldCancel.store(true, std::memory_order_relaxed);
         sDiscVerificationTask.reset();
@@ -238,6 +239,9 @@ std::optional<DiscVerificationResult> take_finished_disc_verification() {
     sDiscVerificationTask->join();
     sDiscVerificationTask.reset();
     sDiscVerificationModalPushed = false;
+    PrelaunchLog.info(
+        "Disc verification finished for '{}' with result {}", result.path,
+        static_cast<int>(result.validation));
     return result;
 }
 
@@ -566,6 +570,16 @@ void refresh_configured_disc_state() noexcept {
     }
 }
 
+void poll_uploaded_disc() noexcept {
+#if defined(__APPLE__) && TARGET_OS_TV
+    std::array<char, 4096> uploadedPath{};
+    if (DuskTVOSFileServer_TakeUploadedDiscPath(uploadedPath.data(), uploadedPath.size())) {
+        PrelaunchLog.info("Received completed Apple TV disc upload: {}", uploadedPath.data());
+        begin_disc_verification(uploadedPath.data());
+    }
+#endif
+}
+
 void try_push_verification_modal(Document& host) {
     auto& state = prelaunch_state();
     if (sDiscVerificationTask != nullptr && !sDiscVerificationModalPushed) {
@@ -646,6 +660,65 @@ void ensure_initialized() noexcept {
     }
 
     state.configuredDiscPath = getSettings().backend.isoPath;
+#if defined(__APPLE__) && TARGET_OS_TV
+    const auto uploadDirectory = data::configured_data_path() / "disc_images";
+    std::error_code pathError;
+    if (!state.configuredDiscPath.empty() &&
+        !std::filesystem::is_regular_file(state.configuredDiscPath, pathError)) {
+        const auto relocatedPath =
+            uploadDirectory / std::filesystem::path(state.configuredDiscPath).filename();
+        pathError.clear();
+        if (std::filesystem::is_regular_file(relocatedPath, pathError)) {
+            PrelaunchLog.info(
+                "Relocated saved disc image into the current Apple TV app container: {}",
+                relocatedPath.string());
+            state.configuredDiscPath = relocatedPath.string();
+            getSettings().backend.isoPath.setValue(state.configuredDiscPath);
+            config::save();
+        } else {
+            PrelaunchLog.warning(
+                "Saved disc path is unavailable in the current Apple TV app container: {}",
+                state.configuredDiscPath);
+            state.configuredDiscPath.clear();
+        }
+    }
+
+    if (state.configuredDiscPath.empty()) {
+        std::filesystem::path newestDisc;
+        std::filesystem::file_time_type newestTime{};
+        pathError.clear();
+        if (std::filesystem::is_directory(uploadDirectory, pathError)) {
+            for (const auto& entry : std::filesystem::directory_iterator(
+                     uploadDirectory, std::filesystem::directory_options::skip_permission_denied,
+                     pathError)) {
+                if (pathError || !entry.is_regular_file(pathError)) {
+                    continue;
+                }
+                const auto extension = entry.path().extension().string();
+                const bool supported =
+                    extension == ".iso" || extension == ".gcm" || extension == ".ciso" ||
+                    extension == ".gcz" || extension == ".nfs" || extension == ".rvz" ||
+                    extension == ".wbfs" || extension == ".wia" || extension == ".tgc";
+                if (!supported) {
+                    continue;
+                }
+                const auto modified = entry.last_write_time(pathError);
+                if (!pathError && (newestDisc.empty() || modified > newestTime)) {
+                    newestDisc = entry.path();
+                    newestTime = modified;
+                }
+                pathError.clear();
+            }
+        }
+        if (!newestDisc.empty()) {
+            state.configuredDiscPath = newestDisc.string();
+            PrelaunchLog.info(
+                "Found an uploaded Apple TV disc image awaiting verification: {}",
+                state.configuredDiscPath);
+            begin_disc_verification(state.configuredDiscPath);
+        }
+    }
+#endif
     state.activeDiscPath = state.configuredDiscPath;
     state.configuredDiscValidation =
         verification_from_config(getSettings().backend.isoVerification.getValue());
@@ -657,9 +730,8 @@ void ensure_initialized() noexcept {
     refresh_configured_disc_state();
 #if defined(__APPLE__) && TARGET_OS_TV
     if (state.activeDiscPath.empty()) {
-        const auto uploadDirectory = data::configured_data_path() / "disc_images";
         const auto uploadDirectoryString = uploadDirectory.string();
-        DuskTVOSFileServer_Start(uploadDirectoryString.c_str());
+        DuskTVOSFileServer_StartDiscTransfer(uploadDirectoryString.c_str());
     }
 #endif
 }
@@ -669,7 +741,7 @@ void open_iso_picker() noexcept {
 #if defined(__APPLE__) && TARGET_OS_TV
     const auto uploadDirectory = data::configured_data_path() / "disc_images";
     const auto uploadDirectoryString = uploadDirectory.string();
-    DuskTVOSFileServer_Start(uploadDirectoryString.c_str());
+    DuskTVOSFileServer_StartDiscTransfer(uploadDirectoryString.c_str());
 #else
     ShowFileSelect(&file_dialog_callback, nullptr, aurora::window::get_sdl_window(),
         kDiscFileFilters.data(), kDiscFileFilters.size(), nullptr, false);
@@ -767,9 +839,11 @@ Prelaunch::Prelaunch()
         });
         apply_intro_animation(mMenuButtons.back()->root(), "delay-3");
 
+#if !defined(__APPLE__) || !TARGET_OS_TV
         mMenuButtons.push_back(std::make_unique<Button>(menuList, "Quit"));
         mMenuButtons.back()->on_pressed([] { IsRunning = false; });
         apply_intro_animation(mMenuButtons.back()->root(), "delay-4");
+#endif
     }
 
     mDiscStatus = mDocument->GetElementById("disc-status");
@@ -866,12 +940,7 @@ void Prelaunch::update() {
     ensure_initialized();
     try_apply_mirrored_layout(mDocument);
 
-#if defined(__APPLE__) && TARGET_OS_TV
-    std::array<char, 4096> uploadedPath{};
-    if (DuskTVOSFileServer_TakeUploadedPath(uploadedPath.data(), uploadedPath.size())) {
-        begin_disc_verification(uploadedPath.data());
-    }
-#endif
+    poll_uploaded_disc();
 
     if (top_document() == this) {
         try_push_verification_modal(*this);

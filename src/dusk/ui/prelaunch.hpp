@@ -60,6 +60,7 @@ struct PrelaunchState {
 PrelaunchState& prelaunch_state() noexcept;
 void ensure_initialized() noexcept;
 void refresh_configured_disc_state() noexcept;
+void poll_uploaded_disc() noexcept;
 void open_iso_picker() noexcept;
 bool is_restart_pending() noexcept;
 void try_push_verification_modal(Document& host);

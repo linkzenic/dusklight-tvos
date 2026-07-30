@@ -676,7 +676,7 @@ void ensure_initialized() noexcept {
             getSettings().backend.isoPath.setValue(state.configuredDiscPath);
             config::save();
         } else {
-            PrelaunchLog.warning(
+            PrelaunchLog.warn(
                 "Saved disc path is unavailable in the current Apple TV app container: {}",
                 state.configuredDiscPath);
             state.configuredDiscPath.clear();

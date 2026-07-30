@@ -20,6 +20,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
 jobs:
   build-tvos:
     name: Build unsigned tvOS IPA
@@ -38,6 +42,9 @@ jobs:
         run: |
           rustup toolchain install nightly
           rustup target add --toolchain nightly aarch64-apple-tvos
+
+      - name: Set up compiler cache
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Configure unsigned tvOS build
         run: cmake --preset x-tvos-ci -DDUSK_APPLE_CODE_SIGNING=OFF

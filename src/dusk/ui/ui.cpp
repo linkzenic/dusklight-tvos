@@ -25,6 +25,13 @@
 #include "prelaunch.hpp"
 #include "window.hpp"
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_TV
+#include "dusk/tvos/TVOSLifecycle.h"
+#endif
+#endif
+
 namespace dusk::ui {
 namespace {
 
@@ -540,3 +547,16 @@ void apply_scale() noexcept {
 }
 
 }  // namespace dusk::ui
+
+#if defined(__APPLE__) && TARGET_OS_TV
+extern "C" int DuskTVOSLifecycle_ShouldHandleBack(void) {
+    const auto* document = dusk::ui::top_document();
+    if (document == nullptr || !document->visible()) {
+        return 0;
+    }
+    if (document->scope() == dusk::ui::DocumentScope::Prelaunch) {
+        return 0;
+    }
+    return 1;
+}
+#endif

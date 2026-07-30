@@ -101,10 +101,10 @@ jobs:
             platform: ios
             preset: x-ios-ci
             artifact_name: ios-appleclang-arm64
-          # - name: AppleClang tvOS arm64
-          #   platform: tvos
-          #   preset: x-tvos-ci
-          #   artifact_name: tvos-appleclang-arm64
+          - name: AppleClang tvOS arm64
+            platform: tvos
+            preset: x-tvos-ci
+            artifact_name: tvos-appleclang-arm64
 
     steps:
       - uses: actions/checkout@v6
@@ -142,12 +142,47 @@ jobs:
       - name: Build
         run: cmake --build --preset ${{matrix.preset}}
 
-      - name: Upload artifacts
+      - name: Package unsigned mobile app
+        if: matrix.platform == 'ios' || matrix.platform == 'tvos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_root="build/unsigned-${{matrix.platform}}"
+          app_path="build/install/Dusklight.app"
+          rm -rf "$package_root"
+          mkdir -p "$package_root/Payload"
+          cp -R "$app_path" "$package_root/Payload/Dusklight.app"
+          find "$package_root/Payload/Dusklight.app" \
+            \( -name embedded.mobileprovision -o -name '*.provisionprofile' \) -delete
+          rm -rf "$package_root/Payload/Dusklight.app/_CodeSignature"
+          /usr/bin/codesign --remove-signature \
+            "$package_root/Payload/Dusklight.app" 2>/dev/null || true
+          if /usr/bin/codesign --verify "$package_root/Payload/Dusklight.app" 2>/dev/null; then
+            echo "Refusing to publish an app that still has a code signature."
+            exit 1
+          fi
+          (
+            cd "$package_root"
+            /usr/bin/zip -qry "../Dusklight-${{matrix.platform}}-unsigned.ipa" Payload
+          )
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'macos'
         uses: actions/upload-artifact@v7
         with:
           name: dusklight-${{env.APP_VERSION}}-${{matrix.artifact_name}}
           path: |
             build/install/Dusklight.app
+            build/install/debug.tar.*
+            build/install/sdk/
+
+      - name: Upload unsigned mobile artifacts
+        if: matrix.platform == 'ios' || matrix.platform == 'tvos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dusklight-${{env.DUSK_VERSION}}-${{matrix.artifact_name}}-unsigned
+          path: |
+            build/Dusklight-${{matrix.platform}}-unsigned.ipa
             build/install/debug.tar.*
             build/install/sdk/
 

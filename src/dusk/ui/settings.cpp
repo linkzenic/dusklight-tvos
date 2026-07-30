@@ -17,7 +17,9 @@
 #include <borealis/file_select.hpp>
 #include "dusk/livesplit.h"
 #include "dusk/discord_presence.hpp"
+#include "dusk/main.h"
 #include "dusk/speedrun.h"
+#include "dusk/texture_replacements.hpp"
 #include "graphics_tuner.hpp"
 #include "m_Do/m_Do_main.h"
 #include "menu_bar.hpp"
@@ -38,10 +40,17 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
+#include <string_view>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#if TARGET_OS_TV
+#include "dusk/apple/ICloudSaveSync.h"
+#include "dusk/tvos/TVOSFileServer.h"
+#include "dusk/tvos/TVOSTexturePack.h"
+#endif
 #endif
 
 #if defined(TARGET_ANDROID) || defined(__ANDROID__) || \
@@ -323,6 +332,32 @@ const Rml::String kUnlockFramerateHelpText =
     "visual artifacts or animation glitches.";
 const Rml::String kTextureReplacementHelpText =
     "Enable installed texture replacements.";
+
+#if defined(__APPLE__) && TARGET_OS_TV
+Rml::String texture_pack_transfer_status() {
+    std::array<char, 512> installStatus{};
+    DuskTVOSTexturePack_GetStatus(installStatus.data(), installStatus.size());
+    if (std::string_view{installStatus.data()} !=
+        "ZIP texture pack upload is ready.") {
+        return installStatus.data();
+    }
+    std::array<char, 512> transferStatus{};
+    DuskTVOSFileServer_GetStatus(transferStatus.data(), transferStatus.size());
+    return transferStatus.data();
+}
+
+Rml::String icloud_save_sync_status() {
+    std::array<char, 512> status{};
+    DuskICloudSaveSync_GetStatus(status.data(), status.size());
+    return status.data();
+}
+
+void start_texture_pack_transfer() {
+    const auto uploadDirectory = ConfigPath / "texture_uploads";
+    const auto uploadDirectoryString = uploadDirectory.string();
+    DuskTVOSFileServer_StartTextureTransfer(uploadDirectoryString.c_str());
+}
+#endif
 
 int float_setting_percent(ConfigVar<float>& var) {
     return static_cast<int>(var.getValue() * 100.0f + 0.5f);
@@ -673,6 +708,30 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
         });
     }
 
+#if defined(__APPLE__) && TARGET_OS_TV
+    add_tab("Storage", [this](Rml::Element* content) {
+        auto& leftPane = add_child<Pane>(content, Pane::Type::Controlled);
+        auto& rightPane = add_child<Pane>(content, Pane::Type::Uncontrolled);
+        leftPane.add_section("Cloud Saves");
+        leftPane.register_control(
+            leftPane.add_select_button({
+                .key = "iCloud Save Sync",
+                .getValue = [] { return icloud_save_sync_status(); },
+            }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Dusklight automatically synchronizes the USA, EUR, and JAP save folders "
+                    "through your private iCloud account.<br/><br/>"
+                    "Local saves upload periodically and when the app moves to the background. "
+                    "Newer cloud saves are applied safely the next time Dusklight launches.");
+                pane.add_text(icloud_save_sync_status());
+                pane.add_button("Sync Saves Now").on_pressed([] {
+                    DuskICloudSaveSync_SyncNow();
+                });
+            });
+    });
+#endif
+
     add_tab("Video", [this](Rml::Element* content) {
         auto& leftPane = add_child<Pane>(content, Pane::Type::Controlled);
         auto& rightPane = add_child<Pane>(content, Pane::Type::Uncontrolled);
@@ -860,6 +919,24 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .valueMax = static_cast<int>(true),
                 .defaultValue = static_cast<int>(false),
             });
+#if defined(__APPLE__) && TARGET_OS_TV
+        leftPane.register_control(
+            leftPane
+                .add_select_button({
+                    .key = "ZIP Texture Pack Upload",
+                    .getValue = [] { return texture_pack_transfer_status(); },
+                })
+                .on_pressed([] { start_texture_pack_transfer(); }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Upload texture replacements as a <b>ZIP texture pack</b> from a phone "
+                    "or computer on the same network.<br/><br/>"
+                    "The ZIP may contain PNG and DDS textures in folders. Dusklight safely "
+                    "extracts the pack, installs it under texture_replacements, and reloads "
+                    "textures automatically.");
+                pane.add_text(texture_pack_transfer_status());
+            });
+#endif
         leftPane.register_control(
             leftPane.add_select_button({
                 .key = "Unlock Framerate",
@@ -1585,10 +1662,27 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
 }
 
 void SettingsWindow::update() {
+    poll_uploaded_disc();
     if (mPrelaunch && top_document() == this) {
         try_push_verification_modal(*this);
         try_push_language_unavailable_modal(*this);
     }
+
+#if defined(__APPLE__) && TARGET_OS_TV
+    std::array<char, 4096> textureArchive{};
+    if (DuskTVOSFileServer_TakeUploadedTextureArchive(
+            textureArchive.data(), textureArchive.size())) {
+        const auto textureDirectory = ConfigPath / "texture_replacements";
+        const auto textureDirectoryString = textureDirectory.string();
+        DuskTVOSTexturePack_BeginInstall(
+            textureArchive.data(), textureDirectoryString.c_str());
+    }
+    int installSucceeded = 0;
+    if (DuskTVOSTexturePack_TakeCompleted(&installSucceeded) &&
+        installSucceeded != 0) {
+        texture_replacements::reload();
+    }
+#endif
 
     Window::update();
 }

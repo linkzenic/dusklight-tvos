@@ -21,8 +21,8 @@ This repository carries an unofficial tvOS port of Dusklight. It adds:
 - Apple TV controller and lifecycle behavior
 - local-network transfer for a legally dumped GameCube disc image
 - ZIP-based texture-replacement transfer
-- optional CloudKit save synchronization
-- a native tvOS app icon and Apple TV storage controls
+- optional save file syncs with [Linkzenic Save Bridge](https://github.com/linkzenic/linkzenic-save-bridge)
+
 
 Public tvOS and iOS artifacts from this repository are deliberately **unsigned**. They contain
 no certificate, provisioning profile, Apple development-team identifier, or device registration.

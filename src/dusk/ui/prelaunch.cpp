@@ -715,6 +715,21 @@ void refresh_configured_disc_state() noexcept {
         return;
     }
 
+    // An uploaded tvOS disc is discovered before its background verification has
+    // finished.  It must remain non-launchable during that window; otherwise the
+    // prelaunch loop can treat the mere presence of the file as a ready disc and
+    // continue booting with no configured ISO path.
+    if (sDiscVerificationTask != nullptr &&
+        state.configuredDiscPath == sDiscVerificationTask->path) {
+        state.configuredDiscCanLaunch = false;
+        state.configuredDiscInfo = {};
+        state.configuredDiscValidation = iso::ValidationError::Unknown;
+        if (state.configuredDiscPath == state.activeDiscPath) {
+            state.activeDiscInfo = {};
+        }
+        return;
+    }
+
     auto verification = iso::ValidationError::Unknown;
     if (state.configuredDiscPath == getSettings().backend.isoPath.getValue()) {
         verification = verification_from_config(getSettings().backend.isoVerification.getValue());

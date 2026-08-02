@@ -25,6 +25,7 @@
 #include "menu_bar.hpp"
 #include "modal.hpp"
 #include "number_button.hpp"
+#include "string_button.hpp"
 #include "menu_bar.hpp"
 #include "pane.hpp"
 #include "prelaunch.hpp"
@@ -42,14 +43,18 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <string>
 #include <string_view>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #if TARGET_OS_TV
-#include "dusk/apple/ICloudSaveSync.h"
 #include "dusk/tvos/TVOSFileServer.h"
+#include "dusk/tvos/DuskSaveBridgeSync.h"
 #include "dusk/tvos/TVOSTexturePack.h"
+#if DUSK_ENABLE_ICLOUD_SAVE_SYNC
+#include "dusk/apple/ICloudSaveSync.h"
+#endif
 #endif
 #endif
 
@@ -346,16 +351,28 @@ Rml::String texture_pack_transfer_status() {
     return transferStatus.data();
 }
 
+#if DUSK_ENABLE_ICLOUD_SAVE_SYNC
 Rml::String icloud_save_sync_status() {
     std::array<char, 512> status{};
     DuskICloudSaveSync_GetStatus(status.data(), status.size());
     return status.data();
 }
+#endif
 
-void start_texture_pack_transfer() {
-    const auto uploadDirectory = ConfigPath / "texture_uploads";
-    const auto uploadDirectoryString = uploadDirectory.string();
-    DuskTVOSFileServer_StartTextureTransfer(uploadDirectoryString.c_str());
+void start_uploads() {
+    const auto configDirectoryString = ConfigPath.string();
+    DuskTVOSFileServer_StartUploads(configDirectoryString.c_str());
+}
+
+Rml::String save_bridge_status() {
+    std::array<char, 512> status{};
+    DuskSaveBridgeSync_GetStatus(status.data(), status.size());
+    return status.data();
+}
+
+std::string& save_bridge_pairing_code() {
+    static std::string code;
+    return code;
 }
 #endif
 
@@ -709,10 +726,60 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
     }
 
 #if defined(__APPLE__) && TARGET_OS_TV
-    add_tab("Storage", [this](Rml::Element* content) {
+    add_tab("Uploads", [this](Rml::Element* content) {
         auto& leftPane = add_child<Pane>(content, Pane::Type::Controlled);
         auto& rightPane = add_child<Pane>(content, Pane::Type::Uncontrolled);
-        leftPane.add_section("Cloud Saves");
+        leftPane.add_section("Local Network Uploads");
+        leftPane.register_control(
+            leftPane
+                .add_select_button({
+                    .key = "Upload Server",
+                    .getValue = [] { return texture_pack_transfer_status(); },
+                }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Open one local web page from a phone or computer on the same network to "
+                    "upload a game disc, <b>.gci</b> save, <b>ZIP</b> texture pack, or <b>.dusk</b> mod. "
+                    "Save uploads replace the one save file for the selected region. Return to "
+                    "title before loading an uploaded save; restart Dusklight after uploading a mod.");
+                auto* uploadButton = &pane.add_button(
+                    DuskTVOSFileServer_IsRunning() ? "Upload Server Running" : "Start Upload Server");
+                uploadButton->on_pressed([uploadButton] {
+                    if (!DuskTVOSFileServer_IsRunning()) {
+                        start_uploads();
+                    }
+                    uploadButton->set_text("Upload Server Running");
+                });
+            });
+        leftPane.register_control(
+            leftPane.add_child<StringButton>(StringButton::Props{
+                .key = "Save Bridge Pairing Code",
+                .getValue = [] { return save_bridge_pairing_code(); },
+                .setValue = [](Rml::String value) { save_bridge_pairing_code() = value; },
+                .maxLength = 6,
+            }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml("Enter the six-digit code currently shown in Linkzenic Save Bridge on your Mac.");
+                pane.add_button("Pair with Save Bridge").on_pressed([] {
+                    DuskSaveBridgeSync_Pair(save_bridge_pairing_code().c_str());
+                });
+                pane.add_text(save_bridge_status());
+            });
+        leftPane.register_control(
+            leftPane.add_select_button({
+                .key = "Save Bridge Sync",
+                .getValue = [] { return save_bridge_status(); },
+            }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Choose the one region used by your installed disc. The same region must be selected in the Mac Save Bridge app. "
+                    "Save Bridge transfers the newer .gci save files in that folder.");
+                pane.add_button("Sync USA Saves").on_pressed([] { DuskSaveBridgeSync_SyncNow("USA"); });
+                pane.add_button("Sync EUR Saves").on_pressed([] { DuskSaveBridgeSync_SyncNow("EUR"); });
+                pane.add_button("Sync JAP Saves").on_pressed([] { DuskSaveBridgeSync_SyncNow("JAP"); });
+                pane.add_text(save_bridge_status());
+            });
+#if DUSK_ENABLE_ICLOUD_SAVE_SYNC
         leftPane.register_control(
             leftPane.add_select_button({
                 .key = "iCloud Save Sync",
@@ -729,6 +796,7 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                     DuskICloudSaveSync_SyncNow();
                 });
             });
+#endif
     });
 #endif
 
@@ -919,24 +987,6 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .valueMax = static_cast<int>(true),
                 .defaultValue = static_cast<int>(false),
             });
-#if defined(__APPLE__) && TARGET_OS_TV
-        leftPane.register_control(
-            leftPane
-                .add_select_button({
-                    .key = "ZIP Texture Pack Upload",
-                    .getValue = [] { return texture_pack_transfer_status(); },
-                })
-                .on_pressed([] { start_texture_pack_transfer(); }),
-            rightPane, [](Pane& pane) {
-                pane.add_rml(
-                    "Upload texture replacements as a <b>ZIP texture pack</b> from a phone "
-                    "or computer on the same network.<br/><br/>"
-                    "The ZIP may contain PNG and DDS textures in folders. Dusklight safely "
-                    "extracts the pack, installs it under texture_replacements, and reloads "
-                    "textures automatically.");
-                pane.add_text(texture_pack_transfer_status());
-            });
-#endif
         leftPane.register_control(
             leftPane.add_select_button({
                 .key = "Unlock Framerate",

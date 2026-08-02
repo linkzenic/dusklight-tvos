@@ -604,6 +604,8 @@ if (APPLE)
     if (IOS OR TVOS)
         option(DUSK_APPLE_CODE_SIGNING
             "Enable local iOS/tvOS code signing (off for public unsigned builds)" OFF)
+        option(DUSK_ENABLE_ICLOUD_SAVE_SYNC
+            "Enable CloudKit save synchronization in Apple builds" ON)
     endif ()
     if (IOS)
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios)
@@ -688,7 +690,7 @@ if (APPLE)
     endif ()
 endif ()
 
-if (IOS OR TVOS)
+if ((IOS OR TVOS) AND DUSK_ENABLE_ICLOUD_SAVE_SYNC)
     find_library(CLOUDKIT_FRAMEWORK CloudKit REQUIRED)
     find_library(MOBILE_UIKIT_FRAMEWORK UIKit REQUIRED)
     target_sources(dusklight PRIVATE
@@ -703,18 +705,26 @@ if (IOS OR TVOS)
         ${CLOUDKIT_FRAMEWORK}
         ${MOBILE_UIKIT_FRAMEWORK})
 endif ()
+
+if (IOS OR TVOS)
+    target_compile_definitions(dusklight PRIVATE
+        DUSK_ENABLE_ICLOUD_SAVE_SYNC=$<BOOL:${DUSK_ENABLE_ICLOUD_SAVE_SYNC}>)
+endif ()
 if (TVOS)
     find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
     find_library(NETWORK_FRAMEWORK Network REQUIRED)
     target_sources(dusklight PRIVATE
         src/dusk/tvos/TVOSFileServer.h
         src/dusk/tvos/TVOSFileServer.mm
+        src/dusk/tvos/DuskSaveBridgeSync.h
+        src/dusk/tvos/DuskSaveBridgeSync.mm
         src/dusk/tvos/TVOSLifecycle.h
         src/dusk/tvos/TVOSLifecycle.mm
         src/dusk/tvos/TVOSTexturePack.h
         src/dusk/tvos/TVOSTexturePack.cpp)
     set_source_files_properties(
         src/dusk/tvos/TVOSFileServer.mm
+        src/dusk/tvos/DuskSaveBridgeSync.mm
         src/dusk/tvos/TVOSLifecycle.mm
         PROPERTIES COMPILE_FLAGS -fobjc-arc)
     target_link_libraries(dusklight PRIVATE ${FOUNDATION_FRAMEWORK} ${NETWORK_FRAMEWORK})

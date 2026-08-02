@@ -1495,6 +1495,8 @@ set(DUSK_FILES
         src/dusk/mods/svc/game.cpp
         src/dusk/mods/svc/gfx.cpp
         src/dusk/mods/svc/flow.cpp
+        src/dusk/mods/svc/aim_control.cpp
+        src/dusk/mods/svc/aim_control.hpp
         src/dusk/mods/svc/hook.cpp
         src/dusk/mods/svc/host.cpp
         src/dusk/mods/svc/item.cpp

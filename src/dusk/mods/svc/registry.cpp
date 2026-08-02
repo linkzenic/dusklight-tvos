@@ -216,6 +216,7 @@ void ModLoader::init_services() {
             &svc::g_configModule,
             &svc::g_uiModule_v1,
             &svc::g_uiModule,
+            &svc::g_hudLayoutModule,
             &svc::g_gameModule,
             &svc::g_cameraModule,
             &svc::g_windowModule,
@@ -226,6 +227,12 @@ void ModLoader::init_services() {
             &svc::g_flowModule,
             &svc::g_messageModule,
             &svc::g_gamemodeModule,
+            &svc::g_fileSelectModule,
+            &svc::g_aimControlModule,
+            &svc::g_itemAssignmentModule,
+            &svc::g_actionInputModule,
+            &svc::g_stageFlowModule,
+            &svc::g_midnaDialogModule,
         })
     {
         svc::register_module(*module);

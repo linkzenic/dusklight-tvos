@@ -34,7 +34,7 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Configure unsigned tvOS build
-        run: cmake --preset x-tvos-ci -DDUSK_APPLE_CODE_SIGNING=OFF
+        run: cmake --preset x-tvos-ci -DDUSK_APPLE_CODE_SIGNING=OFF -DDUSK_ENABLE_CODE_MODS=OFF
 
       - name: Build
         run: cmake --build --preset x-tvos-ci

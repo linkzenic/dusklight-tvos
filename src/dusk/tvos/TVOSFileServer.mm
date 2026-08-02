@@ -27,6 +27,7 @@ dispatch_queue_t ServerQueue() {
 NSObject* gStateLock = [[NSObject alloc] init];
 NSString* gStatus = @"Apple TV disc transfer is off.";
 NSString* gUploadDirectory = nil;
+NSString* gUploadRoot = nil;
 NSString* gUploadedDiscPath = nil;
 NSString* gUploadedTextureArchive = nil;
 nw_listener_t gListener = nullptr;
@@ -35,9 +36,12 @@ std::atomic_bool gRunning(false);
 enum class TransferKind {
     Disc,
     TexturePack,
+    Save,
+    Mod,
 };
 
 TransferKind gTransferKind = TransferKind::Disc;
+bool gUnifiedUploads = false;
 
 NSString* ReadStatus() {
     @synchronized(gStateLock) {
@@ -63,11 +67,23 @@ TransferKind ReadTransferKind() {
     }
 }
 
+bool HasUnifiedUploads() {
+    @synchronized(gStateLock) {
+        return gUnifiedUploads;
+    }
+}
+
+NSString* ReadUploadRoot() {
+    @synchronized(gStateLock) {
+        return [gUploadRoot copy];
+    }
+}
+
 void WriteUploadedPath(NSString* path, TransferKind kind) {
     @synchronized(gStateLock) {
         if (kind == TransferKind::TexturePack) {
             gUploadedTextureArchive = [path copy];
-        } else {
+        } else if (kind == TransferKind::Disc) {
             gUploadedDiscPath = [path copy];
         }
     }
@@ -100,10 +116,28 @@ bool IsAllowedExtension(NSString* filename, TransferKind kind) {
     if (kind == TransferKind::TexturePack) {
         return [filename.pathExtension.lowercaseString isEqualToString:@"zip"];
     }
+    if (kind == TransferKind::Mod) {
+        return [filename.pathExtension.lowercaseString isEqualToString:@"dusk"];
+    }
+    if (kind == TransferKind::Save) {
+        // A selected region is the upload root. GameCube save exports are GCI files.
+        return ![filename containsString:@"/"] && ![filename containsString:@"\\"] &&
+               [filename.pathExtension.lowercaseString isEqualToString:@"gci"];
+    }
     static NSSet<NSString*>* allowed = [NSSet setWithArray:@[
         @"iso", @"gcm", @"ciso", @"gcz", @"nfs", @"rvz", @"wbfs", @"wia", @"tgc"
     ]];
     return [allowed containsObject:filename.pathExtension.lowercaseString];
+}
+
+NSString* SaveFilenameForRegion(NSString* region) {
+    if ([region isEqualToString:@"EUR"]) {
+        return @"01-GZ2P-gczelda2.gci";
+    }
+    if ([region isEqualToString:@"JAP"]) {
+        return @"01-GZ2J-gczelda2.gci";
+    }
+    return @"01-GZ2E-gczelda2.gci";
 }
 
 NSData* HTTPResponse(NSInteger status, NSString* reason, NSString* contentType, NSData* body) {
@@ -126,16 +160,51 @@ NSData* TextResponse(NSInteger status, NSString* reason, NSString* text) {
 }
 
 NSData* TransferPage() {
+    if (HasUnifiedUploads()) {
+        NSString* html =
+            @"<!doctype html><html><head><meta name=viewport content='width=device-width,initial-scale=1'>"
+             "<title>Dusklight Uploads</title><style>body{font-family:-apple-system,system-ui;background:#100d18;"
+             "color:#f7f3ff;max-width:760px;margin:48px auto;padding:0 24px}h1{color:#c4b5ff}section{background:#211a31;"
+             "padding:22px;margin:16px 0;border:1px solid #4b3f68;border-radius:16px}input,button,select{font:inherit;"
+             "margin:8px 0;padding:10px;border-radius:8px;border:0}button{background:#7562bd;color:white;font-weight:700}"
+             "progress{width:100%;height:18px}.status{white-space:pre-wrap;color:#d9d0ff}</style></head><body>"
+             "<h1>Dusklight Uploads</h1><p>Send files to this Apple TV from a phone or computer on the same network. "
+             "Saves replace the one save file for the selected region.</p>"
+             "<section><h2>Game disc</h2><input id=disc-file type=file accept='.iso,.gcm,.rvz,.wia,.wbfs,.ciso,.gcz,.nfs,.tgc'><br>"
+             "<button onclick=upload('disc',document.getElementById('disc-file'))>Upload Disc Image</button>"
+             "<progress id=disc-progress max=100 value=0></progress><div id=disc-status class=status>Ready.</div></section>"
+             "<section><h2>Save file</h2><select id=save-region><option value=USA>USA</option><option value=EUR>EUR</option>"
+             "<option value=JAP>JAP</option></select><br><input id=save-file type=file accept='.gci'><br>"
+             "<button onclick=upload('save',document.getElementById('save-file'),document.getElementById('save-region').value)>"
+             "Upload GCI Save</button><progress id=save-progress max=100 value=0></progress><div id=save-status class=status>Ready.</div></section>"
+             "<section><h2>Texture pack</h2><input id=texture-file type=file accept='.zip'><br>"
+             "<button onclick=upload('texture',document.getElementById('texture-file'))>Upload ZIP Texture Pack</button>"
+             "<progress id=texture-progress max=100 value=0></progress><div id=texture-status class=status>Ready.</div></section>"
+             "<section><h2>Mod</h2><input id=mod-file type=file accept='.dusk'><br>"
+             "<button onclick=upload('mod',document.getElementById('mod-file'))>Upload .dusk Mod</button>"
+             "<progress id=mod-progress max=100 value=0></progress><div id=mod-status class=status>Ready.</div></section>"
+             "<script>function upload(kind,input,region){const f=input.files[0],status=document.getElementById(kind+'-status'),"
+             "progress=document.getElementById(kind+'-progress');if(!f){status.textContent='Choose a file first.';return;}"
+             "let path='/upload/'+kind+'/';if(region)path+=region+'/';const x=new XMLHttpRequest();x.open('PUT',path+encodeURIComponent(f.name));"
+             "x.upload.onprogress=e=>{if(e.lengthComputable)progress.value=e.loaded/e.total*100};"
+             "x.onload=()=>status.textContent=x.responseText||('Upload failed (HTTP '+x.status+').');"
+             "x.onerror=()=>status.textContent='Network connection interrupted.';status.textContent='Uploading '+f.name+'…';x.send(f)}</script></body></html>";
+        return HTTPResponse(200, @"OK", @"text/html; charset=utf-8",
+                            [html dataUsingEncoding:NSUTF8StringEncoding]);
+    }
     const bool texturePack = ReadTransferKind() == TransferKind::TexturePack;
-    NSString* title = texturePack ? @"Dusklight Texture Pack Transfer" : @"Dusklight Disc Transfer";
+    const bool saveTransfer = ReadTransferKind() == TransferKind::Save;
+    NSString* title = texturePack ? @"Dusklight Texture Pack Transfer" : saveTransfer ? @"Dusklight Save Transfer" : @"Dusklight Disc Transfer";
     NSString* description =
         texturePack
             ? @"Upload a ZIP texture pack to this Apple TV. Dusklight safely extracts it into "
                "its texture_replacements folder and reloads installed textures automatically."
+            : saveTransfer
+            ? @"Upload a Dusklight GameCube save (.gci) into the region selected on Apple TV. The file is installed atomically. Return to title before loading it."
             : @"Upload your own Twilight Princess GameCube disc image to this Apple TV. "
                "Supported formats: ISO/GCM, RVZ, WIA, WBFS, CISO, GCZ, NFS, and TGC.";
-    NSString* accept = texturePack ? @".zip" : @".iso,.gcm,.rvz,.wia,.wbfs,.ciso,.gcz,.nfs,.tgc";
-    NSString* button = texturePack ? @"Upload ZIP Texture Pack" : @"Upload Disc Image";
+    NSString* accept = texturePack ? @".zip" : saveTransfer ? @".gci" : @".iso,.gcm,.rvz,.wia,.wbfs,.ciso,.gcz,.nfs,.tgc";
+    NSString* button = texturePack ? @"Upload ZIP Texture Pack" : saveTransfer ? @"Upload GCI Save" : @"Upload Disc Image";
     NSString* htmlTemplate =
         @"<!doctype html><html><head><meta name=viewport "
          "content='width=device-width,initial-scale=1'>"
@@ -152,7 +221,7 @@ NSData* TransferPage() {
          "</section><script>const fileInput=document.getElementById('file'),"
          "progressBar=document.getElementById('progress'),statusText=document.getElementById('status');"
          "function uploadFile(){const f=fileInput.files[0];"
-         "if(!f){statusText.textContent='Choose a disc image first.';return;}"
+        "if(!f){statusText.textContent='Choose a file first.';return;}"
          "const x=new XMLHttpRequest();x.open('PUT','/upload/'+encodeURIComponent(f.name));"
          "x.upload.onprogress=e=>{if(e.lengthComputable)progressBar.value=e.loaded/e.total*100};"
          "x.onload=()=>{statusText.textContent=x.responseText||('Upload failed (HTTP '+x.status+').')};"
@@ -191,6 +260,7 @@ void SendAndClose(nw_connection_t connection, NSData* response) {
 @property(nonatomic, copy) NSString* temporaryPath;
 @property(nonatomic, copy) NSString* destinationPath;
 @property(nonatomic, copy) NSString* displayName;
+@property(nonatomic) TransferKind transferKind;
 @property(nonatomic) uint64_t contentLength;
 @property(nonatomic) uint64_t receivedLength;
 @property(nonatomic) BOOL headersComplete;
@@ -337,18 +407,54 @@ void SendAndClose(nw_connection_t connection, NSData* response) {
 
     NSString* encoded = [target substringFromIndex:@"/upload/".length];
     NSString* decoded = [encoded stringByRemovingPercentEncoding];
-    NSString* filename = decoded.lastPathComponent;
-    const TransferKind transferKind = ReadTransferKind();
-    if (filename.length == 0 || ![filename isEqualToString:decoded] ||
-        !IsAllowedExtension(filename, transferKind)) {
+    NSString* uploadedFilename = decoded.lastPathComponent;
+    NSString* filename = uploadedFilename;
+    TransferKind transferKind = ReadTransferKind();
+    NSString* directory = ReadUploadDirectory();
+    if (HasUnifiedUploads()) {
+        NSArray<NSString*>* parts = [decoded componentsSeparatedByString:@"/"];
+        NSString* root = ReadUploadRoot();
+        if (root.length == 0 || parts.count < 2) {
+            [self fail:@"Dusklight has not prepared its upload folders." status:500];
+            return NO;
+        }
+        NSString* kind = parts[0].lowercaseString;
+        if ([kind isEqualToString:@"disc"] && parts.count == 2) {
+            transferKind = TransferKind::Disc;
+            directory = [root stringByAppendingPathComponent:@"disc_uploads"];
+        } else if ([kind isEqualToString:@"save"] && parts.count == 3) {
+            NSString* region = parts[1].uppercaseString;
+            if (![@[ @"USA", @"EUR", @"JAP" ] containsObject:region]) {
+                [self fail:@"Choose USA, EUR, or JAP for the save upload." status:400];
+                return NO;
+            }
+            transferKind = TransferKind::Save;
+            directory = [[root stringByAppendingPathComponent:region] stringByAppendingPathComponent:@"Card A"];
+            filename = SaveFilenameForRegion(region);
+        } else if ([kind isEqualToString:@"texture"] && parts.count == 2) {
+            transferKind = TransferKind::TexturePack;
+            directory = [root stringByAppendingPathComponent:@"texture_uploads"];
+        } else if ([kind isEqualToString:@"mod"] && parts.count == 2) {
+            transferKind = TransferKind::Mod;
+            directory = [root stringByAppendingPathComponent:@"mods"];
+        } else {
+            [self fail:@"Use one of the upload forms on the Dusklight Uploads page." status:404];
+            return NO;
+        }
+    }
+    if (uploadedFilename.length == 0 || (!HasUnifiedUploads() && ![filename isEqualToString:decoded]) ||
+        !IsAllowedExtension(uploadedFilename, transferKind)) {
         NSString* allowed = transferKind == TransferKind::TexturePack
                                 ? @"Texture replacements must be uploaded as a ZIP file."
+                                : transferKind == TransferKind::Save
+                                ? @"Only Dusklight .gci save files may be uploaded here."
+                                : transferKind == TransferKind::Mod
+                                ? @"Mods must be uploaded as .dusk files."
                                 : @"Allowed files: ISO/GCM, RVZ, WIA, WBFS, CISO, GCZ, NFS, and TGC.";
         [self fail:allowed status:415];
         return NO;
     }
 
-    NSString* directory = ReadUploadDirectory();
     if (directory.length == 0) {
         [self fail:@"Dusklight has not prepared its disc storage folder." status:500];
         return NO;
@@ -366,6 +472,7 @@ void SendAndClose(nw_connection_t connection, NSData* response) {
     }
 
     self.contentLength = contentLength;
+    self.transferKind = transferKind;
     self.destinationPath = [directory stringByAppendingPathComponent:filename];
     self.displayName = filename;
     self.temporaryPath = [directory
@@ -446,11 +553,14 @@ void SendAndClose(nw_connection_t connection, NSData* response) {
         return;
     }
 
-    const TransferKind transferKind = ReadTransferKind();
+    const TransferKind transferKind = self.transferKind;
     WriteUploadedPath(self.destinationPath, transferKind);
     NSString* status =
         transferKind == TransferKind::TexturePack
             ? [NSString stringWithFormat:@"%@ uploaded. Dusklight is installing the texture pack.",
+                                         self.displayName]
+            : transferKind == TransferKind::Mod
+            ? [NSString stringWithFormat:@"%@ uploaded. Restart Dusklight to load the mod.",
                                          self.displayName]
             : [NSString stringWithFormat:@"%@ uploaded. Dusklight is verifying it now.",
                                          self.displayName];
@@ -458,6 +568,10 @@ void SendAndClose(nw_connection_t connection, NSData* response) {
     NSString* response =
         transferKind == TransferKind::TexturePack
             ? @"Upload complete. Dusklight is installing and reloading the ZIP texture pack."
+            : transferKind == TransferKind::Mod
+            ? @"Upload complete. Restart Dusklight to load the mod."
+            : transferKind == TransferKind::Save
+            ? @"Upload complete. Return to title before loading the save."
             : @"Upload complete. Dusklight is verifying the disc automatically.";
     SendAndClose(self.connection,
                  TextResponse(201, @"Created", response));
@@ -486,10 +600,14 @@ void StartTransfer(const char* uploadDirectory, TransferKind kind) {
     }
     @synchronized(gStateLock) {
         gUploadDirectory = [NSString stringWithUTF8String:uploadDirectory];
+        gUploadRoot = nil;
         gTransferKind = kind;
+        gUnifiedUploads = false;
     }
     NSString* transferName = kind == TransferKind::TexturePack
                                  ? @"ZIP texture pack transfer"
+                                 : kind == TransferKind::Save
+                                 ? @"save transfer"
                                  : @"disc transfer";
     WriteStatus([NSString stringWithFormat:@"Starting %@… Open %@", transferName, TransferURL()]);
 
@@ -542,8 +660,62 @@ extern "C" void DuskTVOSFileServer_StartDiscTransfer(const char* uploadDirectory
     StartTransfer(uploadDirectory, TransferKind::Disc);
 }
 
+extern "C" void DuskTVOSFileServer_StartUploads(const char* configDirectory) {
+    if (configDirectory == nullptr || configDirectory[0] == '\0') {
+        WriteStatus(@"Dusklight could not determine its uploads folder.");
+        return;
+    }
+    @synchronized(gStateLock) {
+        gUploadDirectory = nil;
+        gUploadRoot = [NSString stringWithUTF8String:configDirectory];
+        gUnifiedUploads = true;
+    }
+    WriteStatus([NSString stringWithFormat:@"Starting uploads… Open %@", TransferURL()]);
+    dispatch_async(ServerQueue(), ^{
+        if (gListener != nullptr) {
+            WriteStatus([NSString stringWithFormat:@"On a phone or computer, open %@", TransferURL()]);
+            return;
+        }
+        nw_parameters_t parameters = nw_parameters_create_secure_tcp(
+            NW_PARAMETERS_DISABLE_PROTOCOL, NW_PARAMETERS_DEFAULT_CONFIGURATION);
+        gListener = nw_listener_create_with_port("8080", parameters);
+        if (gListener == nullptr) {
+            WriteStatus(@"Could not start Apple TV uploads.");
+            return;
+        }
+        nw_advertise_descriptor_t descriptor = nw_advertise_descriptor_create_bonjour_service(
+            "Dusklight", "_dusklight-transfer._tcp", nullptr);
+        nw_listener_set_advertise_descriptor(gListener, descriptor);
+        nw_listener_set_queue(gListener, ServerQueue());
+        nw_listener_set_state_changed_handler(gListener, ^(nw_listener_state_t state, nw_error_t error) {
+            (void)error;
+            if (state == nw_listener_state_ready) {
+                gRunning.store(true);
+                WriteStatus([NSString stringWithFormat:@"On a phone or computer, open %@", TransferURL()]);
+            } else if (state == nw_listener_state_failed) {
+                gRunning.store(false);
+                WriteStatus(@"Apple TV uploads failed to start.");
+                nw_listener_cancel(gListener);
+                gListener = nullptr;
+            } else if (state == nw_listener_state_cancelled) {
+                gRunning.store(false);
+                gListener = nullptr;
+            }
+        });
+        nw_listener_set_new_connection_handler(gListener, ^(nw_connection_t connection) {
+            DuskTVOSHTTPConnection* handler = [[DuskTVOSHTTPConnection alloc] initWithConnection:connection];
+            [handler start];
+        });
+        nw_listener_start(gListener);
+    });
+}
+
 extern "C" void DuskTVOSFileServer_StartTextureTransfer(const char* uploadDirectory) {
     StartTransfer(uploadDirectory, TransferKind::TexturePack);
+}
+
+extern "C" void DuskTVOSFileServer_StartSaveTransfer(const char* regionDirectory) {
+    StartTransfer(regionDirectory, TransferKind::Save);
 }
 
 extern "C" void DuskTVOSFileServer_Stop(void) {

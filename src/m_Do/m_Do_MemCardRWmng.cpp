@@ -8,6 +8,7 @@
 #include "JSystem/JUtility/JUTTexture.h"
 #include "d/d_com_inf_game.h"
 #include "d/d_save.h"
+#include "dusk/logging.h"
 #include <cstdio>
 #include <cstring>
 
@@ -32,6 +33,14 @@ struct data_s {
 };
 
 static u8 sTmpBuf[SECTOR_SIZE * 2];
+
+static u32 save_fingerprint(const u8* bytes) {
+    u32 fingerprint = 2166136261u;
+    for (size_t byte = 0; byte < SAVEDATA_SIZE; ++byte) {
+        fingerprint = (fingerprint ^ bytes[byte]) * 16777619u;
+    }
+    return fingerprint;
+}
 
 #if !PLATFORM_SHIELD
 s32 mDoMemCdRWm_Store(CARDFileInfo* file, void* data, u32 length) {
@@ -121,6 +130,13 @@ s32 mDoMemCdRWm_Restore(CARDFileInfo* file, void* data, u32 length) {
     BOOL backup1_valid = mDoMemCdRWm_TestCheckSumGameData(&backup_saves->data[SAVEDATA_SIZE * 0]);
     BOOL backup2_valid = mDoMemCdRWm_TestCheckSumGameData(&backup_saves->data[SAVEDATA_SIZE * 1]);
     BOOL backup3_valid = mDoMemCdRWm_TestCheckSumGameData(&backup_saves->data[SAVEDATA_SIZE * 2]);
+
+    DuskLog.info("Save Bridge card read: primary valid=[{},{},{}] fingerprints=[{:08X},{:08X},{:08X}] backup valid=[{},{},{}]",
+                 save1_valid != FALSE, save2_valid != FALSE, save3_valid != FALSE,
+                 save_fingerprint(&saves->data[SAVEDATA_SIZE * 0]),
+                 save_fingerprint(&saves->data[SAVEDATA_SIZE * 1]),
+                 save_fingerprint(&saves->data[SAVEDATA_SIZE * 2]),
+                 backup1_valid != FALSE, backup2_valid != FALSE, backup3_valid != FALSE);
 
     if (!save1_valid && backup1_valid) {
         memcpy(&saves->data[SAVEDATA_SIZE * 0], &backup_saves->data[SAVEDATA_SIZE * 0], SAVEDATA_SIZE);

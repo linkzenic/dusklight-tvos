@@ -177,7 +177,7 @@ bool launchUILoop() {
                 break;
             case AURORA_UNPAUSED:
                 dusk::audio::SetPaused(false);
-                dusk::game_clock::reset_frame_timer();
+                dusk::game_clock::reset();
                 dusk::mouse::on_focus_gained();
                 break;
             case AURORA_SDL_EVENT:

@@ -1,8 +1,9 @@
 #include "dusk/hud_layout.hpp"
 
-#include "dusk/io.hpp"
 #include "dusk/main.h"
 #include "dusk/mods/svc/hud_layout.hpp"
+
+#include <borealis/io.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -16,7 +17,7 @@ const DuskModHudLayoutSnapshot* snapshot() noexcept {
     static std::string dataPath;
     if (sLastConfigPath != dusk::ConfigPath) {
         sLastConfigPath = dusk::ConfigPath;
-        dataPath = io::fs_path_to_string(sLastConfigPath);
+        dataPath = borealis::io::fs_path_to_string(sLastConfigPath);
     }
     const auto* layout = dusk::mods::svc::hud_layout_snapshot(dataPath.c_str());
     if (layout == nullptr || layout->struct_size < sizeof(DuskModHudLayoutSnapshot)) {

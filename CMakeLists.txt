@@ -7,6 +7,24 @@ endif ()
 
 include(extern/borealis/cmake/DetectVersion.cmake)
 borealis_detect_version()
+
+set(DUSK_UPSTREAM_VERSION_OVERRIDE "" CACHE STRING
+        "Override the upstream Dusklight version as vMAJOR.MINOR.PATCH-BUILD")
+if (DUSK_UPSTREAM_VERSION_OVERRIDE)
+    if (NOT DUSK_UPSTREAM_VERSION_OVERRIDE MATCHES
+            "^v([0-9]+)\\.([0-9]+)\\.([0-9]+)-([0-9]+)$")
+        message(FATAL_ERROR
+                "DUSK_UPSTREAM_VERSION_OVERRIDE must use vMAJOR.MINOR.PATCH-BUILD format")
+    endif ()
+    set(BOREALIS_APP_DESCRIBE "${DUSK_UPSTREAM_VERSION_OVERRIDE}")
+    set(BOREALIS_APP_SHORT_VERSION
+            "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+    set(BOREALIS_APP_VERSION
+            "${BOREALIS_APP_SHORT_VERSION}.${CMAKE_MATCH_4}")
+    math(EXPR BOREALIS_APP_VERSION_CODE
+            "${CMAKE_MATCH_1} * 10000000 + ${CMAKE_MATCH_2} * 100000 + ${CMAKE_MATCH_3} * 1000 + ${CMAKE_MATCH_4}")
+    message(STATUS "dusklight: upstream version overridden to ${BOREALIS_APP_DESCRIBE}")
+endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 project(dusklight LANGUAGES C CXX VERSION ${BOREALIS_APP_VERSION})
 

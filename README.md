@@ -17,6 +17,23 @@ It aims to be as accurate as possible to the original while also providing new o
 > [!IMPORTANT]
 > Dusklight's official website is https://twilitrealm.dev/, any other website is not affiliated and may be promoting AI-generated misinformation.
 
+## Apple TV community port
+
+This repository carries an unofficial tvOS port of Dusklight. It adds:
+
+- Apple TV controller and lifecycle behavior
+- local-network transfer for a legally dumped GameCube disc image
+- ZIP-based texture-replacement transfer
+- optional CloudKit save synchronization
+- a native tvOS app icon and Apple TV storage controls
+
+Public tvOS and iOS artifacts from this repository are deliberately **unsigned**. They contain
+no certificate, provisioning profile, Apple development-team identifier, or device registration.
+You must sign the app yourself with your own Apple account before installing it.
+
+See [Installing the unsigned tvOS build](docs/tvos-install.md) for the signing and game-transfer
+workflow.
+
 # Setup
 
 > [!IMPORTANT]

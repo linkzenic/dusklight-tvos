@@ -7,6 +7,24 @@ endif ()
 
 include(extern/borealis/cmake/DetectVersion.cmake)
 borealis_detect_version()
+
+set(DUSK_UPSTREAM_VERSION_OVERRIDE "" CACHE STRING
+        "Override the upstream Dusklight version as vMAJOR.MINOR.PATCH-BUILD")
+if (DUSK_UPSTREAM_VERSION_OVERRIDE)
+    if (NOT DUSK_UPSTREAM_VERSION_OVERRIDE MATCHES
+            "^v([0-9]+)\\.([0-9]+)\\.([0-9]+)-([0-9]+)$")
+        message(FATAL_ERROR
+                "DUSK_UPSTREAM_VERSION_OVERRIDE must use vMAJOR.MINOR.PATCH-BUILD format")
+    endif ()
+    set(BOREALIS_APP_DESCRIBE "${DUSK_UPSTREAM_VERSION_OVERRIDE}")
+    set(BOREALIS_APP_SHORT_VERSION
+            "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+    set(BOREALIS_APP_VERSION
+            "${BOREALIS_APP_SHORT_VERSION}.${CMAKE_MATCH_4}")
+    math(EXPR BOREALIS_APP_VERSION_CODE
+            "${CMAKE_MATCH_1} * 10000000 + ${CMAKE_MATCH_2} * 100000 + ${CMAKE_MATCH_3} * 1000 + ${CMAKE_MATCH_4}")
+    message(STATUS "dusklight: upstream version overridden to ${BOREALIS_APP_DESCRIBE}")
+endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 project(dusklight LANGUAGES C CXX VERSION ${BOREALIS_APP_VERSION})
 
@@ -19,6 +37,19 @@ if (APPLE AND NOT TVOS AND CMAKE_SYSTEM_NAME STREQUAL tvOS)
     # ios.toolchain.cmake hack for SDL
     set(TVOS ON)
     set(IOS OFF)
+endif ()
+
+# Dawn generates Protocol Buffer sources during configuration. When
+# cross-compiling for Apple TV it cannot execute a target-built protoc, so use
+# a native compiler from the Mac host instead.
+if (TVOS AND NOT PROTOC_EXECUTABLE)
+    find_program(PROTOC_EXECUTABLE protoc NO_CMAKE_FIND_ROOT_PATH)
+    if (NOT PROTOC_EXECUTABLE)
+        message(FATAL_ERROR
+            "A host protoc executable is required for tvOS. "
+            "Install protobuf (for example, `brew install protobuf`).")
+    endif ()
+    message(STATUS "Using host protoc for tvOS: ${PROTOC_EXECUTABLE}")
 endif ()
 
 if(APPLE AND NOT CMAKE_OSX_SYSROOT)
@@ -263,7 +294,8 @@ include(files.cmake)
 # TODO: version handling for res includes
 
 set(DUSK_BUNDLE_NAME Dusklight)
-set(DUSK_BUNDLE_IDENTIFIER dev.twilitrealm.dusk)
+set(DUSK_BUNDLE_IDENTIFIER dev.twilitrealm.dusk CACHE STRING
+    "Bundle identifier used for Apple platform builds")
 set(DUSK_COMPANY_NAME "Twilit Realm")
 set(DUSK_FILE_DESCRIPTION "Dusklight")
 set(DUSK_PRODUCT_NAME "Dusklight")
@@ -319,11 +351,24 @@ set(GAME_DEBUG_FILES
         src/dusk/audio/DspStub.cpp
         src/dusk/imgui/ImGuiAudio.cpp
 )
-set_source_files_properties(
-        ${GAME_DEBUG_FILES}
-        PROPERTIES
-        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>"
-)
+if (CMAKE_GENERATOR STREQUAL "Xcode")
+    # Xcode cannot represent per-source, per-configuration definitions.
+    # CMAKE_BUILD_TYPE is explicitly supplied by our Apple platform configure
+    # commands, so resolve this definition while generating the project.
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set_source_files_properties(
+                ${GAME_DEBUG_FILES}
+                PROPERTIES
+                COMPILE_DEFINITIONS "DEBUG=1"
+        )
+    endif ()
+else ()
+    set_source_files_properties(
+            ${GAME_DEBUG_FILES}
+            PROPERTIES
+            COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:DEBUG=1>"
+    )
+endif ()
 
 # game_base is for all other game code files
 set(GAME_BASE_FILES
@@ -414,6 +459,7 @@ if (DUSK_ENABLE_CODE_MODS)
 
     if (DUSK_GAME_ABI_INLINE_OPTIONS)
         target_compile_options(dusklight PRIVATE ${DUSK_GAME_ABI_INLINE_OPTIONS})
+        target_compile_options(dusk_internal PRIVATE ${DUSK_GAME_ABI_INLINE_OPTIONS})
 
         foreach(jsystem_lib IN LISTS JSYSTEM_LIBRARIES)
             target_compile_options(${jsystem_lib} PRIVATE ${DUSK_GAME_ABI_INLINE_OPTIONS})
@@ -448,6 +494,7 @@ if (DUSK_ENABLE_CODE_MODS)
 
     if (DEFINED DUSK_PATCHABLE_ENTRY_FLAG)
         target_compile_options(dusklight PRIVATE ${DUSK_PATCHABLE_ENTRY_FLAG})
+        target_compile_options(dusk_internal PRIVATE ${DUSK_PATCHABLE_ENTRY_FLAG})
         foreach(jsystem_lib IN LISTS JSYSTEM_LIBRARIES)
             target_compile_options(${jsystem_lib} PRIVATE ${DUSK_PATCHABLE_ENTRY_FLAG})
         endforeach()
@@ -543,9 +590,22 @@ if (DUSK_ENABLE_CODE_MODS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR
     add_subdirectory(mods/cosmetics)
     add_subdirectory(mods/randomizer)
     add_subdirectory(mods/audio_mod)
+
+    set(DUSK_EXTRA_BUNDLED_MOD_DIR "" CACHE PATH
+        "Optional out-of-tree mod directory to bundle into mobile builds")
+    if (DUSK_EXTRA_BUNDLED_MOD_DIR)
+        add_subdirectory("${DUSK_EXTRA_BUNDLED_MOD_DIR}"
+            "${CMAKE_BINARY_DIR}/mods/extra_bundled_mod")
+    endif ()
 endif ()
 
 if (APPLE)
+    if (IOS OR TVOS)
+        option(DUSK_APPLE_CODE_SIGNING
+            "Enable local iOS/tvOS code signing (off for public unsigned builds)" OFF)
+        option(DUSK_ENABLE_ICLOUD_SAVE_SYNC
+            "Enable CloudKit save synchronization in Apple builds" ON)
+    endif ()
     if (IOS)
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/ios)
     elseif (TVOS)
@@ -553,6 +613,18 @@ if (APPLE)
     else ()
         set(DUSK_RESOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/platforms/macos)
         set(DUSK_ENTITLEMENTS ${DUSK_RESOURCE_DIR}/Dusklight.entitlements)
+    endif ()
+    if (IOS OR TVOS)
+        set(DUSK_ICLOUD_CONTAINER_ID "iCloud.com.linkzenic.dusklight"
+            CACHE STRING "Shared CloudKit container for Dusklight Apple platforms")
+        set(DUSK_ICLOUD_CONTAINER_ENVIRONMENT "Development"
+            CACHE STRING "CloudKit environment requested by signed Apple builds")
+        set(DUSK_ENTITLEMENTS
+            ${CMAKE_CURRENT_BINARY_DIR}/Dusklight.entitlements)
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/Dusklight.entitlements.in
+            ${DUSK_ENTITLEMENTS}
+            @ONLY)
     endif ()
     set(DUSK_INFO_PLIST ${DUSK_RESOURCE_DIR}/Info.plist.in)
     file(GLOB_RECURSE DUSK_RESOURCE_FILES
@@ -580,10 +652,17 @@ if (APPLE)
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${BOREALIS_APP_SHORT_VERSION}
         MACOSX_BUNDLE_INFO_PLIST ${DUSK_INFO_PLIST}
         OUTPUT_NAME Dusklight
-        XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
-        XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES"
     )
-    if (DUSK_ENTITLEMENTS)
+    if ((IOS OR TVOS) AND NOT DUSK_APPLE_CODE_SIGNING)
+        list(APPEND _apple_bundle_properties
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
+            XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+    else ()
+        list(APPEND _apple_bundle_properties
+            XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "YES"
+            XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "YES")
+    endif ()
+    if (DUSK_ENTITLEMENTS AND (NOT (IOS OR TVOS) OR DUSK_APPLE_CODE_SIGNING))
         list(APPEND _apple_bundle_properties
             XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${DUSK_ENTITLEMENTS})
     endif ()
@@ -610,6 +689,45 @@ if (APPLE)
     endif ()
 endif ()
 
+if ((IOS OR TVOS) AND DUSK_ENABLE_ICLOUD_SAVE_SYNC)
+    find_library(CLOUDKIT_FRAMEWORK CloudKit REQUIRED)
+    find_library(MOBILE_UIKIT_FRAMEWORK UIKit REQUIRED)
+    target_sources(dusklight PRIVATE
+        src/dusk/apple/ICloudSaveSync.h
+        src/dusk/apple/ICloudSaveSync.mm)
+    set_source_files_properties(
+        src/dusk/apple/ICloudSaveSync.mm
+        PROPERTIES COMPILE_FLAGS -fobjc-arc)
+    target_compile_definitions(dusklight PRIVATE
+        DUSK_ICLOUD_CONTAINER_ID="${DUSK_ICLOUD_CONTAINER_ID}")
+    target_link_libraries(dusklight PRIVATE
+        ${CLOUDKIT_FRAMEWORK}
+        ${MOBILE_UIKIT_FRAMEWORK})
+endif ()
+
+if (IOS OR TVOS)
+    target_compile_definitions(dusklight PRIVATE
+        DUSK_ENABLE_ICLOUD_SAVE_SYNC=$<BOOL:${DUSK_ENABLE_ICLOUD_SAVE_SYNC}>)
+endif ()
+if (TVOS)
+    find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+    find_library(NETWORK_FRAMEWORK Network REQUIRED)
+    target_sources(dusklight PRIVATE
+        src/dusk/tvos/TVOSFileServer.h
+        src/dusk/tvos/TVOSFileServer.mm
+        src/dusk/tvos/DuskSaveBridgeSync.h
+        src/dusk/tvos/DuskSaveBridgeSync.mm
+        src/dusk/tvos/TVOSLifecycle.h
+        src/dusk/tvos/TVOSLifecycle.mm
+        src/dusk/tvos/TVOSTexturePack.h
+        src/dusk/tvos/TVOSTexturePack.cpp)
+    set_source_files_properties(
+        src/dusk/tvos/TVOSFileServer.mm
+        src/dusk/tvos/DuskSaveBridgeSync.mm
+        src/dusk/tvos/TVOSLifecycle.mm
+        PROPERTIES COMPILE_FLAGS -fobjc-arc)
+    target_link_libraries(dusklight PRIVATE ${FOUNDATION_FRAMEWORK} ${NETWORK_FRAMEWORK})
+endif ()
 include(extern/aurora/cmake/AuroraCopyRuntimeDLLs.cmake)
 aurora_copy_runtime_dlls(dusklight)
 

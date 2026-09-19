@@ -1,0 +1,83 @@
+name: Release unsigned tvOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'tvos-v*'
+
+permissions:
+  contents: write
+
+env:
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install dependencies
+        run: brew install cmake ninja protobuf
+
+      - name: Install Rust tvOS target
+        run: |
+          rustup toolchain install nightly
+          rustup target add --toolchain nightly aarch64-apple-tvos
+
+      - name: Set up compiler cache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Configure unsigned tvOS build
+        run: >-
+          cmake --preset x-tvos-ci
+          -DDUSK_APPLE_CODE_SIGNING=OFF
+          -DDUSK_ENABLE_CODE_MODS=ON
+          -DDUSK_UPSTREAM_VERSION_OVERRIDE=v2.0.0
+
+      - name: Build
+        run: cmake --build --preset x-tvos-ci
+
+      - name: Package and verify unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_root="build/unsigned-tvos-release"
+          app_path="build/install/Dusklight.app"
+          rm -rf "$package_root"
+          mkdir -p "$package_root/Payload"
+          cp -R "$app_path" "$package_root/Payload/Dusklight.app"
+          find "$package_root/Payload/Dusklight.app" \
+            \( -name embedded.mobileprovision -o -name '*.provisionprofile' \) -delete
+          rm -rf "$package_root/Payload/Dusklight.app/_CodeSignature"
+          /usr/bin/codesign --remove-signature \
+            "$package_root/Payload/Dusklight.app" 2>/dev/null || true
+          if /usr/bin/codesign --verify "$package_root/Payload/Dusklight.app" 2>/dev/null; then
+            echo "Refusing to publish an app that still has a code signature."
+            exit 1
+          fi
+          (
+            cd "$package_root"
+            /usr/bin/zip -qry ../Dusklight-tvOS-unsigned.ipa Payload
+          )
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Dusklight-tvOS-unsigned
+          path: build/Dusklight-tvOS-unsigned.ipa
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/tvos-v')
+        env:
+          GH_TOKEN: ${{github.token}}
+        run: >-
+          gh release create "${{github.ref_name}}"
+          build/Dusklight-tvOS-unsigned.ipa
+          --generate-notes
+          --title "Dusklight tvOS ${{github.ref_name}} (unsigned)"

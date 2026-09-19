@@ -99,6 +99,13 @@
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
+#if (TARGET_OS_IOS || TARGET_OS_TV) && DUSK_ENABLE_ICLOUD_SAVE_SYNC
+#include "dusk/apple/ICloudSaveSync.h"
+#endif
+#if TARGET_OS_TV
+#include "dusk/tvos/TVOSLifecycle.h"
+#include "dusk/tvos/DuskSaveBridgeSync.h"
+#endif
 #endif
 
 // --- GLOBALS ---
@@ -152,6 +159,15 @@ bool launchUILoop() {
         const AuroraEvent* event = aurora_update();
         while (event != nullptr && event->type != AURORA_NONE) {
             switch (event->type) {
+            case AURORA_PAUSED:
+                dusk::audio::SetPaused(true);
+                dusk::mouse::on_focus_lost();
+                break;
+            case AURORA_UNPAUSED:
+                dusk::audio::SetPaused(false);
+                dusk::game_clock::reset();
+                dusk::mouse::on_focus_gained();
+                break;
             case AURORA_SDL_EVENT:
                 if (dusk::mods::svc::window_dispatch_event(event->sdl)) {
                     break;
@@ -280,6 +296,14 @@ void main01(void) {
         mDoGph_gInf_c::updateRenderSize();
 
         dusk::ui::update();
+
+#if defined(__APPLE__) && TARGET_OS_TV
+        if (DuskSaveBridgeSync_ConsumeReturnToTitleRequest()) {
+            DuskLog.info(
+                "Save Bridge sync completed; returning to the title screen to reload the memory card");
+            dComIfGp_setNextStage("name", 0, 0, 0);
+        }
+#endif
 
         const auto timing = dusk::game_clock::advance();
         if (timing.separatePresentation) {
@@ -490,6 +514,15 @@ static void mods_init(const std::filesystem::path& mods_dir) {
     // mods/ next to the app, then install-bundled mods inside the app bundle.
     {
         std::vector<dusk::mods::ModSearchDir> modDirs;
+#if defined(__APPLE__) && TARGET_OS_TV
+        // tvOS may only load executable mod code that was signed inside the app bundle.
+        // Search bundled mods first so a downloaded archive with the same id cannot shadow it.
+        modDirs.push_back({
+            .path = dusk::data::base_path_relative("mods"),
+            .inPlaceNative = true,
+            .nativeLibDir = dusk::data::base_path_relative("Frameworks"),
+        });
+#endif
         modDirs.push_back({.path = mods_dir});
 #if TARGET_ANDROID
         // APK-bundled mods are extracted to internal storage
@@ -498,11 +531,13 @@ static void mods_init(const std::filesystem::path& mods_dir) {
             .path = dusk::CachePath / "bundled_mods",
         });
 #elif defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV)
+#if !TARGET_OS_TV
         modDirs.push_back({
             .path = dusk::data::base_path_relative("mods"),
             .inPlaceNative = true,
             .nativeLibDir = dusk::data::base_path_relative("Frameworks"),
         });
+#endif
 #else
 #if defined(__APPLE__)
         // Base path is Contents/Resources; search up for dev mods
@@ -529,6 +564,9 @@ static void mods_init(const std::filesystem::path& mods_dir) {
     // A user-relocated data dir can live on external storage, which is mounted noexec.
     // Native mod libraries must be extracted to internal storage.
     dusk::mods::ModLoader::instance().set_cache_dir(dusk::CachePath / "mod_cache");
+#elif defined(__APPLE__) && TARGET_OS_TV
+    // The bundle is read-only; transient mod data belongs in app storage.
+    dusk::mods::ModLoader::instance().set_cache_dir(dusk::ConfigPath / "mod_cache");
 #endif
 
     DuskLog.info("Initializing mods...");
@@ -637,6 +675,20 @@ int game_main(int argc, char* argv[]) {
     log_build_info();
 
     dusk::config::load_from_user_preferences();
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV) && DUSK_ENABLE_ICLOUD_SAVE_SYNC
+    {
+        const auto cloudSaveRoot = dusk::ConfigPath.string();
+        DuskICloudSaveSync_Configure(cloudSaveRoot.c_str());
+        DuskICloudSaveSync_PrepareSaves();
+        DuskICloudSaveSync_StartMonitoring();
+    }
+#endif
+#if defined(__APPLE__) && TARGET_OS_TV
+    {
+        const auto saveBridgeRoot = dusk::ConfigPath.string();
+        DuskSaveBridgeSync_Configure(saveBridgeRoot.c_str());
+    }
+#endif
     ApplyCVarOverrides(parsed_arg_options["cvar"]);
     borealis::sentry::Options sentryOptions{
         .release = fmt::format("{}@{}", dusk::AppInfo.appName, BOREALIS_APP_DESCRIBE),
@@ -703,6 +755,9 @@ int game_main(int argc, char* argv[]) {
         config.pauseOnFocusLost = dusk::getSettings().game.pauseOnFocusLost;
         config.imGuiInitCallback = &aurora_imgui_init_callback;
         config.allowTextureDumps = false;
+#if defined(__APPLE__) && TARGET_OS_TV
+        DuskTVOSLifecycle_Configure();
+#endif
         auroraInfo = aurora_initialize(argc, argv, &config);
     }
 
@@ -768,7 +823,28 @@ int game_main(int argc, char* argv[]) {
         return dvdPathAccess ? borealis::io::fs_path_to_string(dvdPathAccess.path()) : location;
     };
 
-    const std::string savedLocation = dusk::getSettings().backend.isoPath;
+    std::string savedLocation = dusk::getSettings().backend.isoPath;
+#if defined(__APPLE__) && TARGET_OS_TV
+    // A development install can give tvOS a fresh private container while it
+    // preserves the old absolute path in config.json. Repair that path before
+    // validation clears it, otherwise the prelaunch UI can no longer discover
+    // the already-uploaded disc in the new container.
+    if (!savedLocation.empty()) {
+        std::error_code relocationError;
+        const std::string resolvedSavedPath = resolveDvdLocation(savedLocation);
+        if (!std::filesystem::is_regular_file(resolvedSavedPath, relocationError)) {
+            const auto relocatedPath = dusk::data::configured_data_path() / "disc_images" /
+                                       std::filesystem::path(savedLocation).filename();
+            relocationError.clear();
+            if (std::filesystem::is_regular_file(relocatedPath, relocationError)) {
+                savedLocation = relocatedPath.string();
+                DuskLog.info("Relocated saved disc image before validation: {}", savedLocation);
+                dusk::getSettings().backend.isoPath.setValue(savedLocation);
+                saveConfigBeforePrelaunch = true;
+            }
+        }
+    }
+#endif
     dusk::iso::DiscInfo discInfo{};
     if (!savedLocation.empty() &&
         dusk::iso::inspect(savedLocation.c_str(), discInfo) != dusk::iso::ValidationError::Success)
@@ -848,6 +924,7 @@ int game_main(int argc, char* argv[]) {
         if (forcePreLaunchUI && skipPreLaunchUI) {
             DuskLog.warn("Prelaunch UI was disabled with no usable DVD image, enabling prelaunch UI");
             dusk::getSettings().backend.skipPreLaunchUI.setValue(false);
+            skipPreLaunchUI = false;
             saveConfigBeforePrelaunch = true;
         }
         if (saveConfigBeforePrelaunch) {
@@ -975,6 +1052,9 @@ int game_main(int argc, char* argv[]) {
     dusk::audio::Shutdown();
     dusk::ui::shutdown();
     dusk::texture_replacements::shutdown();
+#if defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV) && DUSK_ENABLE_ICLOUD_SAVE_SYNC
+    DuskICloudSaveSync_StopMonitoring();
+#endif
     dusk::config::shutdown();
     aurora_shutdown();
 

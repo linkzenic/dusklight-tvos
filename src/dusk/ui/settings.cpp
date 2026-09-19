@@ -24,6 +24,7 @@
 #include "dusk/livesplit.h"
 #include "dusk/presentation.hpp"
 #include "dusk/speedrun.h"
+#include "dusk/texture_replacements.hpp"
 
 #include <aurora/gfx.h>
 #include <aurora/lib/window.hpp>
@@ -36,10 +37,21 @@
 #include <SDL3/SDL_filesystem.h>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
+#include <string>
+#include <string_view>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#if TARGET_OS_TV
+#include "dusk/tvos/TVOSFileServer.h"
+#include "dusk/tvos/DuskSaveBridgeSync.h"
+#include "dusk/tvos/TVOSTexturePack.h"
+#if DUSK_ENABLE_ICLOUD_SAVE_SYNC
+#include "dusk/apple/ICloudSaveSync.h"
+#endif
+#endif
 #endif
 
 #if defined(TARGET_ANDROID) || defined(__ANDROID__) ||                                             \
@@ -345,6 +357,44 @@ const Rml::String kUnlockFramerateHelpText =
 const Rml::String kTextureReplacementHelpText =
     "Enable installed texture replacements.";
 
+#if defined(__APPLE__) && TARGET_OS_TV
+Rml::String texture_pack_transfer_status() {
+    std::array<char, 512> installStatus{};
+    DuskTVOSTexturePack_GetStatus(installStatus.data(), installStatus.size());
+    if (std::string_view{installStatus.data()} !=
+        "ZIP texture pack upload is ready.") {
+        return installStatus.data();
+    }
+    std::array<char, 512> transferStatus{};
+    DuskTVOSFileServer_GetStatus(transferStatus.data(), transferStatus.size());
+    return transferStatus.data();
+}
+
+#if DUSK_ENABLE_ICLOUD_SAVE_SYNC
+Rml::String icloud_save_sync_status() {
+    std::array<char, 512> status{};
+    DuskICloudSaveSync_GetStatus(status.data(), status.size());
+    return status.data();
+}
+#endif
+
+void start_uploads() {
+    const auto configDirectoryString = ConfigPath.string();
+    DuskTVOSFileServer_StartUploads(configDirectoryString.c_str());
+}
+
+Rml::String save_bridge_status() {
+    std::array<char, 512> status{};
+    DuskSaveBridgeSync_GetStatus(status.data(), status.size());
+    return status.data();
+}
+
+std::string& save_bridge_pairing_code() {
+    static std::string code;
+    return code;
+}
+#endif
+
 int float_setting_percent(ConfigVar<float>& var) {
     return static_cast<int>(var.getValue() * 100.0f + 0.5f);
 }
@@ -497,7 +547,11 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             leftPane.register_control(
                 leftPane
                     .add_select_button({
+#if defined(__APPLE__) && TARGET_OS_TV
+                        .key = "Game Disc Transfer",
+#else
                         .key = "Disc Image",
+#endif
                         .getValue =
                             [] {
                                 const auto& path = prelaunch_state().configuredDiscPath;
@@ -521,8 +575,16 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                     })
                     .on_pressed([] { open_iso_picker(); }),
                 rightPane, [](Pane& pane) {
+#if defined(__APPLE__) && TARGET_OS_TV
+                    pane.add_rml(
+                        "Transfer a Twilight Princess GameCube disc image from a phone or "
+                        "computer on the same network.<br/><br/>"
+                        "Dusklight verifies the upload automatically. A valid replacement "
+                        "requires an app restart.");
+#else
                     pane.add_rml("Set the disc image that Dusklight uses to launch the game.<br/><br/>"
                                  "Changes require a restart.");
+#endif
                 });
             if (data::manager().capabilities().canChangeLocation &&
                 borealis::file_select::capabilities().canOpenFolder)
@@ -674,6 +736,81 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             add_save_files_control(leftPane, rightPane);
         });
     }
+
+#if defined(__APPLE__) && TARGET_OS_TV
+    add_tab("Uploads", [this](Rml::Element* content) {
+        auto& leftPane = add_child<Pane>(content, Pane::Type::Controlled);
+        auto& rightPane = add_child<Pane>(content, Pane::Type::Uncontrolled);
+        leftPane.add_section("Local Network Uploads");
+        leftPane.register_control(
+            leftPane
+                .add_select_button({
+                    .key = "Upload Server",
+                    .getValue = [] { return texture_pack_transfer_status(); },
+                }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Open one local web page from a phone or computer on the same network to "
+                    "upload a game disc, <b>.gci</b> save, <b>ZIP</b> texture pack, or <b>.dusk</b> mod. "
+                    "Save uploads replace the one save file for the selected region. Return to "
+                    "title before loading an uploaded save; restart Dusklight after uploading a mod.");
+                auto* uploadButton = &pane.add_button(
+                    DuskTVOSFileServer_IsRunning() ? "Upload Server Running" : "Start Upload Server");
+                uploadButton->on_pressed([uploadButton] {
+                    if (!DuskTVOSFileServer_IsRunning()) {
+                        start_uploads();
+                    }
+                    uploadButton->set_text("Upload Server Running");
+                });
+            });
+        leftPane.register_control(
+            leftPane.add_child<StringButton>(StringButton::Props{
+                .key = "Save Bridge Pairing Code",
+                .getValue = [] { return save_bridge_pairing_code(); },
+                .setValue = [](Rml::String value) { save_bridge_pairing_code() = value; },
+                .maxLength = 6,
+            }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml("Enter the six-digit code currently shown in Linkzenic Save Bridge on your Mac.");
+                pane.add_button("Pair with Save Bridge").on_pressed([] {
+                    DuskSaveBridgeSync_Pair(save_bridge_pairing_code().c_str());
+                });
+                pane.add_text(save_bridge_status());
+            });
+        leftPane.register_control(
+            leftPane.add_select_button({
+                .key = "Save Bridge Sync",
+                .getValue = [] { return save_bridge_status(); },
+            }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Choose the one region used by your installed disc. The same region must be selected in the Mac Save Bridge app. "
+                    "Save Bridge transfers the newer .gci save files in that folder.");
+                pane.add_button("Sync USA Saves").on_pressed([] { DuskSaveBridgeSync_SyncNow("USA"); });
+                pane.add_button("Sync EUR Saves").on_pressed([] { DuskSaveBridgeSync_SyncNow("EUR"); });
+                pane.add_button("Sync JAP Saves").on_pressed([] { DuskSaveBridgeSync_SyncNow("JAP"); });
+                pane.add_text(save_bridge_status());
+            });
+#if DUSK_ENABLE_ICLOUD_SAVE_SYNC
+        leftPane.register_control(
+            leftPane.add_select_button({
+                .key = "iCloud Save Sync",
+                .getValue = [] { return icloud_save_sync_status(); },
+            }),
+            rightPane, [](Pane& pane) {
+                pane.add_rml(
+                    "Dusklight automatically synchronizes the USA, EUR, and JAP save folders "
+                    "through your private iCloud account.<br/><br/>"
+                    "Local saves upload periodically and when the app moves to the background. "
+                    "Newer cloud saves are applied safely the next time Dusklight launches.");
+                pane.add_text(icloud_save_sync_status());
+                pane.add_button("Sync Saves Now").on_pressed([] {
+                    DuskICloudSaveSync_SyncNow();
+                });
+            });
+#endif
+    });
+#endif
 
     add_tab("Video", [this](Rml::Element* content) {
         auto& leftPane = add_child<Pane>(content, Pane::Type::Controlled);
@@ -1679,10 +1816,27 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
 }
 
 void SettingsWindow::update() {
+    poll_uploaded_disc();
     if (mPrelaunch && top_document() == this) {
         try_push_verification_modal(*this);
         try_push_language_unavailable_modal(*this);
     }
+
+#if defined(__APPLE__) && TARGET_OS_TV
+    std::array<char, 4096> textureArchive{};
+    if (DuskTVOSFileServer_TakeUploadedTextureArchive(
+            textureArchive.data(), textureArchive.size())) {
+        const auto textureDirectory = ConfigPath / "texture_replacements";
+        const auto textureDirectoryString = textureDirectory.string();
+        DuskTVOSTexturePack_BeginInstall(
+            textureArchive.data(), textureDirectoryString.c_str());
+    }
+    int installSucceeded = 0;
+    if (DuskTVOSTexturePack_TakeCompleted(&installSucceeded) &&
+        installSucceeded != 0) {
+        texture_replacements::reload();
+    }
+#endif
 
     Window::update();
 }

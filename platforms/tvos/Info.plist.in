@@ -29,7 +29,7 @@
     <key>CFBundleIcons</key>
     <dict>
       <key>CFBundlePrimaryIcon</key>
-      <string>App Icon</string>
+      <string>App Icon - Small</string>
     </dict>
     <key>MinimumOSVersion</key>
     <string>${DEPLOYMENT_TARGET}</string>
@@ -41,6 +41,13 @@
     <string>${MACOSX_BUNDLE_COPYRIGHT}</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+	<string>Dusklight uses your local network only to transfer your own disc images, texture packs, and save files, and to synchronize saves with Linkzenic Save Bridge.</string>
+    <key>NSBonjourServices</key>
+    <array>
+      <string>_dusklight-transfer._tcp</string>
+      <string>_linkzenic-savebridge._tcp</string>
+    </array>
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
     <key>UIUserInterfaceStyle</key>

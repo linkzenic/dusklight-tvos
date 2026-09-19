@@ -22,6 +22,7 @@
 #include "dusk/imgui/ImGuiEngine.hpp"
 #include "dusk/language.hpp"
 #include "dusk/livesplit.h"
+#include "dusk/main.h"
 #include "dusk/presentation.hpp"
 #include "dusk/speedrun.h"
 #include "dusk/texture_replacements.hpp"

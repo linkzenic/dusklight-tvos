@@ -38,7 +38,7 @@ jobs:
           cmake --preset x-tvos-ci
           -DDUSK_APPLE_CODE_SIGNING=OFF
           -DDUSK_ENABLE_CODE_MODS=ON
-          -DDUSK_UPSTREAM_VERSION_OVERRIDE=v2.0.0
+          -DDUSK_UPSTREAM_VERSION_OVERRIDE=v2.0.1
 
       - name: Build
         run: cmake --build --preset x-tvos-ci

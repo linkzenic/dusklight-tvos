@@ -16,6 +16,14 @@ env:
 jobs:
   build:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slug: ""
+            icloud: "ON"
+          - slug: "-noicloud"
+            icloud: "OFF"
     steps:
       - uses: actions/checkout@v6
         with:
@@ -38,6 +46,7 @@ jobs:
           cmake --preset x-tvos-ci
           -DDUSK_APPLE_CODE_SIGNING=OFF
           -DDUSK_ENABLE_CODE_MODS=ON
+          -DDUSK_ENABLE_ICLOUD_SAVE_SYNC=${{matrix.icloud}}
           -DDUSK_UPSTREAM_VERSION_OVERRIDE=v2.0.1
 
       - name: Build
@@ -63,21 +72,27 @@ jobs:
           fi
           (
             cd "$package_root"
-            /usr/bin/zip -qry ../Dusklight-tvOS-unsigned.ipa Payload
+            /usr/bin/zip -qry "../Dusklight-tvOS-unsigned${{matrix.slug}}.ipa" Payload
           )
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Dusklight-tvOS-unsigned
-          path: build/Dusklight-tvOS-unsigned.ipa
+          name: Dusklight-tvOS-unsigned${{matrix.slug}}
+          path: build/Dusklight-tvOS-unsigned${{matrix.slug}}.ipa
 
       - name: Publish tagged release
         if: startsWith(github.ref, 'refs/tags/tvos-v')
         env:
           GH_TOKEN: ${{github.token}}
-        run: >-
-          gh release create "${{github.ref_name}}"
-          build/Dusklight-tvOS-unsigned.ipa
-          --generate-notes
-          --title "Dusklight tvOS ${{github.ref_name}} (unsigned)"
+        run: |
+          set -euo pipefail
+          tag="${{github.ref_name}}"
+          ipa="build/Dusklight-tvOS-unsigned${{matrix.slug}}.ipa"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$ipa" --clobber
+          else
+            gh release create "$tag" "$ipa" \
+            --generate-notes \
+            --title "Dusklight tvOS $tag (unsigned)"
+          fi

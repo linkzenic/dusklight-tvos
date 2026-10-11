@@ -25,6 +25,13 @@
 #include <cmath>
 #include <limits>
 
+// Cap on the map's offscreen render target. Scaling it with the internal
+// resolution renders it at the full framebuffer size (3840x2160 on Apple TV 4K),
+// where its four buffers (~13 bytes/px, >80 MB) blow the tvOS memory budget and
+// trigger a jetsam kill. The map is a palette map upscaled to the display, so
+// ~1.3 MP still looks good at ~17 MB. See TwilitRealm/dusklight#1058.
+constexpr u32 kMaxMapRenderPixels = 1280 * 1024;
+
 u16 scaled_map_axis(u16 value, f32 scale) {
     const auto scaledValue =
         static_cast<u32>(std::max(1.0f, std::round(static_cast<f32>(value) * scale)));
@@ -36,19 +43,28 @@ aurora::Vec2<u16> map_render_size_for(u16 width, u16 height) {
         return {width, height};
     }
 
-    u32 renderWidth = 0;
-    u32 renderHeight = 0;
-    AuroraGetRenderSize(&renderWidth, &renderHeight);
+    u32 targetWidth = 0;
+    u32 targetHeight = 0;
+    AuroraGetRenderSize(&targetWidth, &targetHeight);
 
     const f32 logicalWidth = std::max(mDoGph_gInf_c::getWidthF(), 1.0f);
     const f32 logicalHeight = std::max(mDoGph_gInf_c::getHeightF(), 1.0f);
-    const f32 irScaleX = renderWidth > 0 ? static_cast<f32>(renderWidth) / logicalWidth : 1.0f;
-    const f32 irScaleY = renderHeight > 0 ? static_cast<f32>(renderHeight) / logicalHeight : 1.0f;
+    const f32 irScaleX = targetWidth > 0 ? static_cast<f32>(targetWidth) / logicalWidth : 1.0f;
+    const f32 irScaleY = targetHeight > 0 ? static_cast<f32>(targetHeight) / logicalHeight : 1.0f;
     const f32 hudScale = std::clamp(dusk::getSettings().game.hudScale.getValue(), 0.5f, 2.0f);
-    return {
-        scaled_map_axis(width, irScaleX * hudScale),
-        scaled_map_axis(height, irScaleY * hudScale),
-    };
+
+    u16 renderWidth = scaled_map_axis(width, irScaleX * hudScale);
+    u16 renderHeight = scaled_map_axis(height, irScaleY * hudScale);
+
+    const u64 pixels = static_cast<u64>(renderWidth) * static_cast<u64>(renderHeight);
+    if (pixels > kMaxMapRenderPixels) {
+        const f32 capScale =
+            std::sqrt(static_cast<f32>(kMaxMapRenderPixels) / static_cast<f32>(pixels));
+        renderWidth = scaled_map_axis(renderWidth, capScale);
+        renderHeight = scaled_map_axis(renderHeight, capScale);
+    }
+
+    return {renderWidth, renderHeight};
 }
 #endif
 

@@ -778,6 +778,19 @@ int game_main(int argc, char* argv[]) {
     } else {
         AuroraSetViewportPolicy(AURORA_VIEWPORT_STRETCH);
     }
+    #if defined(__APPLE__) && defined(__TVOS__)
+    // Apple TV 4K jetsam-kills us past ~1 GB of app footprint. The Dusk preset's
+    // native-4K internal rendering (scale 0 = Auto) plus 4x shadow maps exceed
+    // that, so clamp both. Settings can still override at the user's own risk.
+    // See TwilitRealm/dusklight#1058.
+    if (dusk::getSettings().game.internalResolutionScale.getValue() == 0 ||
+        dusk::getSettings().game.internalResolutionScale.getValue() > 3) {
+        dusk::getSettings().game.internalResolutionScale.setValue(3);
+    }
+    if (dusk::getSettings().game.shadowResolutionMultiplier.getValue() > 2) {
+        dusk::getSettings().game.shadowResolutionMultiplier.setValue(2);
+    }
+#endif
     dusk::applyInternalResolutionScale(dusk::getSettings().game.internalResolutionScale.getValue());
     dusk::applyResampler(dusk::getSettings().game.resampler.getValue());
 
